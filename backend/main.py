@@ -19,8 +19,13 @@ from analysis.forecast import expected_range
 from analysis.fundamental import forward_pe, revenue_trend, valuation
 from analysis.signal import price_levels, technical_signals
 from analysis.technical import bollinger, macd, rsi
+from cache import ttl_cache
 from data.news import fetch_news
 from data.symbols import symbols
+
+# 캐시된 조회 래퍼 (반복 호출 흡수)
+_symbols = ttl_cache(60 * 60 * 24)(symbols)
+_news = ttl_cache(60 * 15)(fetch_news)
 
 app = FastAPI(title="스톡 인사이트 API")
 app.add_middleware(
@@ -37,9 +42,15 @@ def _market(code: str) -> str:
     return "한국" if code.upper() == "KR" else "미국"
 
 
+@ttl_cache(60 * 5)
 def _load(ticker: str, period: str) -> pd.DataFrame:
     start = date.today() - timedelta(days=PERIOD_DAYS.get(period, 90))
     return fdr.DataReader(ticker, start)
+
+
+@ttl_cache(60 * 5)
+def _load_index(code: str) -> pd.DataFrame:
+    return fdr.DataReader(code, date.today() - timedelta(days=120))
 
 
 def _series(s: pd.Series):
@@ -54,7 +65,7 @@ def health():
 
 @app.get("/api/symbols")
 def api_symbols(market: str, q: str = ""):
-    df = symbols(_market(market))
+    df = _symbols(_market(market))
     if q:
         mask = df["name"].str.contains(q, case=False, na=False) | \
             df["ticker"].str.contains(q, case=False, na=False)
@@ -134,7 +145,7 @@ def api_forecast(ticker: str, period: str = "3m", horizon: int = 7):
 
 @app.get("/api/news")
 def api_news(market: str, name: str):
-    return fetch_news(_market(market), name)
+    return _news(_market(market), name)
 
 
 @app.get("/api/forward-pe")
@@ -150,7 +161,7 @@ def api_index(name: str):
     code = INDEX_TICKERS.get(name.upper())
     if not code:
         return None
-    df = fdr.DataReader(code, date.today() - timedelta(days=120))
+    df = _load_index(code)
     close = df["Close"].dropna()
     last, prev = float(close.iloc[-1]), float(close.iloc[-2])
     return {
