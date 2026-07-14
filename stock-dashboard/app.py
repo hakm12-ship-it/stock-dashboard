@@ -32,23 +32,58 @@ BAND = "rgba(140,148,162,0.5)"
 
 st.set_page_config(page_title="스톡 인사이트", page_icon="📈", layout="wide")
 
-# ---- 스타일: 카드형 지표 · 여백 · 탭 다듬기 ----
+# ---- 스타일: 프리미엄 핀테크 터미널 (IBM Plex + 카드 + 앰버 포인트) ----
 st.markdown(
     """
     <style>
-      .block-container { padding-top: 2.2rem; padding-bottom: 3rem; max-width: 1080px; }
-      [data-testid="stMetric"] {
-        background: #151C26; border: 1px solid #232B37;
-        border-radius: 12px; padding: 12px 16px;
+      @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap');
+
+      html, body, .stApp, [data-testid="stAppViewContainer"], section[data-testid="stSidebar"] {
+        font-family: 'IBM Plex Sans KR', system-ui, -apple-system, sans-serif;
       }
-      [data-testid="stMetricValue"] { font-size: 1.45rem; font-weight: 700; }
-      [data-testid="stMetricLabel"] p { font-size: 0.82rem; opacity: 0.85; }
-      [data-testid="stTabs"] button[role="tab"] p { font-size: 15px; font-weight: 600; }
+      .block-container { padding-top: 2rem; padding-bottom: 4rem; max-width: 1120px; }
+
+      h1, h2, h3 { letter-spacing: -0.015em; font-weight: 700; }
+
+      /* 지표: 카드 + 모노 숫자 */
+      [data-testid="stMetric"] {
+        background: #12151C; border: 1px solid #232833;
+        border-radius: 12px; padding: 14px 16px;
+      }
+      [data-testid="stMetricLabel"] p {
+        font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em;
+        text-transform: uppercase; color: #8B94A3;
+      }
+      [data-testid="stMetricValue"] {
+        font-family: 'IBM Plex Mono', monospace; font-weight: 600;
+        font-variant-numeric: tabular-nums; font-size: 1.4rem; letter-spacing: -0.01em;
+      }
+      [data-testid="stMetricDelta"] {
+        font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem;
+      }
+
+      /* 탭: 앰버 언더라인 */
+      [data-testid="stTabs"] [data-baseweb="tab-list"] { gap: 6px; border-bottom: 1px solid #232833; }
+      [data-testid="stTabs"] button[role="tab"] { padding: 10px 6px; }
+      [data-testid="stTabs"] button[role="tab"] p { font-size: 0.92rem; font-weight: 600; color: #8B94A3; }
+      [data-testid="stTabs"] button[aria-selected="true"] p { color: #E8EBF0; }
+      [data-testid="stTabs"] [data-baseweb="tab-highlight"] { background-color: #E0A63C !important; height: 2px; }
+
+      /* 사이드바 */
+      section[data-testid="stSidebar"] { background: #0C0F14; border-right: 1px solid #232833; }
+
+      /* 버튼 */
+      .stButton button {
+        border: 1px solid #232833; background: #12151C; border-radius: 9px;
+        font-weight: 500; transition: border-color .15s ease, background .15s ease;
+      }
+      .stButton button:hover { border-color: #E0A63C; background: #171B24; color: #E8EBF0; }
+
+      /* 잡정리 */
       [data-testid="stHeader"] { background: transparent; }
-      section[data-testid="stSidebar"] { border-right: 1px solid #232B37; }
       footer { visibility: hidden; height: 0; }
-      h1 { letter-spacing: -0.02em; }
-      hr { margin: 0.7rem 0; border-color: #232B37; }
+      hr { margin: 0.9rem 0; border-color: #232833; }
+      [data-testid="stExpander"] { border: 1px solid #232833; border-radius: 10px; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -201,7 +236,17 @@ with st.sidebar:
             st.rerun()
 
 # ---- 본문 ----
-st.title("📈 스톡 인사이트")
+st.markdown(
+    """
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:2px;">
+      <span style="font-size:1.3rem;">📈</span>
+      <span style="font-size:1.3rem; font-weight:700; letter-spacing:-0.01em;">스톡 인사이트</span>
+      <span style="font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#E0A63C;
+                   border:1px solid #E0A63C55; border-radius:5px; padding:1px 6px; letter-spacing:0.08em;">BETA</span>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 st.caption("⚠️ 투자 조언이 아닙니다 — 모든 정보는 참고용이며 판단·책임은 사용자에게 있습니다.")
 
 ticker = (ticker or "").strip()
@@ -229,15 +274,21 @@ _chg = _last["Close"] - _prev["Close"]
 _pct = (_chg / _prev["Close"] * 100) if _prev["Close"] else 0
 _color = UP if _chg >= 0 else DOWN
 _sign = "▲" if _chg >= 0 else "▼"
+_flag = "KR" if market == "한국" else "US"
 st.markdown(
     f"""
-    <div style="display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;">
-      <span style="font-size:1.6rem; font-weight:700;">{name}</span>
-      <span style="color:#8A94A2; font-family:monospace; font-size:0.95rem;">{ticker}</span>
-    </div>
-    <div style="display:flex; align-items:baseline; gap:12px; margin:2px 0 14px;">
-      <span style="font-size:1.9rem; font-weight:750; font-variant-numeric:tabular-nums;">{f_price(_last['Close'], market)}</span>
-      <span style="color:{_color}; font-weight:600; font-size:1.05rem;">{_sign} {abs(_pct):.2f}%</span>
+    <div style="padding:4px 0 16px; border-bottom:1px solid #232833; margin-bottom:18px;">
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <span style="font-size:1.5rem; font-weight:700; letter-spacing:-0.01em;">{name}</span>
+        <span style="font-family:'IBM Plex Mono',monospace; color:#8B94A3; font-size:0.8rem;
+                     border:1px solid #232833; border-radius:6px; padding:2px 8px;">{ticker} · {_flag}</span>
+      </div>
+      <div style="display:flex; align-items:baseline; gap:12px; margin-top:8px;">
+        <span style="font-family:'IBM Plex Mono',monospace; font-size:2rem; font-weight:600;
+                     font-variant-numeric:tabular-nums; letter-spacing:-0.01em;">{f_price(_last['Close'], market)}</span>
+        <span style="font-family:'IBM Plex Mono',monospace; color:{_color}; font-weight:600;
+                     font-size:1.05rem;">{_sign} {abs(_pct):.2f}%</span>
+      </div>
     </div>
     """,
     unsafe_allow_html=True,

@@ -1,10 +1,10 @@
-# 스톡 인사이트 — 다크 테마 (차트 네이비+골드와 통일)
+# 스톡 인사이트 — 프리미엄 핀테크 터미널 테마 (잉크블랙 + 앰버)
 [theme]
 base = "dark"
-primaryColor = "#E0B84D"
-backgroundColor = "#0B0F16"
-secondaryBackgroundColor = "#151C26"
-textColor = "#E7EBF1"
+primaryColor = "#E0A63C"
+backgroundColor = "#0A0C10"
+secondaryBackgroundColor = "#12151C"
+textColor = "#E8EBF0"
 
 [client]
 toolbarMode = "minimal"
