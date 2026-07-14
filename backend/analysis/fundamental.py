@@ -109,3 +109,34 @@ def revenue_trend(market: str, ticker: str):
     df = pd.DataFrame(cols)
     df.index = [idx.year for idx in df.index]
     return df.sort_index()
+
+
+def forward_pe(market: str, ticker: str) -> dict:
+    """현재 PER + 미래 PER(올해·내년 컨센서스). 애널리스트 예상EPS만 사용."""
+    t, symbol, info = _resolve(market, ticker)
+    price = info.get("currentPrice") or info.get("regularMarketPrice")
+
+    trailing = info.get("trailingPE")
+    if trailing is None:
+        eps = info.get("trailingEps")
+        if eps is None:
+            ni, sh = info.get("netIncomeToCommon"), info.get("sharesOutstanding")
+            eps = (ni / sh) if (ni and sh) else None
+        if price and eps and eps > 0:
+            trailing = price / eps
+
+    out = {"price": price, "trailing": trailing, "forward": []}
+    try:
+        ee = t.earnings_estimate
+    except Exception:
+        ee = None
+    labels = {"0y": "올해(E)", "+1y": "내년(E)"}
+    if ee is not None and not ee.empty and "avg" in ee.columns:
+        for period, label in labels.items():
+            if period in ee.index:
+                eps = ee.loc[period, "avg"]
+                if price and eps and eps > 0:
+                    out["forward"].append(
+                        {"period": label, "eps": float(eps), "per": float(price / eps)}
+                    )
+    return out

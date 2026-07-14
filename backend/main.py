@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from analysis.forecast import expected_range
-from analysis.fundamental import revenue_trend, valuation
+from analysis.fundamental import forward_pe, revenue_trend, valuation
 from analysis.signal import price_levels, technical_signals
 from analysis.technical import bollinger, macd, rsi
 from data.news import fetch_news
@@ -133,3 +133,27 @@ def api_forecast(ticker: str, period: str = "3m", horizon: int = 7):
 @app.get("/api/news")
 def api_news(market: str, name: str):
     return fetch_news(_market(market), name)
+
+
+@app.get("/api/forward-pe")
+def api_forward_pe(market: str, ticker: str):
+    return forward_pe(_market(market), ticker)
+
+
+INDEX_TICKERS = {"KOSPI": "KS11", "NASDAQ": "IXIC"}
+
+
+@app.get("/api/index")
+def api_index(name: str):
+    code = INDEX_TICKERS.get(name.upper())
+    if not code:
+        return None
+    df = fdr.DataReader(code, date.today() - timedelta(days=120))
+    close = df["Close"].dropna()
+    last, prev = float(close.iloc[-1]), float(close.iloc[-2])
+    return {
+        "name": name.upper(), "last": last,
+        "change": last - prev,
+        "changePct": (last - prev) / prev * 100 if prev else 0,
+        "series": [{"time": i.strftime("%Y-%m-%d"), "close": float(c)} for i, c in close.items()],
+    }
