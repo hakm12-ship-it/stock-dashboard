@@ -1,0 +1,108 @@
+import axios from 'axios'
+import type { Market } from '../data/tickers'
+
+const api = axios.create({ baseURL: '' })
+
+export type Period = '1m' | '3m' | '6m' | '1y'
+
+export interface Candle {
+  time: string
+  open: number
+  high: number
+  low: number
+  close: number
+  volume: number
+}
+
+export interface IndexData {
+  name: string
+  last: number
+  change: number
+  changePct: number
+  series: { time: string; close: number }[]
+}
+
+export interface Indicators {
+  time: string[]
+  rsi: (number | null)[]
+  macd: (number | null)[]
+  signal: (number | null)[]
+  hist: (number | null)[]
+  bb_upper: (number | null)[]
+  bb_lower: (number | null)[]
+  ma20: (number | null)[]
+  ma60: (number | null)[]
+}
+
+export interface Valuation {
+  종목: string
+  섹터: string | null
+  통화: string | null
+  PER: number | null
+  PBR: number | null
+  EPS: number | null
+  ROE: number | null
+  배당수익률: number | null
+  시가총액: number | null
+}
+
+export interface ForwardPe {
+  price: number | null
+  trailing: number | null
+  forward: { period: string; eps: number; per: number }[]
+}
+
+export type Trend = { years: number[] } & Record<string, (number | null)[] | number[]>
+
+export interface SignalItem {
+  name: string
+  score: number
+  detail: string
+}
+export interface SignalData {
+  signals: SignalItem[]
+  total: number
+  verdict: string
+  price: number
+  support: { label: string; value: number }[]
+  resistance: { label: string; value: number }[]
+}
+
+export interface ForecastBand {
+  time: string
+  upper_inner: number
+  lower_inner: number
+  upper_outer: number
+  lower_outer: number
+}
+export interface Forecast {
+  last: number
+  sigma: number
+  band: ForecastBand[]
+}
+
+export interface NewsItem {
+  title: string
+  link: string
+  source: string
+  published: string
+}
+
+const get = <T>(url: string, params: Record<string, unknown>) =>
+  api.get<T>(url, { params }).then((r) => r.data)
+
+export const getIndex = (name: string) => get<IndexData>('/api/index', { name })
+export const getPrices = (ticker: string, period: Period) =>
+  get<Candle[]>('/api/prices', { ticker, period })
+export const getIndicators = (ticker: string, period: Period) =>
+  get<Indicators>('/api/indicators', { ticker, period })
+export const getValuation = (market: Market, ticker: string) =>
+  get<Valuation>('/api/valuation', { market, ticker })
+export const getForwardPe = (market: Market, ticker: string) =>
+  get<ForwardPe>('/api/forward-pe', { market, ticker })
+export const getTrend = (market: Market, ticker: string) =>
+  get<Trend | null>('/api/trend', { market, ticker })
+export const getSignal = (ticker: string) => get<SignalData>('/api/signal', { ticker })
+export const getForecast = (ticker: string) => get<Forecast>('/api/forecast', { ticker })
+export const getNews = (market: Market, name: string) =>
+  get<NewsItem[]>('/api/news', { market, name })
