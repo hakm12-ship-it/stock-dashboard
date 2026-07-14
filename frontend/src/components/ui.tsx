@@ -50,3 +50,25 @@ export function Loading({ label = '불러오는 중…' }: { label?: string }) {
 export function Empty({ label = '데이터가 없어요' }: { label?: string }) {
   return <div className="text-muted text-sm py-8 text-center">{label}</div>
 }
+
+export function ErrorState({
+  onRetry,
+  label = '데이터를 불러오지 못했어요',
+}: {
+  onRetry?: () => void
+  label?: string
+}) {
+  return (
+    <div className="text-center py-8">
+      <div className="text-muted text-sm">{label}</div>
+      {onRetry && (
+        <button
+          onClick={onRetry}
+          className="mt-3 px-4 py-1.5 rounded-lg border border-border text-sm text-text active:bg-surface-2"
+        >
+          다시 시도
+        </button>
+      )}
+    </div>
+  )
+}

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { getValuation, getForwardPe, getTrend } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
-import { Panel, Loading, Empty, Metric } from '../components/ui'
+import { Panel, Loading, Empty, ErrorState, Metric } from '../components/ui'
 import { fmtNum, fmtEps, fmtCap } from '../lib/format'
 
 export default function FundamentalView({ t }: { t: FocusTicker }) {
@@ -23,6 +23,7 @@ export default function FundamentalView({ t }: { t: FocusTicker }) {
   }
 
   if (val.isLoading) return <Loading />
+  if (val.isError) return <ErrorState onRetry={() => val.refetch()} />
   const v = val.data
 
   const cur = fpe.data?.trailing

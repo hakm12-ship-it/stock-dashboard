@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { getSignal, getForecast, getValuation } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
-import { Panel, Loading, Empty, Metric } from '../components/ui'
+import { Panel, Loading, Empty, ErrorState, Metric } from '../components/ui'
 import { fmtPrice, fmtNum, fmtPct } from '../lib/format'
 
 const VERDICT_STYLE: Record<string, string> = {
@@ -21,6 +21,7 @@ export default function SignalView({ t }: { t: FocusTicker }) {
   const val = useQuery({ queryKey: ['val', t.market, t.ticker], queryFn: () => getValuation(t.market, t.ticker) })
 
   if (sig.isLoading) return <Loading />
+  if (sig.isError) return <ErrorState onRetry={() => sig.refetch()} />
   if (!sig.data) return <Empty />
   const s = sig.data
 

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getPrices, getIndicators, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
-import { Loading, Empty, Metric } from '../components/ui'
+import { Loading, Empty, ErrorState, Metric } from '../components/ui'
 import TechnicalCharts from '../components/TechnicalCharts'
 import { fmtPrice } from '../lib/format'
 
@@ -64,6 +64,13 @@ export default function TechnicalView({
 
       {prices.isLoading || ind.isLoading ? (
         <Loading />
+      ) : prices.isError || ind.isError ? (
+        <ErrorState
+          onRetry={() => {
+            prices.refetch()
+            ind.refetch()
+          }}
+        />
       ) : prices.data && ind.data && prices.data.length ? (
         <TechnicalCharts candles={prices.data} ind={ind.data} showMA={showMA} showBB={showBB} />
       ) : (

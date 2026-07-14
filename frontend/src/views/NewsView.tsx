@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { getNews } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
-import { Loading, Empty } from '../components/ui'
+import { Loading, Empty, ErrorState } from '../components/ui'
 
 export default function NewsView({ t }: { t: FocusTicker }) {
   const news = useQuery({ queryKey: ['news', t.market, t.name], queryFn: () => getNews(t.market, t.name) })
 
   if (news.isLoading) return <Loading />
+  if (news.isError) return <ErrorState onRetry={() => news.refetch()} />
   if (!news.data || news.data.length === 0) return <Empty label="관련 뉴스를 찾지 못했어요" />
 
   return (
