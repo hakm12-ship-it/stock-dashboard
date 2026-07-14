@@ -18,6 +18,7 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 import data.watchlist as wl
+from analysis.forecast import expected_range
 from analysis.fundamental import revenue_trend, valuation
 from analysis.signal import price_levels, technical_signals
 from analysis.technical import bollinger, macd, rsi
@@ -213,6 +214,42 @@ with tab_signal:
     box = {"매수 우위": st.success, "매도 우위": st.error, "중립": st.info}[verdict]
     box(f"**기술적 신호 종합 : {verdict}**  (점수 {total:+d} / ±5)")
 
+    # 🔮 예상 변동 범위 (변동성 기반)
+    st.markdown("**🔮 예상 변동 범위**  ·  향후 7거래일 · 방향 예측 아님")
+    last_px, sigma, rng = expected_range(df, horizon=7)
+    hi, lo = rng["upper_inner"].iloc[-1], rng["lower_inner"].iloc[-1]
+    r1, r2, r3 = st.columns(3)
+    r1.metric("예상 하단 (약 68%)", f_price(lo, market),
+              f"{(lo / last_px - 1) * 100:+.1f}%", delta_color="off")
+    r2.metric("현재가", f_price(last_px, market))
+    r3.metric("예상 상단 (약 68%)", f_price(hi, market),
+              f"{(hi / last_px - 1) * 100:+.1f}%", delta_color="off")
+
+    recent = df["Close"].tail(40)
+    bx = [recent.index[-1]] + list(rng.index)
+    anchor = lambda col: [last_px] + list(rng[col])  # noqa: E731
+    ff = go.Figure()
+    ff.add_trace(go.Scatter(x=bx, y=anchor("upper_outer"), mode="lines",
+                            line=dict(width=0), hoverinfo="skip", showlegend=False))
+    ff.add_trace(go.Scatter(x=bx, y=anchor("lower_outer"), mode="lines",
+                            line=dict(width=0), fill="tonexty",
+                            fillcolor="rgba(140,148,162,0.10)", hoverinfo="skip", showlegend=False))
+    ff.add_trace(go.Scatter(x=bx, y=anchor("upper_inner"), mode="lines",
+                            line=dict(width=0), hoverinfo="skip", showlegend=False))
+    ff.add_trace(go.Scatter(x=bx, y=anchor("lower_inner"), mode="lines",
+                            line=dict(width=0), fill="tonexty",
+                            fillcolor="rgba(140,148,162,0.24)", hoverinfo="skip", showlegend=False))
+    ff.add_trace(go.Scatter(x=bx, y=[last_px] * len(bx), mode="lines",
+                            line=dict(color=GRAY, width=1, dash="dot"),
+                            hoverinfo="skip", showlegend=False))
+    ff.add_trace(go.Scatter(x=recent.index, y=recent.values, mode="lines",
+                            line=dict(color=GOLD, width=1.8), showlegend=False))
+    ff.update_layout(height=300, margin=dict(l=0, r=0, t=6, b=0))
+    st.plotly_chart(ff, width="stretch", config={"displayModeBar": False})
+    st.caption(f"최근 일일 변동성 {sigma * 100:.1f}% 기준 · 진한 띠 ≈68%, 연한 띠 ≈95% 범위. "
+               "방향 예측이 아니며 실제 가격은 범위를 벗어날 수 있습니다.")
+
+    st.divider()
     st.markdown("**신호 근거**")
     for s in sigs:
         mark = "🟢" if s["score"] > 0 else "🔴" if s["score"] < 0 else "⚪"
