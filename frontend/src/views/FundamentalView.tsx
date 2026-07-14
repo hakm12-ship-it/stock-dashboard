@@ -11,12 +11,23 @@ export default function FundamentalView({ t }: { t: FocusTicker }) {
   const trend = useQuery({ queryKey: ['trend', t.market, t.ticker], queryFn: () => getTrend(t.market, t.ticker), enabled: isStock })
 
   if (!isStock) {
+    const isIndex = t.kind === 'index'
     return (
-      <Panel label="ETF 안내">
+      <Panel label={isIndex ? '지수 안내' : 'ETF 안내'}>
         <p className="text-sm text-muted leading-relaxed">
-          <b className="text-text">{t.name}</b> 는 ETF라 PER·PBR 같은 개별 기업 밸류에이션이 적용되지 않아요.
-          <br />
-          <span className="text-up">3배 레버리지</span> 상품이라 변동성이 매우 큽니다 — 차트·종합신호 탭에서 가격 흐름과 예상 변동 범위를 확인하세요.
+          {isIndex ? (
+            <>
+              <b className="text-text">{t.name}</b> 는 지수라 PER·PBR 같은 개별 기업 밸류에이션이 없어요.
+              <br />
+              차트·종합신호 탭에서 지수 흐름과 예상 변동 범위를 확인하세요.
+            </>
+          ) : (
+            <>
+              <b className="text-text">{t.name}</b> 는 ETF라 PER·PBR 같은 개별 기업 밸류에이션이 적용되지 않아요.
+              <br />
+              <span className="text-up">3배 레버리지</span> 상품이라 변동성이 매우 큽니다 — 차트·종합신호 탭에서 확인하세요.
+            </>
+          )}
         </p>
       </Panel>
     )

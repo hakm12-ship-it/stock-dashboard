@@ -4,7 +4,7 @@ import { getPrices, getIndicators, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import { Loading, Empty, ErrorState, Metric } from '../components/ui'
 import TechnicalCharts from '../components/TechnicalCharts'
-import { fmtPrice } from '../lib/format'
+import { fmtQuote } from '../lib/format'
 
 const PERIODS: Period[] = ['1m', '3m', '6m', '1y']
 const LABEL: Record<Period, string> = { '1m': '1개월', '3m': '3개월', '6m': '6개월', '1y': '1년' }
@@ -47,7 +47,7 @@ export default function TechnicalView({
 
       {/* 요약 지표 */}
       <div className="grid grid-cols-3 gap-2">
-        <Metric label="현재가" value={last ? fmtPrice(last.close, t.market) : '—'} />
+        <Metric label="현재가" value={last ? fmtQuote(last.close, t) : '—'} />
         <Metric
           label="RSI(14)"
           value={rsiLast != null ? rsiLast.toFixed(1) : '—'}

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getSignal, getForecast, getValuation } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import { Panel, Loading, Empty, ErrorState, Metric } from '../components/ui'
-import { fmtPrice, fmtNum, fmtPct } from '../lib/format'
+import { fmtQuote, fmtNum, fmtPct } from '../lib/format'
 
 const VERDICT_STYLE: Record<string, string> = {
   '매수 우위': 'bg-up/15 border-up/50 text-up',
@@ -50,9 +50,9 @@ export default function SignalView({ t }: { t: FocusTicker }) {
       {b && (
         <Panel label="🔮 예상 변동 범위 · 향후 7거래일">
           <div className="grid grid-cols-3 gap-2 mb-3">
-            <Metric label="예상 하단" value={fmtPrice(b.lower_inner, t.market)} sub={fmtPct(((b.lower_inner / cur) - 1) * 100)} subClass="text-down" />
-            <Metric label="현재가" value={fmtPrice(cur, t.market)} />
-            <Metric label="예상 상단" value={fmtPrice(b.upper_inner, t.market)} sub={fmtPct(((b.upper_inner / cur) - 1) * 100)} subClass="text-up" />
+            <Metric label="예상 하단" value={fmtQuote(b.lower_inner, t)} sub={fmtPct(((b.lower_inner / cur) - 1) * 100)} subClass="text-down" />
+            <Metric label="현재가" value={fmtQuote(cur, t)} />
+            <Metric label="예상 상단" value={fmtQuote(b.upper_inner, t)} sub={fmtPct(((b.upper_inner / cur) - 1) * 100)} subClass="text-up" />
           </div>
           <div className="relative h-3 rounded-full bg-surface-2 overflow-hidden">
             <div
@@ -65,8 +65,8 @@ export default function SignalView({ t }: { t: FocusTicker }) {
             <div className="absolute top-0 bottom-0 w-0.5 bg-accent" style={{ left: `${pos}%` }} />
           </div>
           <div className="flex justify-between mt-1.5 font-mono text-[0.62rem] text-muted">
-            <span>{fmtPrice(b.lower_outer, t.market)}</span>
-            <span>{fmtPrice(b.upper_outer, t.market)}</span>
+            <span>{fmtQuote(b.lower_outer, t)}</span>
+            <span>{fmtQuote(b.upper_outer, t)}</span>
           </div>
           <p className="text-[0.62rem] text-muted mt-2">
             변동성 {fc.data ? (fc.data.sigma * 100).toFixed(1) : '—'}% 기준 · 진한띠 ≈68% · 방향 예측 아님
@@ -96,7 +96,7 @@ export default function SignalView({ t }: { t: FocusTicker }) {
             <div className="text-[0.66rem] text-down font-semibold mb-1.5">지지 (매수 관심)</div>
             {s.support.length ? s.support.map((x) => (
               <div key={x.label} className="flex justify-between text-xs py-0.5">
-                <span className="font-mono tnum">{fmtPrice(x.value, t.market)}</span>
+                <span className="font-mono tnum">{fmtQuote(x.value, t)}</span>
                 <span className="text-muted">{x.label}</span>
               </div>
             )) : <div className="text-[0.7rem] text-muted">없음</div>}
@@ -105,7 +105,7 @@ export default function SignalView({ t }: { t: FocusTicker }) {
             <div className="text-[0.66rem] text-up font-semibold mb-1.5">저항 (매도 관심)</div>
             {s.resistance.length ? s.resistance.map((x) => (
               <div key={x.label} className="flex justify-between text-xs py-0.5">
-                <span className="font-mono tnum">{fmtPrice(x.value, t.market)}</span>
+                <span className="font-mono tnum">{fmtQuote(x.value, t)}</span>
                 <span className="text-muted">{x.label}</span>
               </div>
             )) : <div className="text-[0.7rem] text-muted">없음</div>}

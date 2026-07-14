@@ -1,8 +1,15 @@
-import type { Market } from '../data/tickers'
+import type { Market, FocusTicker } from '../data/tickers'
 
 export const fmtPrice = (v: number | null | undefined, market: Market): string => {
   if (v == null) return '—'
   return market === 'KR' ? `${Math.round(v).toLocaleString()}원` : `$${v.toFixed(2)}`
+}
+
+// 지수는 통화 단위 없이 포인트로, 그 외는 통화 붙여서
+export const fmtQuote = (v: number | null | undefined, t: FocusTicker): string => {
+  if (v == null) return '—'
+  if (t.kind === 'index') return v.toLocaleString(undefined, { maximumFractionDigits: 2 })
+  return fmtPrice(v, t.market)
 }
 
 export const fmtNum = (v: number | null | undefined, d = 2): string =>

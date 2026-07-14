@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { getPrices, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
-import { fmtPrice, changeColor, changeSign } from '../lib/format'
+import { fmtQuote, changeColor, changeSign } from '../lib/format'
 
 export default function StockHeader({ t, period }: { t: FocusTicker; period: Period }) {
   const { data } = useQuery({
@@ -25,10 +25,15 @@ export default function StockHeader({ t, period }: { t: FocusTicker; period: Per
             3X ETF
           </span>
         )}
+        {t.kind === 'index' && (
+          <span className="font-mono text-[0.6rem] text-muted border border-border rounded px-1.5 py-0.5">
+            지수
+          </span>
+        )}
       </div>
       <div className="flex items-baseline gap-3 mt-2">
         <span className="font-mono text-3xl font-semibold tnum tracking-tight">
-          {last ? fmtPrice(last.close, t.market) : '—'}
+          {last ? fmtQuote(last.close, t) : '—'}
         </span>
         {last && prev && (
           <span className={`font-mono text-sm font-semibold ${changeColor(chg)}`}>
