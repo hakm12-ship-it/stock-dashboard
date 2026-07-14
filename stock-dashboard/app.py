@@ -24,8 +24,8 @@ from analysis.technical import bollinger, macd, rsi
 from data.news import fetch_news
 from data.symbols import symbols
 
-# 색상 — 상승=적, 하락=청 (KR 관례)
-UP, DOWN = "#D64545", "#2E6BE6"
+# 색상 — 상승=적, 하락=청 (KR 관례). 선명한 톤으로 봉 시인성 확보
+UP, DOWN = "#F23645", "#2E86FF"
 GOLD, GRAY = "#E0B84D", "#8A94A2"
 BAND = "rgba(140,148,162,0.5)"
 
@@ -146,7 +146,7 @@ with st.sidebar:
                                value="005930" if market == "한국" else "AAPL")
         name = ticker
 
-    period = st.select_slider("기간", options=["3개월", "6개월", "1년", "3년"], value="1년")
+    period = st.select_slider("기간", options=["1개월", "3개월", "6개월", "1년"], value="3개월")
     show_ma = st.checkbox("이동평균선 (20·60일)", value=True)
     show_boll = st.checkbox("볼린저 밴드 (20·2σ)", value=False)
 
@@ -186,7 +186,7 @@ if not ticker:
     st.info("사이드바에서 종목을 검색하세요.")
     st.stop()
 
-days = {"3개월": 90, "6개월": 180, "1년": 365, "3년": 365 * 3}[period]
+days = {"1개월": 30, "3개월": 90, "6개월": 180, "1년": 365}[period]
 start = date.today() - timedelta(days=days)
 
 try:
@@ -289,7 +289,9 @@ with tab_tech:
     fig.add_trace(
         go.Candlestick(
             x=df.index, open=df["Open"], high=df["High"], low=df["Low"], close=df["Close"],
-            name="가격", increasing_line_color=UP, decreasing_line_color=DOWN,
+            name="가격", showlegend=False,
+            increasing=dict(line=dict(color=UP, width=1), fillcolor=UP),
+            decreasing=dict(line=dict(color=DOWN, width=1), fillcolor=DOWN),
         ),
         row=1, col=1,
     )
@@ -311,24 +313,24 @@ with tab_tech:
 
     # 2행: RSI
     fig.add_trace(go.Scatter(x=df.index, y=df["RSI"], mode="lines", name="RSI",
-                             line=dict(color=GOLD, width=1.4)), row=2, col=1)
+                             showlegend=False, line=dict(color=GOLD, width=1.4)), row=2, col=1)
     fig.add_hline(y=70, line=dict(color=UP, width=1, dash="dash"), row=2, col=1)
     fig.add_hline(y=30, line=dict(color=DOWN, width=1, dash="dash"), row=2, col=1)
     fig.update_yaxes(range=[0, 100], row=2, col=1)
 
     # 3행: MACD
     hist_colors = [UP if v >= 0 else DOWN for v in macd_df["hist"]]
-    fig.add_trace(go.Bar(x=df.index, y=macd_df["hist"], name="히스토그램",
+    fig.add_trace(go.Bar(x=df.index, y=macd_df["hist"], name="히스토그램", showlegend=False,
                          marker_color=hist_colors, opacity=0.5), row=3, col=1)
     fig.add_trace(go.Scatter(x=df.index, y=macd_df["macd"], mode="lines", name="MACD",
-                             line=dict(color=GOLD, width=1.3)), row=3, col=1)
+                             showlegend=False, line=dict(color=GOLD, width=1.3)), row=3, col=1)
     fig.add_trace(go.Scatter(x=df.index, y=macd_df["signal"], mode="lines", name="Signal",
-                             line=dict(color=GRAY, width=1.3)), row=3, col=1)
+                             showlegend=False, line=dict(color=GRAY, width=1.3)), row=3, col=1)
 
     fig.update_layout(height=760, xaxis_rangeslider_visible=False, showlegend=True,
                       margin=dict(l=0, r=0, t=28, b=0),
                       legend=dict(orientation="h", y=1.04, x=0))
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 
     with st.expander("원본 데이터 보기"):
         st.dataframe(df.tail(20), width="stretch")
@@ -371,7 +373,7 @@ with tab_fund:
         tfig.update_layout(barmode="group", height=340,
                            margin=dict(l=0, r=0, t=10, b=0),
                            legend=dict(orientation="h", y=1.06, x=0))
-        st.plotly_chart(tfig, width="stretch")
+        st.plotly_chart(tfig, width="stretch", config={"displayModeBar": False})
         st.caption("단위: 각 통화 기준 원자료 값")
     else:
         st.info("연간 실적 데이터를 제공하지 않는 종목입니다.")
