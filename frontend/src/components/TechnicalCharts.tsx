@@ -46,6 +46,7 @@ export default function TechnicalCharts({
   showBB: boolean
 }) {
   const priceRef = useRef<HTMLDivElement>(null)
+  const legendRef = useRef<HTMLDivElement>(null)
   const rsiRef = useRef<HTMLDivElement>(null)
   const macdRef = useRef<HTMLDivElement>(null)
 
@@ -87,6 +88,24 @@ export default function TechnicalCharts({
         color: c.close >= c.open ? 'rgba(242,54,69,0.35)' : 'rgba(46,134,255,0.35)',
       })),
     )
+
+    // 십자선 OHLC 시세 표시
+    const fnum = (n: number) => (n >= 1000 ? Math.round(n).toLocaleString() : n.toFixed(2))
+    const setLegend = (d?: { open: number; high: number; low: number; close: number }) => {
+      if (!legendRef.current) return
+      legendRef.current.textContent = d
+        ? `시 ${fnum(d.open)}  고 ${fnum(d.high)}  저 ${fnum(d.low)}  종 ${fnum(d.close)}`
+        : ''
+    }
+    const lastC = candles[candles.length - 1]
+    setLegend(lastC)
+    pc.subscribeCrosshairMove((param) => {
+      const d = param.seriesData.get(cs) as
+        | { open: number; high: number; low: number; close: number }
+        | undefined
+      setLegend(d ?? lastC)
+    })
+
     if (showBB) {
       const opt = { color: 'rgba(139,148,163,0.45)', lineWidth: 1 as const, priceLineVisible: false, lastValueVisible: false }
       pc.addLineSeries(opt).setData(line(ind.time, ind.bb_upper))
@@ -129,7 +148,13 @@ export default function TechnicalCharts({
 
   return (
     <div className="space-y-1">
-      <div ref={priceRef} className="w-full h-[280px]" />
+      <div className="relative">
+        <div
+          ref={legendRef}
+          className="absolute top-1 left-1 z-10 font-mono text-[0.62rem] text-muted tnum pointer-events-none"
+        />
+        <div ref={priceRef} className="w-full h-[280px]" />
+      </div>
       <div className="text-[0.62rem] uppercase tracking-[0.06em] text-muted pt-2">RSI (14)</div>
       <div ref={rsiRef} className="w-full h-24" />
       <div className="text-[0.62rem] uppercase tracking-[0.06em] text-muted pt-1">MACD (12·26·9)</div>
