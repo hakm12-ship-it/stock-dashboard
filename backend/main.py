@@ -7,11 +7,13 @@ React 프런트엔드가 이 API를 호출한다.
 """
 
 from datetime import date, timedelta
+from pathlib import Path
 
 import FinanceDataReader as fdr
 import pandas as pd
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from analysis.forecast import expected_range
 from analysis.fundamental import forward_pe, revenue_trend, valuation
@@ -157,3 +159,10 @@ def api_index(name: str):
         "changePct": (last - prev) / prev * 100 if prev else 0,
         "series": [{"time": i.strftime("%Y-%m-%d"), "close": float(c)} for i, c in close.items()],
     }
+
+
+# ---- 프로덕션: 빌드된 프론트엔드 정적 서빙 (단일 서비스 배포용) ----
+# 반드시 모든 /api 라우트 뒤에 마운트해야 API가 우선한다.
+_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+if _DIST.is_dir():
+    app.mount("/", StaticFiles(directory=str(_DIST), html=True), name="frontend")

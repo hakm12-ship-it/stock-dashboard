@@ -114,11 +114,11 @@ export default function TechnicalCharts({
 
   return (
     <div className="space-y-1">
-      <div ref={priceRef} className="w-full" />
+      <div ref={priceRef} className="w-full h-[280px]" />
       <div className="text-[0.62rem] uppercase tracking-[0.06em] text-muted pt-2">RSI (14)</div>
-      <div ref={rsiRef} className="w-full" />
+      <div ref={rsiRef} className="w-full h-24" />
       <div className="text-[0.62rem] uppercase tracking-[0.06em] text-muted pt-1">MACD (12·26·9)</div>
-      <div ref={macdRef} className="w-full" />
+      <div ref={macdRef} className="w-full h-24" />
     </div>
   )
 }
