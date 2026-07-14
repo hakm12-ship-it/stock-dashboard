@@ -1,0 +1,10 @@
+# 스톡 인사이트 — 다크 테마 (차트 네이비+골드와 통일)
+[theme]
+base = "dark"
+primaryColor = "#E0B84D"
+backgroundColor = "#0B0F16"
+secondaryBackgroundColor = "#151C26"
+textColor = "#E7EBF1"
+
+[client]
+toolbarMode = "minimal"

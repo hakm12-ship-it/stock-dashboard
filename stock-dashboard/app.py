@@ -32,6 +32,28 @@ BAND = "rgba(140,148,162,0.5)"
 
 st.set_page_config(page_title="스톡 인사이트", page_icon="📈", layout="wide")
 
+# ---- 스타일: 카드형 지표 · 여백 · 탭 다듬기 ----
+st.markdown(
+    """
+    <style>
+      .block-container { padding-top: 2.2rem; padding-bottom: 3rem; max-width: 1080px; }
+      [data-testid="stMetric"] {
+        background: #151C26; border: 1px solid #232B37;
+        border-radius: 12px; padding: 12px 16px;
+      }
+      [data-testid="stMetricValue"] { font-size: 1.45rem; font-weight: 700; }
+      [data-testid="stMetricLabel"] p { font-size: 0.82rem; opacity: 0.85; }
+      [data-testid="stTabs"] button[role="tab"] p { font-size: 15px; font-weight: 600; }
+      [data-testid="stHeader"] { background: transparent; }
+      section[data-testid="stSidebar"] { border-right: 1px solid #232B37; }
+      footer { visibility: hidden; height: 0; }
+      h1 { letter-spacing: -0.02em; }
+      hr { margin: 0.7rem 0; border-color: #232B37; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 
 # ---- 데이터 로더 (캐시) ----
 @st.cache_data(ttl=60 * 30)
@@ -200,7 +222,26 @@ if df.empty:
     st.warning(f"'{ticker}' 데이터가 없습니다. 코드를 확인하세요.")
     st.stop()
 
-st.subheader(f"{name}  ·  {ticker}")
+# ---- 종목 헤더 (이름 · 현재가 · 등락률) ----
+_last = df.iloc[-1]
+_prev = df.iloc[-2] if len(df) > 1 else _last
+_chg = _last["Close"] - _prev["Close"]
+_pct = (_chg / _prev["Close"] * 100) if _prev["Close"] else 0
+_color = UP if _chg >= 0 else DOWN
+_sign = "▲" if _chg >= 0 else "▼"
+st.markdown(
+    f"""
+    <div style="display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;">
+      <span style="font-size:1.6rem; font-weight:700;">{name}</span>
+      <span style="color:#8A94A2; font-family:monospace; font-size:0.95rem;">{ticker}</span>
+    </div>
+    <div style="display:flex; align-items:baseline; gap:12px; margin:2px 0 14px;">
+      <span style="font-size:1.9rem; font-weight:750; font-variant-numeric:tabular-nums;">{f_price(_last['Close'], market)}</span>
+      <span style="color:{_color}; font-weight:600; font-size:1.05rem;">{_sign} {abs(_pct):.2f}%</span>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 tab_signal, tab_tech, tab_fund, tab_news = st.tabs(
     ["🎯 종합 신호", "📊 기술적 분석", "💰 기본적 분석", "📰 뉴스"]
 )
