@@ -72,6 +72,21 @@ export default function TechnicalCharts({
         close: c.close,
       })),
     )
+    // 거래량 (하단 오버레이)
+    const vol = pc.addHistogramSeries({
+      priceScaleId: 'vol',
+      priceFormat: { type: 'volume' },
+      priceLineVisible: false,
+      lastValueVisible: false,
+    })
+    pc.priceScale('vol').applyOptions({ scaleMargins: { top: 0.84, bottom: 0 } })
+    vol.setData(
+      candles.map((c) => ({
+        time: c.time,
+        value: c.volume,
+        color: c.close >= c.open ? 'rgba(242,54,69,0.35)' : 'rgba(46,134,255,0.35)',
+      })),
+    )
     if (showBB) {
       const opt = { color: 'rgba(139,148,163,0.45)', lineWidth: 1 as const, priceLineVisible: false, lastValueVisible: false }
       pc.addLineSeries(opt).setData(line(ind.time, ind.bb_upper))
