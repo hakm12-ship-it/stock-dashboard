@@ -18,6 +18,8 @@ import HoldingsSheet from './components/HoldingsSheet'
 import ComparisonSheet from './components/ComparisonSheet'
 import { loadCustom, saveCustom } from './lib/customTickers'
 import { loadHoldings, saveHoldings, type Holding } from './lib/holdings'
+import { loadTrades, saveTrades, type Trade } from './lib/trades'
+import TradeJournalSheet from './components/TradeJournalSheet'
 import { marketStatus } from './lib/market'
 
 export default function App() {
@@ -30,6 +32,8 @@ export default function App() {
   const [holdings, setHoldings] = useState<Holding[]>(loadHoldings)
   const [holdingsOpen, setHoldingsOpen] = useState(false)
   const [comparisonOpen, setComparisonOpen] = useState(false)
+  const [trades, setTrades] = useState<Trade[]>(loadTrades)
+  const [journalOpen, setJournalOpen] = useState(false)
   const [theme, setTheme] = useState<'dark' | 'light'>(
     () => (localStorage.getItem('theme') as 'dark' | 'light') || 'dark',
   )
@@ -132,6 +136,16 @@ export default function App() {
     setHoldings(next)
     saveHoldings(next)
   }
+  const addTrade = (t: Trade) => {
+    const next = [...trades, t]
+    setTrades(next)
+    saveTrades(next)
+  }
+  const removeTrade = (id: string) => {
+    const next = trades.filter((x) => x.id !== id)
+    setTrades(next)
+    saveTrades(next)
+  }
   const importData = (d: { holdings?: Holding[]; customTickers?: FocusTicker[] }) => {
     if (Array.isArray(d.holdings)) {
       setHoldings(d.holdings)
@@ -209,6 +223,7 @@ export default function App() {
               onAddTicker={addTicker}
               onMove={moveTicker}
               onManageHoldings={() => setHoldingsOpen(true)}
+              onOpenJournal={() => setJournalOpen(true)}
               onCompare={() => setComparisonOpen(true)}
             />
           ) : (
@@ -268,6 +283,16 @@ export default function App() {
 
       {comparisonOpen && (
         <ComparisonSheet tickers={all} light={theme === 'light'} onClose={() => setComparisonOpen(false)} />
+      )}
+
+      {journalOpen && (
+        <TradeJournalSheet
+          trades={trades}
+          tickers={all}
+          onAdd={addTrade}
+          onRemove={removeTrade}
+          onClose={() => setJournalOpen(false)}
+        />
       )}
 
       <Onboarding />

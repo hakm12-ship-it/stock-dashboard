@@ -158,6 +158,7 @@ export default function HomeView({
   onAddTicker,
   onMove,
   onManageHoldings,
+  onOpenJournal,
   onCompare,
 }: {
   tickers: FocusTicker[]
@@ -168,6 +169,7 @@ export default function HomeView({
   onAddTicker: (t: FocusTicker) => void
   onMove: (key: string, dir: -1 | 1) => void
   onManageHoldings: () => void
+  onOpenJournal: () => void
   onCompare: () => void
 }) {
   const [sort, setSort] = useState<'default' | 'gainers' | 'losers'>('default')
@@ -205,7 +207,12 @@ export default function HomeView({
 
   return (
     <div className="space-y-2">
-      <PortfolioSummary holdings={holdings} light={light} onManage={onManageHoldings} />
+      <PortfolioSummary
+        holdings={holdings}
+        light={light}
+        onManage={onManageHoldings}
+        onJournal={onOpenJournal}
+      />
       <IndexStrip />
       <div className="pt-2 pb-0.5 space-y-1">
         <div className="flex items-center justify-between">

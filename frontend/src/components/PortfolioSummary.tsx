@@ -10,10 +10,12 @@ export default function PortfolioSummary({
   holdings,
   light,
   onManage,
+  onJournal,
 }: {
   holdings: Holding[]
   light: boolean
   onManage: () => void
+  onJournal: () => void
 }) {
   const [chartOpen, setChartOpen] = useState(false)
   const qs = useQueries({
@@ -58,9 +60,14 @@ export default function PortfolioSummary({
         <span className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted">
           내 자산
         </span>
-        <button onClick={onManage} className="text-[0.66rem] text-accent active:opacity-70">
-          관리
-        </button>
+        <div className="flex gap-3">
+          <button onClick={onJournal} className="text-[0.66rem] text-muted active:opacity-70">
+            일지
+          </button>
+          <button onClick={onManage} className="text-[0.66rem] text-accent active:opacity-70">
+            관리
+          </button>
+        </div>
       </div>
 
       {!hasHoldings ? (
