@@ -143,6 +143,11 @@ export interface Fx {
   changePct: number
 }
 export const getFx = () => get<Fx>('/api/fx', {})
+export interface FxPoint {
+  time: string
+  rate: number
+}
+export const getFxHistory = (period: Period) => get<FxPoint[]>('/api/fx-history', { period })
 
 export interface Profile {
   name: string | null

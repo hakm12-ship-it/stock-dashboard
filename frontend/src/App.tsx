@@ -128,6 +128,7 @@ export default function App() {
             <HomeView
               tickers={all}
               holdings={holdings}
+              light={theme === 'light'}
               onSelect={(tk) => {
                 setT(tk)
                 setTab('signal')

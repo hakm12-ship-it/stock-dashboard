@@ -215,6 +215,18 @@ def _load_fx():
     return fdr.DataReader("USD/KRW", date.today() - timedelta(days=30))
 
 
+@ttl_cache(60 * 30)
+def _load_fx_hist(period: str):
+    start = date.today() - timedelta(days=PERIOD_DAYS.get(period, 90))
+    return fdr.DataReader("USD/KRW", start)
+
+
+@app.get("/api/fx-history")
+def api_fx_history(period: str = "3m"):
+    close = _load_fx_hist(period)["Close"].dropna()
+    return [{"time": i.strftime("%Y-%m-%d"), "rate": float(v)} for i, v in close.items()]
+
+
 @app.get("/api/fx")
 def api_fx():
     close = _load_fx()["Close"].dropna()

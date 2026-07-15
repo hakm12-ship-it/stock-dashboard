@@ -1,16 +1,21 @@
+import { useState } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { getPrices, getFx } from '../lib/api'
 import type { Holding } from '../lib/holdings'
 import type { Market } from '../data/tickers'
 import { fmtPrice, fmtNum, changeColor, changeSign } from '../lib/format'
+import PortfolioChart from './PortfolioChart'
 
 export default function PortfolioSummary({
   holdings,
+  light,
   onManage,
 }: {
   holdings: Holding[]
+  light: boolean
   onManage: () => void
 }) {
+  const [chartOpen, setChartOpen] = useState(false)
   const qs = useQueries({
     queries: holdings.map((h) => ({
       queryKey: ['prices', h.ticker, '1m'],
@@ -103,6 +108,14 @@ export default function PortfolioSummary({
               )}
             </div>
           )}
+
+          <button
+            onClick={() => setChartOpen((v) => !v)}
+            className="w-full text-[0.66rem] text-accent text-center mt-2 active:opacity-70"
+          >
+            {chartOpen ? '자산 추이 접기 ▴' : '자산 추이 차트 보기 ▾'}
+          </button>
+          {chartOpen && <PortfolioChart holdings={holdings} light={light} />}
         </>
       )}
     </div>

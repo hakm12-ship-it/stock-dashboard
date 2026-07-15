@@ -145,6 +145,7 @@ function HomeCard({
 export default function HomeView({
   tickers,
   holdings,
+  light,
   onSelect,
   onAddClick,
   onManageHoldings,
@@ -152,6 +153,7 @@ export default function HomeView({
 }: {
   tickers: FocusTicker[]
   holdings: Holding[]
+  light: boolean
   onSelect: (t: FocusTicker) => void
   onAddClick: () => void
   onManageHoldings: () => void
@@ -191,7 +193,7 @@ export default function HomeView({
 
   return (
     <div className="space-y-2">
-      <PortfolioSummary holdings={holdings} onManage={onManageHoldings} />
+      <PortfolioSummary holdings={holdings} light={light} onManage={onManageHoldings} />
       <IndexStrip />
       <div className="flex items-center justify-between pt-2 pb-0.5">
         <span className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted">
