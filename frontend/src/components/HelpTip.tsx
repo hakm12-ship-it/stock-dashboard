@@ -50,6 +50,10 @@ export const HELP: Record<string, { title: string; text: string }> = {
     title: 'EPS (주당순이익)',
     text: '1주가 벌어들인 이익이에요. 주가 ÷ EPS = PER.',
   },
+  target: {
+    title: '애널리스트 목표주가',
+    text: '여러 증권사 애널리스트가 제시한 목표주가의 평균이에요. 현재가 대비 상승여력(%)을 보여줘요.\n투자의견은 높을수록 매수 쪽(대략 4~5 매수 · 3 중립). 전망이라 자주 바뀌고 맞는다는 보장은 없어요.',
+  },
 }
 
 export default function HelpTip({ term }: { term: keyof typeof HELP | string }) {

@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { getValuation, getForwardPe, getTrend } from '../lib/api'
+import { getValuation, getForwardPe, getTrend, getTarget, getPrices } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import { Panel, Loading, Empty, ErrorState, Metric } from '../components/ui'
-import { fmtNum, fmtEps, fmtCap } from '../lib/format'
+import { fmtNum, fmtEps, fmtCap, fmtPrice } from '../lib/format'
 
 function RevenueBars({
   years,
@@ -55,6 +55,8 @@ export default function FundamentalView({ t }: { t: FocusTicker }) {
   const val = useQuery({ queryKey: ['val', t.market, t.ticker], queryFn: () => getValuation(t.market, t.ticker), enabled: isStock })
   const fpe = useQuery({ queryKey: ['fpe', t.market, t.ticker], queryFn: () => getForwardPe(t.market, t.ticker), enabled: isStock })
   const trend = useQuery({ queryKey: ['trend', t.market, t.ticker], queryFn: () => getTrend(t.market, t.ticker), enabled: isStock })
+  const target = useQuery({ queryKey: ['target', t.market, t.ticker], queryFn: () => getTarget(t.market, t.ticker), enabled: isStock })
+  const priceQ = useQuery({ queryKey: ['prices', t.ticker, '1m'], queryFn: () => getPrices(t.ticker, '1m'), enabled: isStock })
 
   if (!isStock) {
     const isIndex = t.kind === 'index'
@@ -98,6 +100,32 @@ export default function FundamentalView({ t }: { t: FocusTicker }) {
           <Metric label="시가총액" value={fmtCap(v.시가총액, t.market)} />
         </div>
       )}
+
+      {/* 애널리스트 목표주가 */}
+      {(() => {
+        const tp = target.data?.target
+        const cur = priceQ.data?.at(-1)?.close
+        if (!tp || !cur) return null
+        const upside = (tp / cur - 1) * 100
+        const rec = target.data?.recomm ?? null
+        const recLabel = rec == null ? '—' : rec >= 3.5 ? '매수' : rec >= 2.5 ? '중립' : '매도'
+        return (
+          <Panel label="🎯 애널리스트 목표주가" help="target">
+            <div className="grid grid-cols-2 gap-2">
+              <Metric
+                label="목표주가 (평균)"
+                value={fmtPrice(tp, t.market)}
+                sub={`${upside >= 0 ? '+' : ''}${upside.toFixed(1)}% 여력`}
+                subClass={upside >= 0 ? 'text-up' : 'text-down'}
+              />
+              <Metric label="투자의견" value={recLabel} sub={rec != null ? `${rec.toFixed(2)} / 5` : undefined} />
+            </div>
+            <p className="text-[0.62rem] text-muted mt-2">
+              증권사 컨센서스 평균 · 현재가 {fmtPrice(cur, t.market)} 기준 · 투자조언 아님
+            </p>
+          </Panel>
+        )
+      })()}
 
       {/* 미래 PER */}
       {fpe.data && fpe.data.forward.length > 0 && (

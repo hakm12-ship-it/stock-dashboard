@@ -93,6 +93,11 @@ export interface SymbolResult {
   name: string
 }
 
+export interface Target {
+  target: number | null
+  recomm: number | null
+}
+
 const get = <T>(url: string, params: Record<string, unknown>) =>
   api.get<T>(url, { params }).then((r) => r.data)
 
@@ -113,3 +118,5 @@ export const getNews = (market: Market, name: string) =>
   get<NewsItem[]>('/api/news', { market, name })
 export const getSymbols = (market: Market, q: string) =>
   get<SymbolResult[]>('/api/symbols', { market, q })
+export const getTarget = (market: Market, ticker: string) =>
+  get<Target>('/api/target', { market, ticker })

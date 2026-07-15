@@ -45,9 +45,10 @@ def _won(s) -> float | None:
 
 
 def naver_fundamentals(code: str) -> dict:
-    """국내 종목 재무 지표. ROE는 EPS/BPS로 근사."""
+    """국내 종목 재무 지표 + 애널리스트 컨센서스. ROE는 EPS/BPS로 근사."""
     d = _api(code)
     info = {r.get("code"): r.get("value") for r in (d.get("totalInfos") or [])}
+    ci = d.get("consensusInfo") or {}
     eps = _num(info.get("eps"))
     bps = _num(info.get("bps"))
     return {
@@ -61,4 +62,6 @@ def naver_fundamentals(code: str) -> dict:
         "marketCap": _won(info.get("marketValue")),
         "cnsPer": _num(info.get("cnsPer")),  # 추정 PER (컨센서스)
         "cnsEps": _num(info.get("cnsEps")),  # 추정 EPS
+        "target": _num(ci.get("priceTargetMean")),  # 목표주가 평균
+        "recomm": _num(ci.get("recommMean")),  # 투자의견 평균 (높을수록 매수)
     }

@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from analysis.forecast import expected_range
-from analysis.fundamental import forward_pe, revenue_trend, valuation
+from analysis.fundamental import analyst_target, forward_pe, revenue_trend, valuation
 from analysis.signal import price_levels, technical_signals
 from analysis.technical import bollinger, macd, rsi
 from cache import ttl_cache
@@ -153,6 +153,11 @@ def api_news(market: str, name: str):
 @app.get("/api/forward-pe")
 def api_forward_pe(market: str, ticker: str):
     return forward_pe(_market(market), ticker)
+
+
+@app.get("/api/target")
+def api_target(market: str, ticker: str):
+    return analyst_target(_market(market), ticker)
 
 
 INDEX_TICKERS = {"KOSPI": "KS11", "NASDAQ": "IXIC"}

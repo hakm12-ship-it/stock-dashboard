@@ -128,6 +128,17 @@ def revenue_trend(market: str, ticker: str):
     return df.sort_index()
 
 
+def analyst_target(market: str, ticker: str) -> dict:
+    """애널리스트 목표주가 평균 + 투자의견(recommMean). 국내(네이버)만."""
+    if market == "한국":
+        try:
+            n = naver_fundamentals(ticker)
+            return {"target": n.get("target"), "recomm": n.get("recomm")}
+        except Exception:
+            pass
+    return {"target": None, "recomm": None}
+
+
 def forward_pe(market: str, ticker: str) -> dict:
     """현재 PER + 미래 PER(컨센서스). 국내는 네이버(추정PER), 그 외 yfinance(올해·내년)."""
     if market == "한국":
