@@ -151,6 +151,15 @@ export interface FxPoint {
 }
 export const getFxHistory = (period: Period) => get<FxPoint[]>('/api/fx-history', { period })
 
+export interface MarketTopItem {
+  ticker: string
+  name: string
+  price: number | null
+  changePct: number | null
+}
+export const getMarketTop = (direction: 'up' | 'down', market: 'KOSPI' | 'KOSDAQ') =>
+  get<MarketTopItem[]>('/api/market-top', { direction, market })
+
 export interface DealTrend {
   date: string
   foreign: number | null

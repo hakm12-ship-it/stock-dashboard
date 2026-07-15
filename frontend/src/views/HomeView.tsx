@@ -4,6 +4,7 @@ import { getPrices, getSignal, getIndex, getProfile, type Period } from '../lib/
 import type { FocusTicker } from '../data/tickers'
 import IndexStrip from '../components/IndexStrip'
 import PortfolioSummary from '../components/PortfolioSummary'
+import MarketTop from '../components/MarketTop'
 import type { Holding } from '../lib/holdings'
 import { loadSignalConfig, cfgKey, cfgParams } from '../lib/signalConfig'
 import { fmtQuote, changeColor, changeSign } from '../lib/format'
@@ -153,6 +154,7 @@ export default function HomeView({
   light,
   onSelect,
   onAddClick,
+  onAddTicker,
   onManageHoldings,
   onCompare,
 }: {
@@ -161,6 +163,7 @@ export default function HomeView({
   light: boolean
   onSelect: (t: FocusTicker) => void
   onAddClick: () => void
+  onAddTicker: (t: FocusTicker) => void
   onManageHoldings: () => void
   onCompare: () => void
 }) {
@@ -253,6 +256,8 @@ export default function HomeView({
           ⚖️ 종목 비교
         </button>
       </div>
+
+      <MarketTop existing={tickers} onAdd={onAddTicker} />
     </div>
   )
 }

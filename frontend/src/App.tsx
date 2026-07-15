@@ -134,6 +134,7 @@ export default function App() {
                 setTab('signal')
               }}
               onAddClick={() => setSearchOpen(true)}
+              onAddTicker={addTicker}
               onManageHoldings={() => setHoldingsOpen(true)}
               onCompare={() => setComparisonOpen(true)}
             />

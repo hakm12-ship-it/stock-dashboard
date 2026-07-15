@@ -68,6 +68,24 @@ def naver_fundamentals(code: str) -> dict:
     }
 
 
+def naver_market_rank(direction: str, market: str, size: int = 5) -> list[dict]:
+    """오늘의 급등/급락 상위 — direction: up|down, market: KOSPI|KOSDAQ."""
+    url = f"https://m.stock.naver.com/api/stocks/{direction}/{market}?page=1&pageSize={size}"
+    req = urllib.request.Request(
+        url, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://m.stock.naver.com/"})
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        data = json.loads(resp.read())
+    return [
+        {
+            "ticker": s.get("itemCode"),
+            "name": s.get("stockName"),
+            "price": _num(s.get("closePrice")),
+            "changePct": _num(s.get("fluctuationsRatio")),
+        }
+        for s in data.get("stocks") or []
+    ]
+
+
 def naver_deal_trend(code: str) -> list[dict]:
     """투자자별 매매동향 — 날짜별 외국인/기관/개인 순매수량(주)."""
     d = _api(code)

@@ -1,0 +1,117 @@
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { getMarketTop } from '../lib/api'
+import type { FocusTicker } from '../data/tickers'
+import { changeColor, changeSign } from '../lib/format'
+
+type Dir = 'up' | 'down'
+type Mkt = 'KOSPI' | 'KOSDAQ'
+
+export default function MarketTop({
+  existing,
+  onAdd,
+}: {
+  existing: FocusTicker[]
+  onAdd: (t: FocusTicker) => void
+}) {
+  const [dir, setDir] = useState<Dir>('up')
+  const [mkt, setMkt] = useState<Mkt>('KOSPI')
+
+  const q = useQuery({
+    queryKey: ['marketTop', dir, mkt],
+    queryFn: () => getMarketTop(dir, mkt),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const isAdded = (ticker: string) => existing.some((x) => x.ticker === ticker && x.market === 'KR')
+
+  return (
+    <section className="bg-surface border border-border rounded-xl p-4 card-shadow">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted">
+          🔥 오늘의 시장 TOP
+        </span>
+        <div className="flex gap-1">
+          {(['KOSPI', 'KOSDAQ'] as Mkt[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMkt(m)}
+              className={`font-mono text-[0.6rem] px-1.5 py-1 rounded ${
+                mkt === m ? 'bg-accent/15 text-accent' : 'text-muted/70'
+              }`}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex gap-1 bg-ink/40 border border-border rounded-lg p-1 mb-3">
+        {(
+          [
+            ['up', '🔺 급등'],
+            ['down', '🔻 급락'],
+          ] as [Dir, string][]
+        ).map(([d, label]) => (
+          <button
+            key={d}
+            onClick={() => setDir(d)}
+            className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              d === dir ? 'bg-accent/20 text-text' : 'text-muted'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {q.isLoading ? (
+        <div className="h-32 rounded-lg shimmer" />
+      ) : !q.data || q.data.length === 0 ? (
+        <div className="text-muted text-xs text-center py-4">데이터가 없어요</div>
+      ) : (
+        <div>
+          {q.data.map((s, i) => {
+            const added = isAdded(s.ticker)
+            return (
+              <div
+                key={s.ticker}
+                className="flex items-center gap-2 py-2 border-b border-border last:border-0"
+              >
+                <span className="font-mono text-[0.66rem] text-muted w-4 shrink-0">{i + 1}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium truncate">{s.name}</div>
+                  <div className="font-mono text-[0.62rem] text-muted">{s.ticker}</div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="font-mono text-sm tnum">
+                    {s.price != null ? `${Math.round(s.price).toLocaleString()}원` : '—'}
+                  </div>
+                  <div className={`font-mono text-[0.7rem] ${s.changePct != null ? changeColor(s.changePct) : 'text-muted'}`}>
+                    {s.changePct != null
+                      ? `${changeSign(s.changePct)} ${Math.abs(s.changePct).toFixed(2)}%`
+                      : '—'}
+                  </div>
+                </div>
+                <button
+                  disabled={added}
+                  onClick={() =>
+                    onAdd({ ticker: s.ticker, name: s.name, short: s.name, market: 'KR', kind: 'stock' })
+                  }
+                  className={`shrink-0 text-[0.66rem] px-2 py-1 rounded-md border ${
+                    added ? 'text-muted border-border' : 'text-accent border-accent/50 active:bg-accent/10'
+                  }`}
+                >
+                  {added ? '추가됨' : '+담기'}
+                </button>
+              </div>
+            )
+          })}
+          <p className="text-[0.58rem] text-muted mt-2">
+            급등락 상위는 변동성이 매우 큰 종목이에요 — 참고용 · 투자 조언 아님
+          </p>
+        </div>
+      )}
+    </section>
+  )
+}
