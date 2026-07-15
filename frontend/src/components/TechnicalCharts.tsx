@@ -47,6 +47,7 @@ export default function TechnicalCharts({
   light,
   levels,
   simple = false,
+  avgPrice,
 }: {
   candles: Candle[]
   ind: Indicators
@@ -55,6 +56,7 @@ export default function TechnicalCharts({
   light: boolean
   levels?: { support: number[]; resistance: number[] }
   simple?: boolean // 주봉 등: 가격+거래량만 (일봉 기반 지표 숨김)
+  avgPrice?: number // 보유 평균단가 라인
 }) {
   const priceRef = useRef<HTMLDivElement>(null)
   const legendRef = useRef<HTMLDivElement>(null)
@@ -100,6 +102,14 @@ export default function TechnicalCharts({
         color: c.close >= c.open ? 'rgba(242,54,69,0.35)' : 'rgba(46,134,255,0.35)',
       })),
     )
+
+    // 보유 평균단가 라인
+    if (avgPrice && avgPrice > 0) {
+      cs.createPriceLine({
+        price: avgPrice, color: ACCENT, lineWidth: 1, lineStyle: 0,
+        axisLabelVisible: true, title: '내 평단',
+      })
+    }
 
     // 지지/저항 수평선 (종합신호 데이터)
     if (levels) {
@@ -172,7 +182,7 @@ export default function TechnicalCharts({
     }
 
     return () => charts.forEach((c) => c.remove())
-  }, [candles, ind, showMA, showBB, light, levels, simple])
+  }, [candles, ind, showMA, showBB, light, levels, simple, avgPrice])
 
   return (
     <div className="space-y-1">

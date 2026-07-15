@@ -6,6 +6,7 @@ import { Loading, Empty, ErrorState, Metric } from '../components/ui'
 import TechnicalCharts from '../components/TechnicalCharts'
 import { toWeekly } from '../lib/aggregate'
 import { loadSignalConfig, cfgKey, cfgParams } from '../lib/signalConfig'
+import type { Holding } from '../lib/holdings'
 import { fmtQuote } from '../lib/format'
 
 const PERIODS: Period[] = ['1m', '3m', '6m', '1y']
@@ -16,11 +17,13 @@ export default function TechnicalView({
   period,
   setPeriod,
   light,
+  holding,
 }: {
   t: FocusTicker
   period: Period
   setPeriod: (p: Period) => void
   light: boolean
+  holding?: Holding
 }) {
   const [showMA, setShowMA] = useState(true)
   const [showBB, setShowBB] = useState(false)
@@ -124,6 +127,7 @@ export default function TechnicalView({
             light={light}
             levels={weekly ? undefined : levels}
             simple={weekly}
+            avgPrice={holding?.avg}
           />
           {weekly && (
             <p className="text-[0.62rem] text-muted">주봉은 가격·거래량만 표시돼요 (지표는 일봉 기준)</p>

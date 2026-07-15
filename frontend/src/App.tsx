@@ -220,7 +220,13 @@ export default function App() {
               <div className="pt-1">
                 {tab === 'signal' && <SignalView t={t} />}
                 {tab === 'tech' && (
-                <TechnicalView t={t} period={period} setPeriod={setPeriod} light={theme === 'light'} />
+                <TechnicalView
+                  t={t}
+                  period={period}
+                  setPeriod={setPeriod}
+                  light={theme === 'light'}
+                  holding={holdings.find((h) => h.ticker === t.ticker && h.market === t.market)}
+                />
               )}
                 {tab === 'fund' && <FundamentalView t={t} />}
                 {tab === 'news' && <NewsView t={t} tickers={all} />}
