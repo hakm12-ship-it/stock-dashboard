@@ -43,6 +43,7 @@ export interface Valuation {
   EPS: number | null
   ROE: number | null
   배당수익률: number | null
+  주당배당금: number | null
   시가총액: number | null
 }
 

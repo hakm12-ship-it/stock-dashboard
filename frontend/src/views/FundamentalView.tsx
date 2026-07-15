@@ -97,6 +97,7 @@ export default function FundamentalView({ t }: { t: FocusTicker }) {
           <Metric label="EPS" help="eps" value={fmtEps(v.EPS, t.market)} />
           <Metric label="ROE" help="roe" value={v.ROE != null ? `${(v.ROE * 100).toFixed(1)}%` : '—'} />
           <Metric label="배당수익률" value={v.배당수익률 != null ? `${v.배당수익률.toFixed(2)}%` : '—'} />
+          <Metric label="주당배당금" value={v.주당배당금 != null ? fmtPrice(v.주당배당금, t.market) : '—'} />
           <Metric label="시가총액" value={fmtCap(v.시가총액, t.market)} />
         </div>
       )}

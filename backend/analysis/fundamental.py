@@ -61,7 +61,8 @@ def valuation(market: str, ticker: str) -> dict:
                 return {
                     "종목": n["name"] or ticker, "섹터": None, "통화": "KRW",
                     "PER": n["per"], "PBR": n["pbr"], "EPS": n["eps"],
-                    "ROE": n["roe"], "배당수익률": n["divYield"], "시가총액": n["marketCap"],
+                    "ROE": n["roe"], "배당수익률": n["divYield"],
+                    "주당배당금": n.get("dividend"), "시가총액": n["marketCap"],
                 }
         except Exception:
             pass
@@ -95,6 +96,7 @@ def valuation(market: str, ticker: str) -> dict:
         "EPS": eps,
         "ROE": info.get("returnOnEquity"),      # 소수(0.18) — 표시 시 ×100
         "배당수익률": info.get("dividendYield"),  # 이미 % 단위
+        "주당배당금": info.get("dividendRate"),
         "시가총액": info.get("marketCap"),
     }
 

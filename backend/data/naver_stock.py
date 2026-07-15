@@ -59,6 +59,7 @@ def naver_fundamentals(code: str) -> dict:
         "bps": bps,
         "roe": (eps / bps) if (eps and bps) else None,  # 근사
         "divYield": _num(info.get("dividendYieldRatio")),
+        "dividend": _num(info.get("dividend")),  # 주당배당금(연간)
         "marketCap": _won(info.get("marketValue")),
         "cnsPer": _num(info.get("cnsPer")),  # 추정 PER (컨센서스)
         "cnsEps": _num(info.get("cnsEps")),  # 추정 EPS
