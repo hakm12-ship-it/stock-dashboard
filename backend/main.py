@@ -184,7 +184,7 @@ def api_profile(market: str, ticker: str):
     return {"name": None, "description": None, "logo": None, "researches": []}
 
 
-INDEX_TICKERS = {"KOSPI": "KS11", "NASDAQ": "IXIC"}
+INDEX_TICKERS = {"KOSPI": "KS11", "KOSDAQ": "KQ11", "NASDAQ": "IXIC"}
 
 
 @app.get("/api/index")
@@ -197,10 +197,10 @@ def api_index(name: str):
     last, prev = float(close.iloc[-1]), float(close.iloc[-2])
     change = last - prev
     pct = (change / prev * 100) if prev else 0
-    # 코스피는 네이버 실시간으로 현재값 덮어쓰기 (FDR 지수 갱신 지연 보완)
-    if name.upper() == "KOSPI":
+    # 국내 지수는 네이버 실시간으로 현재값 덮어쓰기 (FDR 지수 갱신 지연 보완)
+    if name.upper() in ("KOSPI", "KOSDAQ"):
         try:
-            rt = _naver_index("KOSPI")
+            rt = _naver_index(name.upper())
             last, change, pct = rt["last"], rt["change"], rt["changePct"]
         except Exception:
             pass

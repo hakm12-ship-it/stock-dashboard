@@ -4,6 +4,7 @@ import { getPrices, getIndicators, getSignal, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import { Loading, Empty, ErrorState, Metric } from '../components/ui'
 import TechnicalCharts from '../components/TechnicalCharts'
+import { toWeekly } from '../lib/aggregate'
 import { fmtQuote } from '../lib/format'
 
 const PERIODS: Period[] = ['1m', '3m', '6m', '1y']
@@ -23,6 +24,8 @@ export default function TechnicalView({
   const [showMA, setShowMA] = useState(true)
   const [showBB, setShowBB] = useState(false)
   const [showSR, setShowSR] = useState(true)
+  const [interval, setInterval] = useState<'D' | 'W'>('D')
+  const weekly = interval === 'W'
 
   const prices = useQuery({ queryKey: ['prices', t.ticker, period], queryFn: () => getPrices(t.ticker, period) })
   const ind = useQuery({ queryKey: ['ind', t.ticker, period], queryFn: () => getIndicators(t.ticker, period) })
@@ -46,19 +49,34 @@ export default function TechnicalView({
 
   return (
     <div className="space-y-3">
-      {/* 기간 선택 */}
-      <div className="flex gap-1 bg-surface border border-border rounded-lg p-1">
-        {PERIODS.map((p) => (
-          <button
-            key={p}
-            onClick={() => setPeriod(p)}
-            className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              p === period ? 'bg-accent/20 text-text' : 'text-muted'
-            }`}
-          >
-            {LABEL[p]}
-          </button>
-        ))}
+      {/* 기간 + 봉 간격 */}
+      <div className="flex gap-2">
+        <div className="flex flex-1 gap-1 bg-surface border border-border rounded-lg p-1">
+          {PERIODS.map((p) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                p === period ? 'bg-accent/20 text-text' : 'text-muted'
+              }`}
+            >
+              {LABEL[p]}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1 bg-surface border border-border rounded-lg p-1">
+          {(['D', 'W'] as const).map((iv) => (
+            <button
+              key={iv}
+              onClick={() => setInterval(iv)}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                iv === interval ? 'bg-accent/20 text-text' : 'text-muted'
+              }`}
+            >
+              {iv === 'D' ? '일봉' : '주봉'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* 요약 지표 */}
@@ -73,12 +91,14 @@ export default function TechnicalView({
         <Metric label="MACD" help="macd" value={macdLast != null ? macdLast.toFixed(1) : '—'} />
       </div>
 
-      {/* 오버레이 토글 */}
-      <div className="flex gap-2 text-xs">
-        <Toggle on={showMA} onClick={() => setShowMA((v) => !v)} label="이동평균 20·60" />
-        <Toggle on={showBB} onClick={() => setShowBB((v) => !v)} label="볼린저" />
-        <Toggle on={showSR} onClick={() => setShowSR((v) => !v)} label="지지·저항" />
-      </div>
+      {/* 오버레이 토글 (일봉 지표라 주봉에선 숨김) */}
+      {!weekly && (
+        <div className="flex gap-2 text-xs">
+          <Toggle on={showMA} onClick={() => setShowMA((v) => !v)} label="이동평균 20·60" />
+          <Toggle on={showBB} onClick={() => setShowBB((v) => !v)} label="볼린저" />
+          <Toggle on={showSR} onClick={() => setShowSR((v) => !v)} label="지지·저항" />
+        </div>
+      )}
 
       {prices.isLoading || ind.isLoading ? (
         <Loading />
@@ -90,7 +110,20 @@ export default function TechnicalView({
           }}
         />
       ) : prices.data && ind.data && prices.data.length ? (
-        <TechnicalCharts candles={prices.data} ind={ind.data} showMA={showMA} showBB={showBB} light={light} levels={levels} />
+        <>
+          <TechnicalCharts
+            candles={weekly ? toWeekly(prices.data) : prices.data}
+            ind={ind.data}
+            showMA={!weekly && showMA}
+            showBB={!weekly && showBB}
+            light={light}
+            levels={weekly ? undefined : levels}
+            simple={weekly}
+          />
+          {weekly && (
+            <p className="text-[0.62rem] text-muted">주봉은 가격·거래량만 표시돼요 (지표는 일봉 기준)</p>
+          )}
+        </>
       ) : (
         <Empty />
       )}

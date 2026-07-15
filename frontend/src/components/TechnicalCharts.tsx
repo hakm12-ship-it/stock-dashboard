@@ -46,6 +46,7 @@ export default function TechnicalCharts({
   showBB,
   light,
   levels,
+  simple = false,
 }: {
   candles: Candle[]
   ind: Indicators
@@ -53,6 +54,7 @@ export default function TechnicalCharts({
   showBB: boolean
   light: boolean
   levels?: { support: number[]; resistance: number[] }
+  simple?: boolean // 주봉 등: 가격+거래량만 (일봉 기반 지표 숨김)
 }) {
   const priceRef = useRef<HTMLDivElement>(null)
   const legendRef = useRef<HTMLDivElement>(null)
@@ -144,7 +146,7 @@ export default function TechnicalCharts({
     pc.timeScale().fitContent()
 
     // RSI
-    if (rsiRef.current) {
+    if (!simple && rsiRef.current) {
       const rc = createChart(rsiRef.current, { ...base, height: 96 })
       charts.push(rc)
       const r = rc.addLineSeries({ color: ACCENT, lineWidth: 1, priceLineVisible: false, lastValueVisible: false })
@@ -155,7 +157,7 @@ export default function TechnicalCharts({
     }
 
     // MACD
-    if (macdRef.current) {
+    if (!simple && macdRef.current) {
       const mc = createChart(macdRef.current, { ...base, height: 96 })
       charts.push(mc)
       const h = mc.addHistogramSeries({ priceLineVisible: false, lastValueVisible: false })
@@ -170,7 +172,7 @@ export default function TechnicalCharts({
     }
 
     return () => charts.forEach((c) => c.remove())
-  }, [candles, ind, showMA, showBB, light, levels])
+  }, [candles, ind, showMA, showBB, light, levels, simple])
 
   return (
     <div className="space-y-1">
@@ -181,10 +183,14 @@ export default function TechnicalCharts({
         />
         <div ref={priceRef} className="w-full h-[280px]" />
       </div>
-      <div className="text-[0.62rem] uppercase tracking-[0.06em] text-muted pt-2">RSI (14)</div>
-      <div ref={rsiRef} className="w-full h-24" />
-      <div className="text-[0.62rem] uppercase tracking-[0.06em] text-muted pt-1">MACD (12·26·9)</div>
-      <div ref={macdRef} className="w-full h-24" />
+      {!simple && (
+        <>
+          <div className="text-[0.62rem] uppercase tracking-[0.06em] text-muted pt-2">RSI (14)</div>
+          <div ref={rsiRef} className="w-full h-24" />
+          <div className="text-[0.62rem] uppercase tracking-[0.06em] text-muted pt-1">MACD (12·26·9)</div>
+          <div ref={macdRef} className="w-full h-24" />
+        </>
+      )}
     </div>
   )
 }

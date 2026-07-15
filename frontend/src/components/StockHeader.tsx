@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getPrices, getIndex, getProfile, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
@@ -44,6 +45,27 @@ export default function StockHeader({ t, period }: { t: FocusTicker; period: Per
     }
   }
 
+  const [copied, setCopied] = useState(false)
+  const share = async () => {
+    const text = `${t.name} ${fmtQuote(priceVal, t)} (${changeSign(chg)}${Math.abs(pct).toFixed(2)}%) — 스톡 인사이트`
+    const url = window.location.href
+    if (navigator.share) {
+      try {
+        await navigator.share({ text, url })
+      } catch {
+        /* 사용자가 취소 */
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(`${text}\n${url}`)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
   return (
     <div className="pt-1 pb-3 border-b border-border">
       <div className="flex items-center gap-2 flex-wrap">
@@ -80,6 +102,15 @@ export default function StockHeader({ t, period }: { t: FocusTicker; period: Per
             </span>
           )
         })()}
+        <button onClick={share} aria-label="공유" className="ml-auto text-muted active:text-text p-1">
+          {copied ? (
+            <span className="text-[0.62rem] text-accent">복사됨</span>
+          ) : (
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3v12M8 7l4-4 4 4M5 12v8h14v-8" />
+            </svg>
+          )}
+        </button>
       </div>
       <div className="flex items-baseline gap-3 mt-2">
         <span className="font-mono text-3xl font-semibold tnum tracking-tight">
