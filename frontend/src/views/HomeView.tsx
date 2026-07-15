@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useQuery, useQueries } from '@tanstack/react-query'
 import { getPrices, getSignal, getIndex } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import IndexStrip from '../components/IndexStrip'
@@ -110,13 +111,59 @@ export default function HomeView({
   onSelect: (t: FocusTicker) => void
   onAddClick: () => void
 }) {
+  const [sort, setSort] = useState<'default' | 'gainers' | 'losers'>('default')
+
+  // 정렬용 등락률 (카드와 같은 쿼리키 → 캐시 공유, 중복 요청 없음)
+  const priceQs = useQueries({
+    queries: tickers.map((t) => ({
+      queryKey: ['prices', t.ticker, '1m'],
+      queryFn: () => getPrices(t.ticker, '1m'),
+    })),
+  })
+  const items = tickers.map((t, i) => {
+    const d = priceQs[i].data
+    const last = d?.at(-1)
+    const prev = d?.at(-2)
+    const pct = last && prev && prev.close ? ((last.close - prev.close) / prev.close) * 100 : null
+    return { t, pct }
+  })
+  const ordered =
+    sort === 'default'
+      ? items
+      : [...items].sort((a, b) => {
+          const av = a.pct ?? (sort === 'gainers' ? -Infinity : Infinity)
+          const bv = b.pct ?? (sort === 'gainers' ? -Infinity : Infinity)
+          return sort === 'gainers' ? bv - av : av - bv
+        })
+
+  const SORTS: [typeof sort, string][] = [
+    ['default', '기본'],
+    ['gainers', '상승순'],
+    ['losers', '하락순'],
+  ]
+
   return (
     <div className="space-y-2">
       <IndexStrip />
-      <div className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted pt-2 pb-0.5">
-        관심 종목
+      <div className="flex items-center justify-between pt-2 pb-0.5">
+        <span className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted">
+          관심 종목
+        </span>
+        <div className="flex gap-1">
+          {SORTS.map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => setSort(k)}
+              className={`text-[0.66rem] px-2 py-1 rounded-md transition-colors ${
+                sort === k ? 'bg-accent/15 text-accent' : 'text-muted'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
-      {tickers.map((t) => (
+      {ordered.map(({ t }) => (
         <HomeCard key={`${t.market}-${t.ticker}`} t={t} onClick={() => onSelect(t)} />
       ))}
       <button

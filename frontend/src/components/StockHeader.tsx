@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getPrices, getIndex, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import { fmtQuote, changeColor, changeSign } from '../lib/format'
+import { marketStatus } from '../lib/market'
 
 export default function StockHeader({ t, period }: { t: FocusTicker; period: Period }) {
   const isIndex = t.kind === 'index' && !!t.indexName
@@ -54,6 +55,15 @@ export default function StockHeader({ t, period }: { t: FocusTicker; period: Per
             지수
           </span>
         )}
+        {(() => {
+          const st = marketStatus(t.market)
+          return (
+            <span className={`flex items-center gap-1 text-[0.62rem] ${st.open ? 'text-accent' : 'text-muted'}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${st.open ? 'bg-accent animate-pulse' : 'bg-muted'}`} />
+              {st.label}
+            </span>
+          )
+        })()}
       </div>
       <div className="flex items-baseline gap-3 mt-2">
         <span className="font-mono text-3xl font-semibold tnum tracking-tight">
