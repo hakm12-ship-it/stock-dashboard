@@ -73,7 +73,7 @@ export default function FundamentalView({ t }: { t: FocusTicker }) {
             <>
               <b className="text-text">{t.name}</b> 는 ETF라 PER·PBR 같은 개별 기업 밸류에이션이 적용되지 않아요.
               <br />
-              <span className="text-up">3배 레버리지</span> 상품이라 변동성이 매우 큽니다 — 차트·종합신호 탭에서 확인하세요.
+              <span className="text-up">레버리지</span> 상품이라 변동성이 매우 큽니다 — 차트·종합신호 탭에서 확인하세요.
             </>
           )}
         </p>

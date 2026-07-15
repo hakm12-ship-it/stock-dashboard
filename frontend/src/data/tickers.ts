@@ -13,6 +13,7 @@ export interface FocusTicker {
 export const TICKERS: FocusTicker[] = [
   { ticker: '005930', name: '삼성전자', short: '삼성전자', market: 'KR', kind: 'stock' },
   { ticker: '000660', name: 'SK하이닉스', short: 'SK하이닉스', market: 'KR', kind: 'stock' },
+  { ticker: '0193T0', name: 'KODEX SK하이닉스 레버리지', short: '하닉 레버', market: 'KR', kind: 'etf' },
   { ticker: 'KORU', name: 'KORU · 한국 3배 ETF', short: 'KORU', market: 'US', kind: 'etf' },
   { ticker: 'SOXL', name: 'SOXL · 반도체 3배 ETF', short: 'SOXL', market: 'US', kind: 'etf' },
   { ticker: 'KS11', name: '코스피', short: '코스피', market: 'KR', kind: 'index', indexName: 'KOSPI' },
