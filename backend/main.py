@@ -128,21 +128,35 @@ def api_trend(market: str, ticker: str):
     }
 
 
+def _weights(w_rsi: int, w_macd: int, w_ma20: int, w_cross: int, w_boll: int) -> dict:
+    clamp = lambda v: max(0, min(2, int(v)))  # noqa: E731
+    return {"rsi": clamp(w_rsi), "macd": clamp(w_macd), "ma20": clamp(w_ma20),
+            "cross": clamp(w_cross), "boll": clamp(w_boll)}
+
+
 @app.get("/api/signal")
-def api_signal(ticker: str, period: str = "6m"):
+def api_signal(ticker: str, period: str = "6m", rsi_low: int = 30, rsi_high: int = 70,
+               w_rsi: int = 1, w_macd: int = 1, w_ma20: int = 1, w_cross: int = 1, w_boll: int = 1):
     df = _load(ticker, period)
-    signals, total, verdict = technical_signals(df)
+    weights = _weights(w_rsi, w_macd, w_ma20, w_cross, w_boll)
+    signals, total, verdict, max_score = technical_signals(
+        df, rsi_low=rsi_low, rsi_high=rsi_high, weights=weights)
     price, below, above = price_levels(df)
     return {
-        "signals": signals, "total": total, "verdict": verdict, "price": float(price),
+        "signals": signals, "total": total, "verdict": verdict, "maxScore": max_score,
+        "price": float(price),
         "support": [{"label": k, "value": float(v)} for k, v in below],
         "resistance": [{"label": k, "value": float(v)} for k, v in above],
     }
 
 
 @app.get("/api/signal-history")
-def api_signal_history(ticker: str, horizon: int = 5):
-    return signal_history(_load(ticker, "1y"), horizon=horizon)
+def api_signal_history(ticker: str, horizon: int = 5, rsi_low: int = 30, rsi_high: int = 70,
+                       w_rsi: int = 1, w_macd: int = 1, w_ma20: int = 1, w_cross: int = 1,
+                       w_boll: int = 1):
+    return signal_history(
+        _load(ticker, "1y"), horizon=horizon, rsi_low=rsi_low, rsi_high=rsi_high,
+        weights=_weights(w_rsi, w_macd, w_ma20, w_cross, w_boll))
 
 
 @app.get("/api/forecast")

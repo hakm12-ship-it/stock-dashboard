@@ -5,6 +5,7 @@ import type { FocusTicker } from '../data/tickers'
 import IndexStrip from '../components/IndexStrip'
 import PortfolioSummary from '../components/PortfolioSummary'
 import type { Holding } from '../lib/holdings'
+import { loadSignalConfig, cfgKey, cfgParams } from '../lib/signalConfig'
 import { fmtQuote, changeColor, changeSign } from '../lib/format'
 
 const UP = '#F23645'
@@ -46,7 +47,11 @@ function HomeCard({
 }) {
   const isIndex = t.kind === 'index' && !!t.indexName
   const prices = useQuery({ queryKey: ['prices', t.ticker, period], queryFn: () => getPrices(t.ticker, period) })
-  const sig = useQuery({ queryKey: ['signal', t.ticker], queryFn: () => getSignal(t.ticker) })
+  const scfg = loadSignalConfig()
+  const sig = useQuery({
+    queryKey: ['signal', t.ticker, cfgKey(scfg)],
+    queryFn: () => getSignal(t.ticker, cfgParams(scfg)),
+  })
   const idx = useQuery({
     queryKey: ['index', t.indexName],
     queryFn: () => getIndex(t.indexName as string),

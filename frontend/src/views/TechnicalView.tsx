@@ -5,6 +5,7 @@ import type { FocusTicker } from '../data/tickers'
 import { Loading, Empty, ErrorState, Metric } from '../components/ui'
 import TechnicalCharts from '../components/TechnicalCharts'
 import { toWeekly } from '../lib/aggregate'
+import { loadSignalConfig, cfgKey, cfgParams } from '../lib/signalConfig'
 import { fmtQuote } from '../lib/format'
 
 const PERIODS: Period[] = ['1m', '3m', '6m', '1y']
@@ -29,7 +30,11 @@ export default function TechnicalView({
 
   const prices = useQuery({ queryKey: ['prices', t.ticker, period], queryFn: () => getPrices(t.ticker, period) })
   const ind = useQuery({ queryKey: ['ind', t.ticker, period], queryFn: () => getIndicators(t.ticker, period) })
-  const sig = useQuery({ queryKey: ['signal', t.ticker], queryFn: () => getSignal(t.ticker) })
+  const scfg = loadSignalConfig()
+  const sig = useQuery({
+    queryKey: ['signal', t.ticker, cfgKey(scfg)],
+    queryFn: () => getSignal(t.ticker, cfgParams(scfg)),
+  })
 
   // 현재가에 가까운 지지/저항 각각 2개만 (차트 어지럽지 않게)
   const levels = useMemo(

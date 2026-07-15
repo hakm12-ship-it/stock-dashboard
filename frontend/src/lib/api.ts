@@ -64,6 +64,7 @@ export interface SignalData {
   signals: SignalItem[]
   total: number
   verdict: string
+  maxScore: number
   price: number
   support: { label: string; value: number }[]
   resistance: { label: string; value: number }[]
@@ -126,9 +127,10 @@ export const getForwardPe = (market: Market, ticker: string) =>
   get<ForwardPe>('/api/forward-pe', { market, ticker })
 export const getTrend = (market: Market, ticker: string) =>
   get<Trend | null>('/api/trend', { market, ticker })
-export const getSignal = (ticker: string) => get<SignalData>('/api/signal', { ticker })
-export const getSignalHistory = (ticker: string) =>
-  get<SignalHistory>('/api/signal-history', { ticker })
+export const getSignal = (ticker: string, cfg?: Record<string, number>) =>
+  get<SignalData>('/api/signal', { ticker, ...(cfg ?? {}) })
+export const getSignalHistory = (ticker: string, cfg?: Record<string, number>) =>
+  get<SignalHistory>('/api/signal-history', { ticker, ...(cfg ?? {}) })
 export const getForecast = (ticker: string) => get<Forecast>('/api/forecast', { ticker })
 export const getNews = (market: Market, name: string) =>
   get<NewsItem[]>('/api/news', { market, name })

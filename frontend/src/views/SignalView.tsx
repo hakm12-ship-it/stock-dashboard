@@ -1,5 +1,15 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getSignal, getForecast, getValuation, getSignalHistory, type SignalPerf } from '../lib/api'
+import {
+  loadSignalConfig,
+  saveSignalConfig,
+  cfgParams,
+  cfgKey,
+  isDefaultConfig,
+  DEFAULT_SIGNAL_CONFIG,
+  type SignalConfig,
+} from '../lib/signalConfig'
 import type { FocusTicker } from '../data/tickers'
 import { Panel, Loading, Empty, ErrorState, Metric } from '../components/ui'
 import { fmtQuote, fmtNum, fmtPct } from '../lib/format'
@@ -13,6 +23,119 @@ const VERDICT_STYLE: Record<string, string> = {
 function band(v: number | null, lo: number, hi: number, labels: [string, string, string]) {
   if (v == null) return '—'
   return v < lo ? labels[0] : v > hi ? labels[2] : labels[1]
+}
+
+const IND_LABELS: [keyof SignalConfig['w'], string][] = [
+  ['rsi', 'RSI'],
+  ['macd', 'MACD'],
+  ['ma20', '단기 추세(20일선)'],
+  ['cross', '이평 배열'],
+  ['boll', '볼린저 위치'],
+]
+
+function ConfigSheet({
+  cfg,
+  onApply,
+  onClose,
+}: {
+  cfg: SignalConfig
+  onApply: (c: SignalConfig) => void
+  onClose: () => void
+}) {
+  const [draft, setDraft] = useState<SignalConfig>(cfg)
+  const setW = (k: keyof SignalConfig['w'], v: number) =>
+    setDraft((d) => ({ ...d, w: { ...d.w, [k]: v } }))
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/60 flex items-end justify-center fade-in" onClick={onClose}>
+      <div
+        className="bg-surface border border-border rounded-t-2xl p-5 w-full max-w-app card-shadow max-h-[85vh] overflow-y-auto pb-safe"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-base font-bold">신호 규칙 설정</span>
+          <button onClick={onClose} className="text-muted text-2xl leading-none px-1">×</button>
+        </div>
+        <p className="text-[0.66rem] text-muted mb-4">
+          종합신호·과거성과(백테스트)에 함께 적용돼요. 판정 문턱은 최대점수의 40%로 자동 조정.
+        </p>
+
+        <div className="text-[0.7rem] font-semibold uppercase tracking-[0.07em] text-muted mb-2">
+          지표 가중치
+        </div>
+        <div className="space-y-2 mb-4">
+          {IND_LABELS.map(([k, label]) => (
+            <div key={k} className="flex items-center justify-between gap-2">
+              <span className="text-sm">{label}</span>
+              <div className="flex gap-1">
+                {[0, 1, 2].map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setW(k, v)}
+                    className={`font-mono text-xs px-3 py-1.5 rounded-md border transition-colors ${
+                      draft.w[k] === v
+                        ? 'bg-accent/15 border-accent text-accent'
+                        : 'border-border text-muted'
+                    }`}
+                  >
+                    {v === 0 ? '끔' : `${v}×`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="text-[0.7rem] font-semibold uppercase tracking-[0.07em] text-muted mb-2">
+          RSI 기준값
+        </div>
+        <div className="flex gap-3 mb-5">
+          <label className="flex-1 text-xs text-muted">
+            과매도 (반등 기대)
+            <select
+              value={draft.rsiLow}
+              onChange={(e) => setDraft((d) => ({ ...d, rsiLow: Number(e.target.value) }))}
+              className="w-full mt-1 bg-ink border border-border rounded-lg px-2 py-2 text-sm text-text"
+            >
+              {[20, 25, 30, 35, 40].map((v) => (
+                <option key={v} value={v}>{v} 이하</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex-1 text-xs text-muted">
+            과매수 (과열)
+            <select
+              value={draft.rsiHigh}
+              onChange={(e) => setDraft((d) => ({ ...d, rsiHigh: Number(e.target.value) }))}
+              className="w-full mt-1 bg-ink border border-border rounded-lg px-2 py-2 text-sm text-text"
+            >
+              {[60, 65, 70, 75, 80].map((v) => (
+                <option key={v} value={v}>{v} 이상</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => setDraft(DEFAULT_SIGNAL_CONFIG)}
+            className="flex-1 border border-border rounded-xl py-2.5 text-sm text-muted active:bg-surface-2"
+          >
+            기본값으로
+          </button>
+          <button
+            onClick={() => {
+              onApply(draft)
+              onClose()
+            }}
+            className="flex-[2] bg-accent/15 border border-accent/50 text-accent rounded-xl py-2.5 text-sm font-semibold active:bg-accent/25"
+          >
+            적용
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function PerfBox({
@@ -48,10 +171,20 @@ function PerfBox({
 }
 
 export default function SignalView({ t }: { t: FocusTicker }) {
-  const sig = useQuery({ queryKey: ['signal', t.ticker], queryFn: () => getSignal(t.ticker) })
+  const [cfg, setCfg] = useState<SignalConfig>(loadSignalConfig)
+  const [cfgOpen, setCfgOpen] = useState(false)
+  const key = cfgKey(cfg)
+  const params = cfgParams(cfg)
+
+  const sig = useQuery({ queryKey: ['signal', t.ticker, key], queryFn: () => getSignal(t.ticker, params) })
   const fc = useQuery({ queryKey: ['forecast', t.ticker], queryFn: () => getForecast(t.ticker) })
   const val = useQuery({ queryKey: ['val', t.market, t.ticker], queryFn: () => getValuation(t.market, t.ticker) })
-  const hist = useQuery({ queryKey: ['sighist', t.ticker], queryFn: () => getSignalHistory(t.ticker) })
+  const hist = useQuery({ queryKey: ['sighist', t.ticker, key], queryFn: () => getSignalHistory(t.ticker, params) })
+
+  const applyCfg = (c: SignalConfig) => {
+    setCfg(c)
+    saveSignalConfig(c)
+  }
 
   if (sig.isLoading) return <Loading />
   if (sig.isError) return <ErrorState onRetry={() => sig.refetch()} />
@@ -72,16 +205,25 @@ export default function SignalView({ t }: { t: FocusTicker }) {
 
       {/* 판정 */}
       <div className={`rounded-xl border px-4 py-3.5 card-shadow ${VERDICT_STYLE[s.verdict] ?? VERDICT_STYLE['중립']}`}>
-        <div className="text-[0.66rem] uppercase tracking-[0.09em] opacity-70">기술적 신호 종합</div>
+        <div className="flex items-center justify-between">
+          <span className="text-[0.66rem] uppercase tracking-[0.09em] opacity-70">
+            기술적 신호 종합{!isDefaultConfig(cfg) && ' · 내 규칙'}
+          </span>
+          <button onClick={() => setCfgOpen(true)} aria-label="신호 규칙 설정" className="opacity-70 active:opacity-100 text-sm leading-none">
+            ⚙️
+          </button>
+        </div>
         <div className="flex items-center gap-2 mt-1">
           <span className="h-2.5 w-2.5 rounded-full bg-current opacity-90" />
           <span className="text-xl font-bold">{s.verdict}</span>
           <span className="ml-auto font-mono text-sm opacity-70">
             {s.total > 0 ? '+' : ''}
-            {s.total} / ±5
+            {s.total} / ±{s.maxScore ?? 5}
           </span>
         </div>
       </div>
+
+      {cfgOpen && <ConfigSheet cfg={cfg} onApply={applyCfg} onClose={() => setCfgOpen(false)} />}
 
       {/* 예상 변동 범위 */}
       {b && (
