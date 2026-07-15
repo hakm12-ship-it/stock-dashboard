@@ -4,6 +4,52 @@ import type { FocusTicker } from '../data/tickers'
 import { Panel, Loading, Empty, ErrorState, Metric } from '../components/ui'
 import { fmtNum, fmtEps, fmtCap } from '../lib/format'
 
+function RevenueBars({
+  years,
+  series,
+}: {
+  years: number[]
+  series: { label: string; color: string; values: (number | null)[] }[]
+}) {
+  const max = Math.max(1, ...series.flatMap((s) => s.values.map((v) => (v && v > 0 ? v : 0))))
+  return (
+    <div>
+      <div className="flex items-end gap-2 h-36">
+        {years.map((yr, i) => (
+          <div key={yr} className="flex-1 flex items-end justify-center gap-[3px] h-full">
+            {series.map((s) => {
+              const v = s.values[i] ?? 0
+              const h = v > 0 ? Math.max(3, (v / max) * 100) : 2
+              return (
+                <div
+                  key={s.label}
+                  className="flex-1 rounded-t-sm"
+                  style={{ height: `${h}%`, backgroundColor: s.color }}
+                />
+              )
+            })}
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2 mt-1">
+        {years.map((yr) => (
+          <div key={yr} className="flex-1 text-center text-[0.62rem] text-muted font-mono">
+            {yr}
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-3 justify-center mt-2">
+        {series.map((s) => (
+          <span key={s.label} className="flex items-center gap-1 text-[0.66rem] text-muted">
+            <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: s.color }} />
+            {s.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function FundamentalView({ t }: { t: FocusTicker }) {
   const isStock = t.kind === 'stock'
   const val = useQuery({ queryKey: ['val', t.market, t.ticker], queryFn: () => getValuation(t.market, t.ticker), enabled: isStock })
@@ -77,28 +123,19 @@ export default function FundamentalView({ t }: { t: FocusTicker }) {
       {/* 연간 실적 */}
       {yearsData && yearsData.years?.length ? (
         <Panel label="연간 실적 추이">
-          <div className="overflow-x-auto no-scrollbar">
-            <table className="w-full text-xs font-mono tnum">
-              <thead>
-                <tr className="text-muted text-[0.66rem]">
-                  <th className="text-left font-medium py-1">연도</th>
-                  <th className="text-right font-medium">매출</th>
-                  <th className="text-right font-medium">영업이익</th>
-                  <th className="text-right font-medium">순이익</th>
-                </tr>
-              </thead>
-              <tbody>
-                {yearsData.years.map((yr, i) => (
-                  <tr key={yr} className="border-t border-border">
-                    <td className="py-1.5 text-left text-muted">{yr}</td>
-                    <td className="text-right">{fmtCap(yearsData['매출']?.[i] ?? null, t.market)}</td>
-                    <td className="text-right">{fmtCap(yearsData['영업이익']?.[i] ?? null, t.market)}</td>
-                    <td className="text-right">{fmtCap(yearsData['순이익']?.[i] ?? null, t.market)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <RevenueBars
+            years={yearsData.years}
+            series={[
+              { label: '매출', color: '#E0B84D', values: (yearsData['매출'] as (number | null)[]) ?? [] },
+              { label: '영업이익', color: '#3B82F6', values: (yearsData['영업이익'] as (number | null)[]) ?? [] },
+              { label: '순이익', color: '#8B94A3', values: (yearsData['순이익'] as (number | null)[]) ?? [] },
+            ]}
+          />
+          <p className="text-[0.62rem] text-muted mt-3 text-center font-mono">
+            {yearsData.years.at(-1)} · 매출 {fmtCap(yearsData['매출']?.at(-1) ?? null, t.market)} · 영업{' '}
+            {fmtCap(yearsData['영업이익']?.at(-1) ?? null, t.market)} · 순익{' '}
+            {fmtCap(yearsData['순이익']?.at(-1) ?? null, t.market)}
+          </p>
         </Panel>
       ) : null}
 
