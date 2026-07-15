@@ -1,11 +1,14 @@
 import type { ReactNode } from 'react'
+import HelpTip from './HelpTip'
 
 export function Panel({
   label,
+  help,
   children,
   className = '',
 }: {
   label?: string
+  help?: string
   children: ReactNode
   className?: string
 }) {
@@ -14,6 +17,7 @@ export function Panel({
       {label && (
         <div className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted mb-3">
           {label}
+          {help && <HelpTip term={help} />}
         </div>
       )}
       {children}
@@ -26,16 +30,19 @@ export function Metric({
   value,
   sub,
   subClass = 'text-muted',
+  help,
 }: {
   label: string
   value: ReactNode
   sub?: ReactNode
   subClass?: string
+  help?: string
 }) {
   return (
     <div className="bg-surface border border-border rounded-xl px-3.5 py-3 card-shadow">
       <div className="text-[0.66rem] font-semibold uppercase tracking-[0.07em] text-muted">
         {label}
+        {help && <HelpTip term={help} />}
       </div>
       <div className="font-mono text-xl font-semibold tnum mt-1 leading-tight">{value}</div>
       {sub != null && <div className={`font-mono text-xs mt-0.5 ${subClass}`}>{sub}</div>}

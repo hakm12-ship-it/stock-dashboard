@@ -48,7 +48,7 @@ export default function SignalView({ t }: { t: FocusTicker }) {
 
       {/* 예상 변동 범위 */}
       {b && (
-        <Panel label="🔮 예상 변동 범위 · 향후 7거래일">
+        <Panel label="🔮 예상 변동 범위 · 향후 7거래일" help="forecast">
           <div className="grid grid-cols-3 gap-2 mb-3">
             <Metric label="예상 하단" value={fmtQuote(b.lower_inner, t)} sub={fmtPct(((b.lower_inner / cur) - 1) * 100)} subClass="text-down" />
             <Metric label="현재가" value={fmtQuote(cur, t)} />
@@ -75,7 +75,7 @@ export default function SignalView({ t }: { t: FocusTicker }) {
       )}
 
       {/* 신호 근거 */}
-      <Panel label="신호 근거">
+      <Panel label="신호 근거" help="verdict">
         <ul className="space-y-2">
           {s.signals.map((it) => (
             <li key={it.name} className="flex gap-2.5 text-sm">
@@ -90,7 +90,7 @@ export default function SignalView({ t }: { t: FocusTicker }) {
       </Panel>
 
       {/* 참고 가격대 */}
-      <Panel label="참고 가격대">
+      <Panel label="참고 가격대" help="sr">
         <div className="grid grid-cols-2 gap-4">
           <div>
             <div className="text-[0.66rem] text-down font-semibold mb-1.5">지지 (매수 관심)</div>
@@ -117,9 +117,9 @@ export default function SignalView({ t }: { t: FocusTicker }) {
       {t.kind === 'stock' && val.data && (
         <Panel label="밸류에이션 참고">
           <div className="grid grid-cols-3 gap-2">
-            <Metric label="PER" value={fmtNum(val.data.PER, 1)} sub={band(val.data.PER, 10, 25, ['낮음', '보통', '높음'])} />
-            <Metric label="PBR" value={fmtNum(val.data.PBR, 2)} sub={band(val.data.PBR, 1, 3, ['낮음', '보통', '높음'])} />
-            <Metric label="ROE" value={val.data.ROE != null ? `${(val.data.ROE * 100).toFixed(1)}%` : '—'} sub={band(val.data.ROE, 0.05, 0.15, ['낮음', '보통', '우수'])} />
+            <Metric label="PER" help="per" value={fmtNum(val.data.PER, 1)} sub={band(val.data.PER, 10, 25, ['낮음', '보통', '높음'])} />
+            <Metric label="PBR" help="pbr" value={fmtNum(val.data.PBR, 2)} sub={band(val.data.PBR, 1, 3, ['낮음', '보통', '높음'])} />
+            <Metric label="ROE" help="roe" value={val.data.ROE != null ? `${(val.data.ROE * 100).toFixed(1)}%` : '—'} sub={band(val.data.ROE, 0.05, 0.15, ['낮음', '보통', '우수'])} />
           </div>
         </Panel>
       )}

@@ -50,10 +50,11 @@ export default function TechnicalView({
         <Metric label="현재가" value={last ? fmtQuote(last.close, t) : '—'} />
         <Metric
           label="RSI(14)"
+          help="rsi"
           value={rsiLast != null ? rsiLast.toFixed(1) : '—'}
           sub={rsiLast != null ? (rsiLast >= 70 ? '과매수' : rsiLast <= 30 ? '과매도' : '중립') : undefined}
         />
-        <Metric label="MACD" value={macdLast != null ? macdLast.toFixed(1) : '—'} />
+        <Metric label="MACD" help="macd" value={macdLast != null ? macdLast.toFixed(1) : '—'} />
       </div>
 
       {/* 오버레이 토글 */}

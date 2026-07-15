@@ -44,10 +44,10 @@ export default function FundamentalView({ t }: { t: FocusTicker }) {
     <div className="space-y-3">
       {v && (
         <div className="grid grid-cols-3 gap-2">
-          <Metric label="PER" value={fmtNum(v.PER, 1)} />
-          <Metric label="PBR" value={fmtNum(v.PBR, 2)} />
-          <Metric label="EPS" value={fmtEps(v.EPS, t.market)} />
-          <Metric label="ROE" value={v.ROE != null ? `${(v.ROE * 100).toFixed(1)}%` : '—'} />
+          <Metric label="PER" help="per" value={fmtNum(v.PER, 1)} />
+          <Metric label="PBR" help="pbr" value={fmtNum(v.PBR, 2)} />
+          <Metric label="EPS" help="eps" value={fmtEps(v.EPS, t.market)} />
+          <Metric label="ROE" help="roe" value={v.ROE != null ? `${(v.ROE * 100).toFixed(1)}%` : '—'} />
           <Metric label="배당수익률" value={v.배당수익률 != null ? `${v.배당수익률.toFixed(2)}%` : '—'} />
           <Metric label="시가총액" value={fmtCap(v.시가총액, t.market)} />
         </div>
@@ -55,7 +55,7 @@ export default function FundamentalView({ t }: { t: FocusTicker }) {
 
       {/* 미래 PER */}
       {fpe.data && fpe.data.forward.length > 0 && (
-        <Panel label="미래 PER · 애널리스트 예상EPS 기준">
+        <Panel label="미래 PER · 애널리스트 예상EPS 기준" help="fwdper">
           <div className={`grid gap-2 ${fpe.data.forward.length >= 2 ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <Metric label="현재(실적)" value={fmtNum(cur, 1)} />
             {fpe.data.forward.map((f) => (
