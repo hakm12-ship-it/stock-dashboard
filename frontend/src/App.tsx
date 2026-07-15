@@ -18,6 +18,7 @@ import HoldingsSheet from './components/HoldingsSheet'
 import ComparisonSheet from './components/ComparisonSheet'
 import { loadCustom, saveCustom } from './lib/customTickers'
 import { loadHoldings, saveHoldings, type Holding } from './lib/holdings'
+import { marketStatus } from './lib/market'
 
 export default function App() {
   const [t, setT] = useState<FocusTicker>(TICKERS[0])
@@ -38,6 +39,18 @@ export default function App() {
     document.documentElement.dataset.theme = theme
     localStorage.setItem('theme', theme)
   }, [theme])
+
+  // 장중이면 1분마다 자동 새로고침 (화면이 보일 때만)
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState !== 'visible') return
+      if (marketStatus('KR').open || marketStatus('US').open) {
+        qc.invalidateQueries()
+        setUpdatedAt(new Date())
+      }
+    }, 60_000)
+    return () => clearInterval(id)
+  }, [qc])
 
   const all = [...TICKERS, ...custom]
 
@@ -66,6 +79,16 @@ export default function App() {
     const next = holdings.filter((x) => !(x.ticker === h.ticker && x.market === h.market))
     setHoldings(next)
     saveHoldings(next)
+  }
+  const importData = (d: { holdings?: Holding[]; customTickers?: FocusTicker[] }) => {
+    if (Array.isArray(d.holdings)) {
+      setHoldings(d.holdings)
+      saveHoldings(d.holdings)
+    }
+    if (Array.isArray(d.customTickers)) {
+      setCustom(d.customTickers)
+      saveCustom(d.customTickers)
+    }
   }
 
   return (
@@ -151,9 +174,11 @@ export default function App() {
       {holdingsOpen && (
         <HoldingsSheet
           holdings={holdings}
+          custom={custom}
           tickers={all}
           onSave={saveHolding}
           onRemove={removeHolding}
+          onImport={importData}
           onClose={() => setHoldingsOpen(false)}
         />
       )}

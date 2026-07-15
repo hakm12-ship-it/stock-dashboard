@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
-import { getPrices, getSignal, getIndex, type Period } from '../lib/api'
+import { getPrices, getSignal, getIndex, getProfile, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import IndexStrip from '../components/IndexStrip'
 import PortfolioSummary from '../components/PortfolioSummary'
@@ -52,6 +52,12 @@ function HomeCard({
     queryFn: () => getIndex(t.indexName as string),
     enabled: isIndex,
   })
+  const prof = useQuery({
+    queryKey: ['profile', t.market, t.ticker],
+    queryFn: () => getProfile(t.market, t.ticker),
+    enabled: t.market === 'KR' && t.kind !== 'index',
+  })
+  const logo = prof.data?.logo
 
   const series = prices.data?.map((c) => c.close) ?? []
   const last = prices.data?.at(-1)
@@ -86,6 +92,16 @@ function HomeCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
+            {logo && (
+              <img
+                src={logo}
+                alt=""
+                className="h-5 w-5 rounded-full border border-border bg-surface object-contain shrink-0"
+                onError={(e) => {
+                  ;(e.target as HTMLImageElement).style.display = 'none'
+                }}
+              />
+            )}
             <span className="font-semibold truncate">{t.short}</span>
             {t.kind === 'etf' && (
               <span className="font-mono text-[0.55rem] text-accent">{t.lev ?? 'ETF'}</span>
