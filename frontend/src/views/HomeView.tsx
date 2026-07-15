@@ -33,7 +33,7 @@ const VERDICT_COLOR: Record<string, string> = {
   중립: 'text-muted',
 }
 
-function HomeCard({ t, onClick }: { t: FocusTicker; onClick: () => void }) {
+function HomeCard({ t, holding, onClick }: { t: FocusTicker; holding?: Holding; onClick: () => void }) {
   const isIndex = t.kind === 'index' && !!t.indexName
   const prices = useQuery({ queryKey: ['prices', t.ticker, '1m'], queryFn: () => getPrices(t.ticker, '1m') })
   const sig = useQuery({ queryKey: ['signal', t.ticker], queryFn: () => getSignal(t.ticker) })
@@ -66,6 +66,7 @@ function HomeCard({ t, onClick }: { t: FocusTicker; onClick: () => void }) {
     }
   }
   const up = hasChange ? chg >= 0 : series.length > 1 ? series[series.length - 1] >= series[0] : true
+  const holdPct = holding && last ? (last.close / holding.avg - 1) * 100 : null
 
   return (
     <button
@@ -78,6 +79,15 @@ function HomeCard({ t, onClick }: { t: FocusTicker; onClick: () => void }) {
             <span className="font-semibold truncate">{t.short}</span>
             {t.kind === 'etf' && <span className="font-mono text-[0.55rem] text-accent">3X</span>}
             {t.kind === 'index' && <span className="font-mono text-[0.55rem] text-muted">지수</span>}
+            {holding && (
+              <span
+                className={`font-mono text-[0.55rem] px-1 py-0.5 rounded border shrink-0 ${
+                  holdPct != null && holdPct >= 0 ? 'border-up/40 text-up' : 'border-down/40 text-down'
+                }`}
+              >
+                보유 {holdPct != null ? `${holdPct >= 0 ? '+' : ''}${holdPct.toFixed(1)}%` : ''}
+              </span>
+            )}
           </div>
           <div className="font-mono text-[0.65rem] text-muted mt-0.5">{t.ticker}</div>
         </div>
@@ -173,7 +183,12 @@ export default function HomeView({
         </div>
       </div>
       {ordered.map(({ t }) => (
-        <HomeCard key={`${t.market}-${t.ticker}`} t={t} onClick={() => onSelect(t)} />
+        <HomeCard
+          key={`${t.market}-${t.ticker}`}
+          t={t}
+          holding={holdings.find((h) => h.ticker === t.ticker && h.market === t.market)}
+          onClick={() => onSelect(t)}
+        />
       ))}
       <div className="flex gap-2">
         <button
