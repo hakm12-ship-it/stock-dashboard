@@ -186,6 +186,23 @@ def api_index(name: str):
     }
 
 
+@ttl_cache(60 * 30)
+def _load_fx():
+    return fdr.DataReader("USD/KRW", date.today() - timedelta(days=30))
+
+
+@app.get("/api/fx")
+def api_fx():
+    close = _load_fx()["Close"].dropna()
+    last = float(close.iloc[-1])
+    prev = float(close.iloc[-2]) if len(close) > 1 else last
+    return {
+        "usdkrw": last,
+        "change": last - prev,
+        "changePct": (last - prev) / prev * 100 if prev else 0,
+    }
+
+
 # ---- 프로덕션: 빌드된 프론트엔드 정적 서빙 (단일 서비스 배포용) ----
 # 반드시 모든 /api 라우트 뒤에 마운트해야 API가 우선한다.
 _DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"

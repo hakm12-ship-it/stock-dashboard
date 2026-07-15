@@ -120,3 +120,10 @@ export const getSymbols = (market: Market, q: string) =>
   get<SymbolResult[]>('/api/symbols', { market, q })
 export const getTarget = (market: Market, ticker: string) =>
   get<Target>('/api/target', { market, ticker })
+
+export interface Fx {
+  usdkrw: number
+  change: number
+  changePct: number
+}
+export const getFx = () => get<Fx>('/api/fx', {})
