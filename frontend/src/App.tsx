@@ -13,6 +13,7 @@ import FundamentalView from './views/FundamentalView'
 import NewsView from './views/NewsView'
 import SearchSheet from './components/SearchSheet'
 import HoldingsSheet from './components/HoldingsSheet'
+import ComparisonSheet from './components/ComparisonSheet'
 import { loadCustom, saveCustom } from './lib/customTickers'
 import { loadHoldings, saveHoldings, type Holding } from './lib/holdings'
 
@@ -25,6 +26,7 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [holdings, setHoldings] = useState<Holding[]>(loadHoldings)
   const [holdingsOpen, setHoldingsOpen] = useState(false)
+  const [comparisonOpen, setComparisonOpen] = useState(false)
   const [theme, setTheme] = useState<'dark' | 'light'>(
     () => (localStorage.getItem('theme') as 'dark' | 'light') || 'dark',
   )
@@ -107,6 +109,7 @@ export default function App() {
               }}
               onAddClick={() => setSearchOpen(true)}
               onManageHoldings={() => setHoldingsOpen(true)}
+              onCompare={() => setComparisonOpen(true)}
             />
           ) : (
             <>
@@ -150,6 +153,10 @@ export default function App() {
           onRemove={removeHolding}
           onClose={() => setHoldingsOpen(false)}
         />
+      )}
+
+      {comparisonOpen && (
+        <ComparisonSheet tickers={all} light={theme === 'light'} onClose={() => setComparisonOpen(false)} />
       )}
     </div>
   )

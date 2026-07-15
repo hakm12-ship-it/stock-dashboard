@@ -110,12 +110,14 @@ export default function HomeView({
   onSelect,
   onAddClick,
   onManageHoldings,
+  onCompare,
 }: {
   tickers: FocusTicker[]
   holdings: Holding[]
   onSelect: (t: FocusTicker) => void
   onAddClick: () => void
   onManageHoldings: () => void
+  onCompare: () => void
 }) {
   const [sort, setSort] = useState<'default' | 'gainers' | 'losers'>('default')
 
@@ -173,12 +175,20 @@ export default function HomeView({
       {ordered.map(({ t }) => (
         <HomeCard key={`${t.market}-${t.ticker}`} t={t} onClick={() => onSelect(t)} />
       ))}
-      <button
-        onClick={onAddClick}
-        className="w-full border border-dashed border-border rounded-xl py-3 text-muted text-sm active:bg-surface transition-colors"
-      >
-        + 종목 추가
-      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={onAddClick}
+          className="flex-1 border border-dashed border-border rounded-xl py-3 text-muted text-sm active:bg-surface transition-colors"
+        >
+          + 종목 추가
+        </button>
+        <button
+          onClick={onCompare}
+          className="flex-1 border border-border rounded-xl py-3 text-muted text-sm active:bg-surface transition-colors"
+        >
+          ⚖️ 종목 비교
+        </button>
+      </div>
     </div>
   )
 }
