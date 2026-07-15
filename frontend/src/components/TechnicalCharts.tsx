@@ -45,12 +45,14 @@ export default function TechnicalCharts({
   showMA,
   showBB,
   light,
+  levels,
 }: {
   candles: Candle[]
   ind: Indicators
   showMA: boolean
   showBB: boolean
   light: boolean
+  levels?: { support: number[]; resistance: number[] }
 }) {
   const priceRef = useRef<HTMLDivElement>(null)
   const legendRef = useRef<HTMLDivElement>(null)
@@ -96,6 +98,22 @@ export default function TechnicalCharts({
         color: c.close >= c.open ? 'rgba(242,54,69,0.35)' : 'rgba(46,134,255,0.35)',
       })),
     )
+
+    // 지지/저항 수평선 (종합신호 데이터)
+    if (levels) {
+      levels.support.forEach((p) =>
+        cs.createPriceLine({
+          price: p, color: DOWN, lineWidth: 1, lineStyle: 2,
+          axisLabelVisible: true, title: '지지',
+        }),
+      )
+      levels.resistance.forEach((p) =>
+        cs.createPriceLine({
+          price: p, color: UP, lineWidth: 1, lineStyle: 2,
+          axisLabelVisible: true, title: '저항',
+        }),
+      )
+    }
 
     // 십자선 OHLC 시세 표시
     const fnum = (n: number) => (n >= 1000 ? Math.round(n).toLocaleString() : n.toFixed(2))
@@ -152,7 +170,7 @@ export default function TechnicalCharts({
     }
 
     return () => charts.forEach((c) => c.remove())
-  }, [candles, ind, showMA, showBB, light])
+  }, [candles, ind, showMA, showBB, light, levels])
 
   return (
     <div className="space-y-1">

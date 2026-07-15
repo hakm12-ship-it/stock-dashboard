@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getPrices, getIndicators, type Period } from '../lib/api'
+import { getPrices, getIndicators, getSignal, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import { Loading, Empty, ErrorState, Metric } from '../components/ui'
 import TechnicalCharts from '../components/TechnicalCharts'
@@ -22,9 +22,23 @@ export default function TechnicalView({
 }) {
   const [showMA, setShowMA] = useState(true)
   const [showBB, setShowBB] = useState(false)
+  const [showSR, setShowSR] = useState(true)
 
   const prices = useQuery({ queryKey: ['prices', t.ticker, period], queryFn: () => getPrices(t.ticker, period) })
   const ind = useQuery({ queryKey: ['ind', t.ticker, period], queryFn: () => getIndicators(t.ticker, period) })
+  const sig = useQuery({ queryKey: ['signal', t.ticker], queryFn: () => getSignal(t.ticker) })
+
+  // 현재가에 가까운 지지/저항 각각 2개만 (차트 어지럽지 않게)
+  const levels = useMemo(
+    () =>
+      showSR && sig.data
+        ? {
+            support: sig.data.support.slice(0, 2).map((x) => x.value),
+            resistance: sig.data.resistance.slice(0, 2).map((x) => x.value),
+          }
+        : undefined,
+    [showSR, sig.data],
+  )
 
   const last = prices.data?.[prices.data.length - 1]
   const rsiLast = ind.data?.rsi.filter((v) => v != null).at(-1) as number | undefined
@@ -63,6 +77,7 @@ export default function TechnicalView({
       <div className="flex gap-2 text-xs">
         <Toggle on={showMA} onClick={() => setShowMA((v) => !v)} label="이동평균 20·60" />
         <Toggle on={showBB} onClick={() => setShowBB((v) => !v)} label="볼린저" />
+        <Toggle on={showSR} onClick={() => setShowSR((v) => !v)} label="지지·저항" />
       </div>
 
       {prices.isLoading || ind.isLoading ? (
@@ -75,7 +90,7 @@ export default function TechnicalView({
           }}
         />
       ) : prices.data && ind.data && prices.data.length ? (
-        <TechnicalCharts candles={prices.data} ind={ind.data} showMA={showMA} showBB={showBB} light={light} />
+        <TechnicalCharts candles={prices.data} ind={ind.data} showMA={showMA} showBB={showBB} light={light} levels={levels} />
       ) : (
         <Empty />
       )}
