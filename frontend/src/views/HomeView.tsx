@@ -206,44 +206,53 @@ export default function HomeView({
     <div className="space-y-2">
       <PortfolioSummary holdings={holdings} light={light} onManage={onManageHoldings} />
       <IndexStrip />
-      <div className="flex items-center justify-between pt-2 pb-0.5">
-        <span className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted">
-          관심 종목
-        </span>
-        <div className="flex items-center gap-1">
+      <div className="pt-2 pb-0.5 space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted">
+            관심 종목
+          </span>
           <button
             onClick={() => {
               setEditing((v) => !v)
               if (!editing) setSort('default')
             }}
-            className={`text-[0.66rem] px-2 py-1 rounded-md ${editing ? 'bg-accent/15 text-accent' : 'text-muted'}`}
+            className={`text-[0.66rem] px-2.5 py-1 rounded-md border ${
+              editing ? 'bg-accent/15 border-accent/50 text-accent' : 'border-border text-muted'
+            }`}
           >
-            {editing ? '완료' : '편집'}
+            {editing ? '완료' : '순서 편집'}
           </button>
-          {(['1m', '3m', '6m'] as Period[]).map((p) => (
-            <button
-              key={p}
-              onClick={() => setSparkPeriod(p)}
-              className={`font-mono text-[0.6rem] px-1.5 py-1 rounded transition-colors ${
-                sparkPeriod === p ? 'bg-accent/15 text-accent' : 'text-muted/70'
-              }`}
-            >
-              {p.toUpperCase()}
-            </button>
-          ))}
-          <span className="w-px h-3 bg-border mx-0.5" />
-          {SORTS.map(([k, label]) => (
-            <button
-              key={k}
-              onClick={() => setSort(k)}
-              className={`text-[0.66rem] px-2 py-1 rounded-md transition-colors ${
-                sort === k ? 'bg-accent/15 text-accent' : 'text-muted'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
         </div>
+        {!editing && (
+          <div className="flex items-center justify-between">
+            <div className="flex gap-1">
+              {(['1m', '3m', '6m'] as Period[]).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setSparkPeriod(p)}
+                  className={`font-mono text-[0.62rem] px-2 py-1 rounded transition-colors ${
+                    sparkPeriod === p ? 'bg-accent/15 text-accent' : 'text-muted/70'
+                  }`}
+                >
+                  {p.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-1">
+              {SORTS.map(([k, label]) => (
+                <button
+                  key={k}
+                  onClick={() => setSort(k)}
+                  className={`text-[0.66rem] px-2 py-1 rounded-md transition-colors ${
+                    sort === k ? 'bg-accent/15 text-accent' : 'text-muted'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       {editing
         ? tickers.map((t, i) => (

@@ -19,7 +19,7 @@ function IndexItem({ name, market }: { name: string; market: Market }) {
       {data ? (
         <div className="min-w-0">
           <div className="font-mono font-semibold tnum text-[0.85rem] leading-tight truncate">
-            {fmtNum(data.last, 2)}
+            {fmtNum(data.last, data.last >= 10000 ? 0 : 2)}
           </div>
           <div className={`font-mono text-[0.64rem] ${changeColor(data.change)}`}>
             {changeSign(data.change)} {Math.abs(data.changePct).toFixed(2)}%

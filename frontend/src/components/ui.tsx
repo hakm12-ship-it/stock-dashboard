@@ -44,7 +44,7 @@ export function Metric({
         {label}
         {help && <HelpTip term={help} />}
       </div>
-      <div className="font-mono text-xl font-semibold tnum mt-1 leading-tight">{value}</div>
+      <div className="font-mono text-lg font-semibold tnum mt-1 leading-tight truncate">{value}</div>
       {sub != null && <div className={`font-mono text-xs mt-0.5 ${subClass}`}>{sub}</div>}
     </div>
   )
