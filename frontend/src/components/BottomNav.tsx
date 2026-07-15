@@ -16,7 +16,7 @@ export default function BottomNav({
   onChange: (k: TabKey) => void
 }) {
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-20 border-t border-border bg-ink/90 backdrop-blur">
+    <nav className="fixed bottom-0 inset-x-0 z-20 border-t border-border bg-ink/90 backdrop-blur pb-safe">
       <div className="mx-auto max-w-app grid grid-cols-5">
         {TABS.map((t) => {
           const on = t.key === active

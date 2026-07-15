@@ -26,7 +26,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      <div className="mx-auto max-w-app px-3 pt-3 pb-28 space-y-3">
+      <div className="mx-auto max-w-app px-3 pt-safe pb-28 space-y-3">
         {/* 브랜드 + 새로고침 */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
