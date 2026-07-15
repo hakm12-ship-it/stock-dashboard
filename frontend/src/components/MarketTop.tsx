@@ -5,8 +5,13 @@ import type { FocusTicker } from '../data/tickers'
 import { changeColor, changeSign } from '../lib/format'
 
 type Dir = 'up' | 'down'
-type Mkt = 'KOSPI' | 'KOSDAQ' | 'NASDAQ' | 'NYSE'
-const MKTS: Mkt[] = ['KOSPI', 'KOSDAQ', 'NASDAQ', 'NYSE']
+type Mkt = 'KOSPI' | 'KOSDAQ' | 'NASDAQ' | 'CRYPTO'
+const MKTS: Mkt[] = ['KOSPI', 'KOSDAQ', 'NASDAQ', 'CRYPTO']
+
+const fmtCoin = (p: number): string =>
+  p >= 100
+    ? `${Math.round(p).toLocaleString()}원`
+    : `${p.toLocaleString(undefined, { maximumFractionDigits: p >= 1 ? 1 : 4 })}원`
 
 export default function MarketTop({
   existing,
@@ -27,6 +32,7 @@ export default function MarketTop({
   })
 
   const mktKr = mkt === 'KOSPI' || mkt === 'KOSDAQ'
+  const isCrypto = mkt === 'CRYPTO'
   const tickerMarket = mktKr ? 'KR' : 'US'
   const isAdded = (ticker: string) =>
     existing.some((x) => x.ticker === ticker && x.market === tickerMarket)
@@ -46,7 +52,7 @@ export default function MarketTop({
                 mkt === m ? 'bg-accent/15 text-accent' : 'text-muted/70'
               }`}
             >
-              {m === 'NASDAQ' ? 'NAS' : m === 'KOSPI' ? '코스피' : m === 'KOSDAQ' ? '코스닥' : 'NYSE'}
+              {m === 'NASDAQ' ? 'NAS' : m === 'KOSPI' ? '코스피' : m === 'KOSDAQ' ? '코스닥' : '코인'}
             </button>
           ))}
         </div>
@@ -78,7 +84,7 @@ export default function MarketTop({
       ) : (
         <div>
           {q.data.map((s, i) => {
-            const added = isAdded(s.ticker)
+            const added = !isCrypto && isAdded(s.ticker)
             return (
               <div
                 key={s.ticker}
@@ -99,9 +105,11 @@ export default function MarketTop({
                   <div className="font-mono text-sm tnum">
                     {s.price == null
                       ? '—'
-                      : mktKr
-                        ? `${Math.round(s.price).toLocaleString()}원`
-                        : `$${s.price.toFixed(2)}`}
+                      : isCrypto
+                        ? fmtCoin(s.price)
+                        : mktKr
+                          ? `${Math.round(s.price).toLocaleString()}원`
+                          : `$${s.price.toFixed(2)}`}
                   </div>
                   <div className={`font-mono text-[0.7rem] ${s.changePct != null ? changeColor(s.changePct) : 'text-muted'}`}>
                     {s.changePct != null
@@ -109,28 +117,32 @@ export default function MarketTop({
                       : '—'}
                   </div>
                 </div>
-                <button
-                  disabled={added}
-                  onClick={() =>
-                    onAdd({
-                      ticker: s.ticker,
-                      name: s.name,
-                      short: s.name,
-                      market: tickerMarket,
-                      kind: 'stock',
-                    })
-                  }
-                  className={`shrink-0 text-[0.66rem] px-2 py-1 rounded-md border ${
-                    added ? 'text-muted border-border' : 'text-accent border-accent/50 active:bg-accent/10'
-                  }`}
-                >
-                  {added ? '추가됨' : '+담기'}
-                </button>
+                {!isCrypto && (
+                  <button
+                    disabled={added}
+                    onClick={() =>
+                      onAdd({
+                        ticker: s.ticker,
+                        name: s.name,
+                        short: s.name,
+                        market: tickerMarket,
+                        kind: 'stock',
+                      })
+                    }
+                    className={`shrink-0 text-[0.66rem] px-2 py-1 rounded-md border ${
+                      added ? 'text-muted border-border' : 'text-accent border-accent/50 active:bg-accent/10'
+                    }`}
+                  >
+                    {added ? '추가됨' : '+담기'}
+                  </button>
+                )}
               </div>
             )
           })}
           <p className="text-[0.58rem] text-muted mt-2">
-            급등락 상위는 변동성이 매우 큰 종목이에요 — 참고용 · 투자 조언 아님
+            {isCrypto
+              ? '업비트 KRW 마켓 · 24시간 등락 기준 · 참고용 · 투자 조언 아님'
+              : '급등락 상위는 변동성이 매우 큰 종목이에요 — 참고용 · 투자 조언 아님'}
           </p>
         </div>
       )}

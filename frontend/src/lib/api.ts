@@ -159,7 +159,7 @@ export interface MarketTopItem {
 }
 export const getMarketTop = (
   direction: 'up' | 'down',
-  market: 'KOSPI' | 'KOSDAQ' | 'NASDAQ' | 'NYSE',
+  market: 'KOSPI' | 'KOSDAQ' | 'NASDAQ' | 'CRYPTO',
 ) => get<MarketTopItem[]>('/api/market-top', { direction, market })
 
 export interface Peer {

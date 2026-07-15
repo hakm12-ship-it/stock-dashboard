@@ -20,6 +20,7 @@ from analysis.fundamental import analyst_target, forward_pe, revenue_trend, valu
 from analysis.signal import price_levels, signal_history, technical_signals
 from analysis.technical import bollinger, macd, rsi
 from cache import ttl_cache
+from data.crypto import upbit_top
 from data.naver_index import realtime_index
 from data.naver_stock import naver_deal_trend, naver_market_rank, naver_peers, naver_profile
 from data.news import fetch_news
@@ -33,6 +34,7 @@ _profile = ttl_cache(60 * 60 * 6)(naver_profile)
 _deal_trend = ttl_cache(60 * 30)(naver_deal_trend)
 _market_rank = ttl_cache(60 * 5)(naver_market_rank)
 _peers = ttl_cache(60 * 30)(naver_peers)
+_crypto_top = ttl_cache(60)(upbit_top)
 
 app = FastAPI(title="스톡 인사이트 API")
 app.add_middleware(
@@ -237,8 +239,10 @@ def api_target(market: str, ticker: str):
 @app.get("/api/market-top")
 def api_market_top(direction: str = "up", market: str = "KOSPI"):
     d = "down" if direction == "down" else "up"
-    m = market.upper() if market.upper() in ("KOSPI", "KOSDAQ", "NASDAQ", "NYSE") else "KOSPI"
+    m = market.upper() if market.upper() in ("KOSPI", "KOSDAQ", "NASDAQ", "NYSE", "CRYPTO") else "KOSPI"
     try:
+        if m == "CRYPTO":
+            return _crypto_top(d)
         return _market_rank(d, m)
     except Exception:
         return []
