@@ -1,8 +1,69 @@
 import { useQuery } from '@tanstack/react-query'
-import { getValuation, getForwardPe, getTrend, getTarget, getPrices, getProfile } from '../lib/api'
+import {
+  getValuation,
+  getForwardPe,
+  getTrend,
+  getTarget,
+  getPrices,
+  getProfile,
+  getDealTrend,
+} from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import { Panel, Loading, Empty, ErrorState, Metric } from '../components/ui'
 import { fmtNum, fmtEps, fmtCap, fmtPrice } from '../lib/format'
+
+const fmtShares = (v: number | null): string => {
+  if (v == null) return '—'
+  const sign = v > 0 ? '+' : v < 0 ? '-' : ''
+  const a = Math.abs(v)
+  return a >= 1e4 ? `${sign}${(a / 1e4).toFixed(1)}만` : `${sign}${a.toLocaleString()}`
+}
+
+function DealTrendPanel({ t }: { t: FocusTicker }) {
+  const dq = useQuery({
+    queryKey: ['deal', t.market, t.ticker],
+    queryFn: () => getDealTrend(t.market, t.ticker),
+    enabled: t.market === 'KR' && t.kind !== 'index',
+  })
+  const rows = (dq.data ?? []).slice(0, 5)
+  if (!rows.length) return null
+  const holdRatio = rows[0]?.foreignHoldRatio
+
+  return (
+    <Panel label="🌊 투자자별 매매동향 (순매수, 주)" help="flow">
+      <div className="overflow-x-auto no-scrollbar">
+        <table className="w-full text-xs font-mono tnum">
+          <thead>
+            <tr className="text-muted text-[0.64rem]">
+              <th className="text-left font-medium py-1">날짜</th>
+              <th className="text-right font-medium">외국인</th>
+              <th className="text-right font-medium">기관</th>
+              <th className="text-right font-medium">개인</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.date} className="border-t border-border">
+                <td className="py-1.5 text-left text-muted">{r.date.slice(5).replace('-', '.')}</td>
+                {[r.foreign, r.organ, r.individual].map((v, i) => (
+                  <td
+                    key={i}
+                    className={`text-right ${v != null && v > 0 ? 'text-up' : v != null && v < 0 ? 'text-down' : 'text-muted'}`}
+                  >
+                    {fmtShares(v)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {holdRatio != null && (
+        <p className="text-[0.62rem] text-muted mt-2 font-mono">외국인 보유율 {holdRatio}%</p>
+      )}
+    </Panel>
+  )
+}
 
 function RevenueBars({
   years,
@@ -90,6 +151,7 @@ export default function FundamentalView({ t }: { t: FocusTicker }) {
             <p className="text-xs text-muted leading-relaxed">{desc}</p>
           </Panel>
         )}
+        {!isIndex && <DealTrendPanel t={t} />}
       </div>
     )
   }
@@ -180,6 +242,9 @@ export default function FundamentalView({ t }: { t: FocusTicker }) {
           </p>
         </Panel>
       ) : null}
+
+      {/* 투자자별 매매동향 (국내) */}
+      <DealTrendPanel t={t} />
 
       {/* 증권사 리포트 (국내) */}
       {profile.data && profile.data.researches.length > 0 && (

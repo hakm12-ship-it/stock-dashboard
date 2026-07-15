@@ -151,6 +151,17 @@ export interface FxPoint {
 }
 export const getFxHistory = (period: Period) => get<FxPoint[]>('/api/fx-history', { period })
 
+export interface DealTrend {
+  date: string
+  foreign: number | null
+  organ: number | null
+  individual: number | null
+  foreignHoldRatio: number | null
+  close: number | null
+}
+export const getDealTrend = (market: Market, ticker: string) =>
+  get<DealTrend[]>('/api/deal-trend', { market, ticker })
+
 export interface Profile {
   name: string | null
   description: string | null

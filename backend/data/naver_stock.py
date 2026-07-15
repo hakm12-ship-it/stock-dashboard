@@ -68,6 +68,23 @@ def naver_fundamentals(code: str) -> dict:
     }
 
 
+def naver_deal_trend(code: str) -> list[dict]:
+    """투자자별 매매동향 — 날짜별 외국인/기관/개인 순매수량(주)."""
+    d = _api(code)
+    out = []
+    for r in d.get("dealTrendInfos") or []:
+        biz = str(r.get("bizdate") or "")
+        out.append({
+            "date": f"{biz[:4]}-{biz[4:6]}-{biz[6:]}" if len(biz) == 8 else biz,
+            "foreign": _num(r.get("foreignerPureBuyQuant")),
+            "organ": _num(r.get("organPureBuyQuant")),
+            "individual": _num(r.get("individualPureBuyQuant")),
+            "foreignHoldRatio": _num(r.get("foreignerHoldRatio")),
+            "close": _num(r.get("closePrice")),
+        })
+    return out
+
+
 def naver_profile(code: str) -> dict:
     """종목 프로필 — 개요(주로 ETF), 로고, 최근 증권사 리포트."""
     d = _api(code)
