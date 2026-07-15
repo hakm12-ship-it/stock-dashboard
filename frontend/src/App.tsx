@@ -12,6 +12,7 @@ import SignalView from './views/SignalView'
 import TechnicalView from './views/TechnicalView'
 import FundamentalView from './views/FundamentalView'
 import NewsView from './views/NewsView'
+import Onboarding from './components/Onboarding'
 import SearchSheet from './components/SearchSheet'
 import HoldingsSheet from './components/HoldingsSheet'
 import ComparisonSheet from './components/ComparisonSheet'
@@ -160,6 +161,8 @@ export default function App() {
       {comparisonOpen && (
         <ComparisonSheet tickers={all} light={theme === 'light'} onClose={() => setComparisonOpen(false)} />
       )}
+
+      <Onboarding />
     </div>
   )
 }

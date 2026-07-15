@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
-import { getPrices, getSignal, getIndex } from '../lib/api'
+import { getPrices, getSignal, getIndex, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import IndexStrip from '../components/IndexStrip'
 import PortfolioSummary from '../components/PortfolioSummary'
@@ -33,9 +33,19 @@ const VERDICT_COLOR: Record<string, string> = {
   중립: 'text-muted',
 }
 
-function HomeCard({ t, holding, onClick }: { t: FocusTicker; holding?: Holding; onClick: () => void }) {
+function HomeCard({
+  t,
+  holding,
+  period,
+  onClick,
+}: {
+  t: FocusTicker
+  holding?: Holding
+  period: Period
+  onClick: () => void
+}) {
   const isIndex = t.kind === 'index' && !!t.indexName
-  const prices = useQuery({ queryKey: ['prices', t.ticker, '1m'], queryFn: () => getPrices(t.ticker, '1m') })
+  const prices = useQuery({ queryKey: ['prices', t.ticker, period], queryFn: () => getPrices(t.ticker, period) })
   const sig = useQuery({ queryKey: ['signal', t.ticker], queryFn: () => getSignal(t.ticker) })
   const idx = useQuery({
     queryKey: ['index', t.indexName],
@@ -130,12 +140,13 @@ export default function HomeView({
   onCompare: () => void
 }) {
   const [sort, setSort] = useState<'default' | 'gainers' | 'losers'>('default')
+  const [sparkPeriod, setSparkPeriod] = useState<Period>('1m')
 
   // 정렬용 등락률 (카드와 같은 쿼리키 → 캐시 공유, 중복 요청 없음)
   const priceQs = useQueries({
     queries: tickers.map((t) => ({
-      queryKey: ['prices', t.ticker, '1m'],
-      queryFn: () => getPrices(t.ticker, '1m'),
+      queryKey: ['prices', t.ticker, sparkPeriod],
+      queryFn: () => getPrices(t.ticker, sparkPeriod),
     })),
   })
   const items = tickers.map((t, i) => {
@@ -168,7 +179,19 @@ export default function HomeView({
         <span className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted">
           관심 종목
         </span>
-        <div className="flex gap-1">
+        <div className="flex items-center gap-1">
+          {(['1m', '3m', '6m'] as Period[]).map((p) => (
+            <button
+              key={p}
+              onClick={() => setSparkPeriod(p)}
+              className={`font-mono text-[0.6rem] px-1.5 py-1 rounded transition-colors ${
+                sparkPeriod === p ? 'bg-accent/15 text-accent' : 'text-muted/70'
+              }`}
+            >
+              {p.toUpperCase()}
+            </button>
+          ))}
+          <span className="w-px h-3 bg-border mx-0.5" />
           {SORTS.map(([k, label]) => (
             <button
               key={k}
@@ -186,6 +209,7 @@ export default function HomeView({
         <HomeCard
           key={`${t.market}-${t.ticker}`}
           t={t}
+          period={sparkPeriod}
           holding={holdings.find((h) => h.ticker === t.ticker && h.market === t.market)}
           onClick={() => onSelect(t)}
         />
