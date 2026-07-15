@@ -47,7 +47,9 @@ def _market(code: str) -> str:
 @ttl_cache(60)
 def _load(ticker: str, period: str) -> pd.DataFrame:
     start = date.today() - timedelta(days=PERIOD_DAYS.get(period, 90))
-    return fdr.DataReader(ticker, start)
+    df = fdr.DataReader(ticker, start)
+    # 장중 미확정 행 등 Close가 NaN인 행 제거 (JSON 직렬화·지표 계산 오류 방지)
+    return df.dropna(subset=["Close"])
 
 
 @ttl_cache(60)
@@ -78,13 +80,18 @@ def api_symbols(market: str, q: str = ""):
 @app.get("/api/prices")
 def api_prices(ticker: str, period: str = "3m"):
     df = _load(ticker, period)
-    return [
-        {"time": idx.strftime("%Y-%m-%d"),
-         "open": float(r["Open"]), "high": float(r["High"]),
-         "low": float(r["Low"]), "close": float(r["Close"]),
-         "volume": float(r["Volume"])}
-        for idx, r in df.iterrows()
-    ]
+    out = []
+    for idx, r in df.iterrows():
+        if any(pd.isna(r[c]) for c in ("Open", "High", "Low", "Close")):
+            continue  # OHLC 누락 행 스킵
+        vol = r.get("Volume")
+        out.append({
+            "time": idx.strftime("%Y-%m-%d"),
+            "open": float(r["Open"]), "high": float(r["High"]),
+            "low": float(r["Low"]), "close": float(r["Close"]),
+            "volume": 0.0 if pd.isna(vol) else float(vol),
+        })
+    return out
 
 
 @app.get("/api/indicators")
