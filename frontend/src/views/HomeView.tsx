@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getPrices, getSignal, getIndex } from '../lib/api'
-import { TICKERS, type FocusTicker } from '../data/tickers'
+import type { FocusTicker } from '../data/tickers'
 import IndexStrip from '../components/IndexStrip'
 import { fmtQuote, changeColor, changeSign } from '../lib/format'
 
@@ -101,16 +101,30 @@ function HomeCard({ t, onClick }: { t: FocusTicker; onClick: () => void }) {
   )
 }
 
-export default function HomeView({ onSelect }: { onSelect: (t: FocusTicker) => void }) {
+export default function HomeView({
+  tickers,
+  onSelect,
+  onAddClick,
+}: {
+  tickers: FocusTicker[]
+  onSelect: (t: FocusTicker) => void
+  onAddClick: () => void
+}) {
   return (
     <div className="space-y-2">
       <IndexStrip />
       <div className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted pt-2 pb-0.5">
         관심 종목
       </div>
-      {TICKERS.map((t) => (
-        <HomeCard key={t.ticker} t={t} onClick={() => onSelect(t)} />
+      {tickers.map((t) => (
+        <HomeCard key={`${t.market}-${t.ticker}`} t={t} onClick={() => onSelect(t)} />
       ))}
+      <button
+        onClick={onAddClick}
+        className="w-full border border-dashed border-border rounded-xl py-3 text-muted text-sm active:bg-surface transition-colors"
+      >
+        + 종목 추가
+      </button>
     </div>
   )
 }

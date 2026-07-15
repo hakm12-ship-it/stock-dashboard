@@ -1,15 +1,17 @@
-import { TICKERS, type FocusTicker } from '../data/tickers'
+import type { FocusTicker } from '../data/tickers'
 
 export default function TickerSwitcher({
+  tickers,
   selected,
   onSelect,
 }: {
+  tickers: FocusTicker[]
   selected: FocusTicker
   onSelect: (t: FocusTicker) => void
 }) {
   return (
     <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-3 px-3">
-      {TICKERS.map((t) => {
+      {tickers.map((t) => {
         const active = t.ticker === selected.ticker
         return (
           <button

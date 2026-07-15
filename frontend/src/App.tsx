@@ -11,17 +11,35 @@ import SignalView from './views/SignalView'
 import TechnicalView from './views/TechnicalView'
 import FundamentalView from './views/FundamentalView'
 import NewsView from './views/NewsView'
+import SearchSheet from './components/SearchSheet'
+import { loadCustom, saveCustom } from './lib/customTickers'
 
 export default function App() {
   const [t, setT] = useState<FocusTicker>(TICKERS[0])
   const [period, setPeriod] = useState<Period>('3m')
   const [tab, setTab] = useState<TabKey>('home')
   const [updatedAt, setUpdatedAt] = useState<Date>(() => new Date())
+  const [custom, setCustom] = useState<FocusTicker[]>(loadCustom)
+  const [searchOpen, setSearchOpen] = useState(false)
   const qc = useQueryClient()
+
+  const all = [...TICKERS, ...custom]
 
   const refresh = () => {
     qc.invalidateQueries()
     setUpdatedAt(new Date())
+  }
+  const addTicker = (tk: FocusTicker) => {
+    if (all.some((x) => x.ticker === tk.ticker && x.market === tk.market)) return
+    const next = [...custom, tk]
+    setCustom(next)
+    saveCustom(next)
+  }
+  const removeTicker = (tk: FocusTicker) => {
+    const next = custom.filter((x) => !(x.ticker === tk.ticker && x.market === tk.market))
+    setCustom(next)
+    saveCustom(next)
+    if (t.ticker === tk.ticker && t.market === tk.market) setT(TICKERS[0])
   }
 
   return (
@@ -50,15 +68,17 @@ export default function App() {
         <div key={`${tab}-${t.ticker}`} className="fade-in space-y-3">
           {tab === 'home' ? (
             <HomeView
+              tickers={all}
               onSelect={(tk) => {
                 setT(tk)
                 setTab('signal')
               }}
+              onAddClick={() => setSearchOpen(true)}
             />
           ) : (
             <>
               <IndexStrip />
-              <TickerSwitcher selected={t} onSelect={setT} />
+              <TickerSwitcher tickers={all} selected={t} onSelect={setT} />
               <StockHeader t={t} period={period} />
               <div className="pt-1">
                 {tab === 'signal' && <SignalView t={t} />}
@@ -76,6 +96,16 @@ export default function App() {
       </div>
 
       <BottomNav active={tab} onChange={setTab} />
+
+      {searchOpen && (
+        <SearchSheet
+          existing={all}
+          custom={custom}
+          onAdd={addTicker}
+          onRemove={removeTicker}
+          onClose={() => setSearchOpen(false)}
+        />
+      )}
     </div>
   )
 }
