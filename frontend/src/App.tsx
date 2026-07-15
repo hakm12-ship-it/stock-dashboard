@@ -149,7 +149,7 @@ export default function App() {
                 <TechnicalView t={t} period={period} setPeriod={setPeriod} light={theme === 'light'} />
               )}
                 {tab === 'fund' && <FundamentalView t={t} />}
-                {tab === 'news' && <NewsView t={t} />}
+                {tab === 'news' && <NewsView t={t} tickers={all} />}
               </div>
             </>
           )}
