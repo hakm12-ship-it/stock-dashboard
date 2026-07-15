@@ -5,7 +5,7 @@ import { fmtNum, changeColor, changeSign } from '../lib/format'
 function IndexItem({ name }: { name: string }) {
   const { data } = useQuery({ queryKey: ['index', name], queryFn: () => getIndex(name) })
   return (
-    <div className="flex-1 bg-surface border border-border rounded-lg px-3 py-2">
+    <div className="flex-1 bg-surface border border-border rounded-lg px-3 py-2 card-shadow">
       <div className="text-[0.62rem] uppercase tracking-[0.06em] text-muted">{name}</div>
       {data ? (
         <div className="flex items-baseline gap-2">

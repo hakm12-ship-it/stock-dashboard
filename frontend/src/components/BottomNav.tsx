@@ -24,9 +24,10 @@ export default function BottomNav({
             <button
               key={t.key}
               onClick={() => onChange(t.key)}
-              className="flex flex-col items-center gap-0.5 py-2.5"
+              className="relative flex flex-col items-center gap-0.5 py-2.5"
             >
-              <span className={`text-lg leading-none ${on ? '' : 'grayscale opacity-50'}`}>
+              {on && <span className="absolute top-0 inset-x-4 h-[2px] bg-accent rounded-full" />}
+              <span className={`text-lg leading-none transition-opacity ${on ? '' : 'grayscale opacity-45'}`}>
                 {t.icon}
               </span>
               <span className={`text-[0.68rem] font-medium ${on ? 'text-accent' : 'text-muted'}`}>

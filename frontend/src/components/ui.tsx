@@ -10,7 +10,7 @@ export function Panel({
   className?: string
 }) {
   return (
-    <section className={`bg-surface border border-border rounded-xl p-4 ${className}`}>
+    <section className={`bg-surface border border-border rounded-xl p-4 card-shadow ${className}`}>
       {label && (
         <div className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted mb-3">
           {label}
@@ -33,7 +33,7 @@ export function Metric({
   subClass?: string
 }) {
   return (
-    <div className="bg-surface border border-border rounded-xl px-3.5 py-3">
+    <div className="bg-surface border border-border rounded-xl px-3.5 py-3 card-shadow">
       <div className="text-[0.66rem] font-semibold uppercase tracking-[0.07em] text-muted">
         {label}
       </div>
@@ -43,8 +43,14 @@ export function Metric({
   )
 }
 
-export function Loading({ label = '불러오는 중…' }: { label?: string }) {
-  return <div className="text-muted text-sm py-10 text-center animate-pulse">{label}</div>
+export function Loading() {
+  return (
+    <div className="space-y-2 pt-1">
+      <div className="h-14 rounded-xl shimmer" />
+      <div className="h-40 rounded-xl shimmer" />
+      <div className="h-24 rounded-xl shimmer" />
+    </div>
+  )
 }
 
 export function Empty({ label = '데이터가 없어요' }: { label?: string }) {

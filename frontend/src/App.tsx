@@ -47,26 +47,28 @@ export default function App() {
           </button>
         </div>
 
-        {tab === 'home' ? (
-          <HomeView
-            onSelect={(tk) => {
-              setT(tk)
-              setTab('signal')
-            }}
-          />
-        ) : (
-          <>
-            <IndexStrip />
-            <TickerSwitcher selected={t} onSelect={setT} />
-            <StockHeader t={t} period={period} />
-            <div className="pt-1">
-              {tab === 'signal' && <SignalView t={t} />}
-              {tab === 'tech' && <TechnicalView t={t} period={period} setPeriod={setPeriod} />}
-              {tab === 'fund' && <FundamentalView t={t} />}
-              {tab === 'news' && <NewsView t={t} />}
-            </div>
-          </>
-        )}
+        <div key={`${tab}-${t.ticker}`} className="fade-in space-y-3">
+          {tab === 'home' ? (
+            <HomeView
+              onSelect={(tk) => {
+                setT(tk)
+                setTab('signal')
+              }}
+            />
+          ) : (
+            <>
+              <IndexStrip />
+              <TickerSwitcher selected={t} onSelect={setT} />
+              <StockHeader t={t} period={period} />
+              <div className="pt-1">
+                {tab === 'signal' && <SignalView t={t} />}
+                {tab === 'tech' && <TechnicalView t={t} period={period} setPeriod={setPeriod} />}
+                {tab === 'fund' && <FundamentalView t={t} />}
+                {tab === 'news' && <NewsView t={t} />}
+              </div>
+            </>
+          )}
+        </div>
 
         <p className="text-[0.6rem] text-muted text-center pt-3 leading-relaxed">
           시세는 실시간이 아닌 지연 데이터입니다 · 우측 상단 ↻ 로 새로고침하세요

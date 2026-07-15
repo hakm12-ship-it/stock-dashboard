@@ -67,7 +67,7 @@ function HomeCard({ t, onClick }: { t: FocusTicker; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="w-full bg-surface border border-border rounded-xl p-3.5 active:bg-surface-2 text-left transition-colors"
+      className="w-full bg-surface border border-border rounded-xl p-3.5 card-shadow active:bg-surface-2 active:scale-[0.99] text-left transition-all"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
