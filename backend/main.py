@@ -21,7 +21,7 @@ from analysis.signal import price_levels, signal_history, technical_signals
 from analysis.technical import bollinger, macd, rsi
 from cache import ttl_cache
 from data.naver_index import realtime_index
-from data.naver_stock import naver_deal_trend, naver_market_rank, naver_profile
+from data.naver_stock import naver_deal_trend, naver_market_rank, naver_peers, naver_profile
 from data.news import fetch_news
 from data.symbols import symbols
 
@@ -32,6 +32,7 @@ _naver_index = ttl_cache(30)(realtime_index)  # 실시간이라 짧게
 _profile = ttl_cache(60 * 60 * 6)(naver_profile)
 _deal_trend = ttl_cache(60 * 30)(naver_deal_trend)
 _market_rank = ttl_cache(60 * 5)(naver_market_rank)
+_peers = ttl_cache(60 * 30)(naver_peers)
 
 app = FastAPI(title="스톡 인사이트 API")
 app.add_middleware(
@@ -241,6 +242,16 @@ def api_market_top(direction: str = "up", market: str = "KOSPI"):
         return _market_rank(d, m)
     except Exception:
         return []
+
+
+@app.get("/api/peers")
+def api_peers(market: str, ticker: str):
+    if market.upper() == "KR":
+        try:
+            return _peers(ticker)
+        except Exception:
+            pass
+    return []
 
 
 @app.get("/api/deal-trend")

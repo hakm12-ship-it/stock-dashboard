@@ -89,6 +89,22 @@ def naver_market_rank(direction: str, market: str, size: int = 5) -> list[dict]:
     ]
 
 
+def naver_peers(code: str) -> list[dict]:
+    """동종업종 비교 종목 (네이버 industryCompareInfo). 시총 단위는 백만원 → 원 환산."""
+    d = _api(code)
+    out = []
+    for p in d.get("industryCompareInfo") or []:
+        mv = _num(p.get("marketValue"))
+        out.append({
+            "ticker": p.get("itemCode"),
+            "name": p.get("stockName"),
+            "price": _num(p.get("closePrice")),
+            "changePct": _num(p.get("fluctuationsRatio")),
+            "marketCap": mv * 1e6 if mv else None,
+        })
+    return out
+
+
 def naver_deal_trend(code: str) -> list[dict]:
     """투자자별 매매동향 — 날짜별 외국인/기관/개인 순매수량(주)."""
     d = _api(code)

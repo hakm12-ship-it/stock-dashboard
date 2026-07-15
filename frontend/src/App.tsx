@@ -228,7 +228,9 @@ export default function App() {
                   holding={holdings.find((h) => h.ticker === t.ticker && h.market === t.market)}
                 />
               )}
-                {tab === 'fund' && <FundamentalView t={t} />}
+                {tab === 'fund' && (
+                <FundamentalView t={t} tickers={all} onAddTicker={addTicker} onOpen={setT} />
+              )}
                 {tab === 'news' && <NewsView t={t} tickers={all} />}
               </div>
             </>

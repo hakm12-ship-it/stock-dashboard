@@ -162,6 +162,16 @@ export const getMarketTop = (
   market: 'KOSPI' | 'KOSDAQ' | 'NASDAQ' | 'NYSE',
 ) => get<MarketTopItem[]>('/api/market-top', { direction, market })
 
+export interface Peer {
+  ticker: string
+  name: string
+  price: number | null
+  changePct: number | null
+  marketCap: number | null
+}
+export const getPeers = (market: Market, ticker: string) =>
+  get<Peer[]>('/api/peers', { market, ticker })
+
 export interface DealTrend {
   date: string
   foreign: number | null

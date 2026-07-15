@@ -7,10 +7,76 @@ import {
   getPrices,
   getProfile,
   getDealTrend,
+  getPeers,
 } from '../lib/api'
+import { changeColor, changeSign } from '../lib/format'
 import type { FocusTicker } from '../data/tickers'
 import { Panel, Loading, Empty, ErrorState, Metric } from '../components/ui'
 import { fmtNum, fmtEps, fmtCap, fmtPrice } from '../lib/format'
+
+function PeersPanel({
+  t,
+  tickers,
+  onAddTicker,
+  onOpen,
+}: {
+  t: FocusTicker
+  tickers: FocusTicker[]
+  onAddTicker: (x: FocusTicker) => void
+  onOpen: (x: FocusTicker) => void
+}) {
+  const pq = useQuery({
+    queryKey: ['peers', t.market, t.ticker],
+    queryFn: () => getPeers(t.market, t.ticker),
+    enabled: t.market === 'KR' && t.kind === 'stock',
+  })
+  const peers = pq.data ?? []
+  if (!peers.length) return null
+
+  const findAdded = (code: string) => tickers.find((x) => x.ticker === code && x.market === 'KR')
+
+  return (
+    <Panel label="🏭 동종업종 비교">
+      <div>
+        {peers.map((p) => {
+          const added = findAdded(p.ticker)
+          return (
+            <div key={p.ticker} className="flex items-center gap-2 py-2 border-b border-border last:border-0">
+              <button onClick={() => added && onOpen(added)} className="min-w-0 flex-1 text-left">
+                <div className="text-sm font-medium truncate">
+                  {p.name}
+                  {added && <span className="text-accent text-[0.6rem] ml-1">›</span>}
+                </div>
+                <div className="font-mono text-[0.62rem] text-muted">
+                  시총 {fmtCap(p.marketCap, 'KR')}
+                </div>
+              </button>
+              <div className="text-right shrink-0">
+                <div className="font-mono text-sm tnum">
+                  {p.price != null ? `${Math.round(p.price).toLocaleString()}원` : '—'}
+                </div>
+                <div className={`font-mono text-[0.7rem] ${p.changePct != null ? changeColor(p.changePct) : 'text-muted'}`}>
+                  {p.changePct != null ? `${changeSign(p.changePct)} ${Math.abs(p.changePct).toFixed(2)}%` : '—'}
+                </div>
+              </div>
+              <button
+                disabled={!!added}
+                onClick={() =>
+                  onAddTicker({ ticker: p.ticker, name: p.name, short: p.name, market: 'KR', kind: 'stock' })
+                }
+                className={`shrink-0 text-[0.66rem] px-2 py-1 rounded-md border ${
+                  added ? 'text-muted border-border' : 'text-accent border-accent/50 active:bg-accent/10'
+                }`}
+              >
+                {added ? '추가됨' : '+담기'}
+              </button>
+            </div>
+          )
+        })}
+      </div>
+    </Panel>
+  )
+}
 
 const fmtShares = (v: number | null): string => {
   if (v == null) return '—'
@@ -111,7 +177,17 @@ function RevenueBars({
   )
 }
 
-export default function FundamentalView({ t }: { t: FocusTicker }) {
+export default function FundamentalView({
+  t,
+  tickers,
+  onAddTicker,
+  onOpen,
+}: {
+  t: FocusTicker
+  tickers: FocusTicker[]
+  onAddTicker: (x: FocusTicker) => void
+  onOpen: (x: FocusTicker) => void
+}) {
   const isStock = t.kind === 'stock'
   const profile = useQuery({
     queryKey: ['profile', t.market, t.ticker],
@@ -245,6 +321,9 @@ export default function FundamentalView({ t }: { t: FocusTicker }) {
 
       {/* 투자자별 매매동향 (국내) */}
       <DealTrendPanel t={t} />
+
+      {/* 동종업종 비교 (국내) */}
+      <PeersPanel t={t} tickers={tickers} onAddTicker={onAddTicker} onOpen={onOpen} />
 
       {/* 증권사 리포트 (국내) */}
       {profile.data && profile.data.researches.length > 0 && (
