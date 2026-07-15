@@ -47,12 +47,55 @@ def _market(code: str) -> str:
     return "한국" if code.upper() == "KR" else "미국"
 
 
+def _nice_ratio(r: float) -> float:
+    """분할 비율을 깔끔한 정수(20:1 등)로 스냅. 애매하면 원값 사용."""
+    if r >= 1:
+        rr = round(r)
+        return float(rr) if rr >= 2 and abs(r - rr) <= 0.15 * rr else r
+    inv = 1.0 / r
+    rr = round(inv)
+    return 1.0 / rr if rr >= 2 and abs(inv - rr) <= 0.15 * rr else r
+
+
+def _adjust_splits(df: pd.DataFrame) -> pd.DataFrame:
+    """액면분할/병합 자동 보정 — 데이터 소스가 과거를 미반영한 경우 대비.
+
+    전일종가÷당일시가가 2.5배 이상(또는 0.4 이하)이면 분할로 보고
+    그 이전 구간의 가격을 현재 스케일로 환산한다. 소스가 나중에
+    스스로 조정하면 비율이 1에 수렴해 자동으로 비활성화된다.
+    """
+    n = len(df)
+    if n < 2 or "Open" not in df.columns:
+        return df
+    closes = df["Close"].to_numpy()
+    opens = df["Open"].to_numpy()
+    divs = [1.0] * n
+    div = 1.0
+    for i in range(n - 1, 0, -1):
+        o, c = opens[i], closes[i - 1]
+        if o and c and not (pd.isna(o) or pd.isna(c)) and o > 0:
+            r = c / o
+            if r >= 2.5 or 0 < r <= 0.4:
+                div *= _nice_ratio(r)
+        divs[i - 1] = div
+    if div == 1.0:
+        return df
+    df = df.copy()
+    s = pd.Series(divs, index=df.index)
+    for col in ("Open", "High", "Low", "Close"):
+        if col in df.columns:
+            df[col] = df[col] / s
+    if "Volume" in df.columns:
+        df["Volume"] = df["Volume"] * s
+    return df
+
+
 @ttl_cache(60)
 def _load(ticker: str, period: str) -> pd.DataFrame:
     start = date.today() - timedelta(days=PERIOD_DAYS.get(period, 90))
     df = fdr.DataReader(ticker, start)
     # 장중 미확정 행 등 Close가 NaN인 행 제거 (JSON 직렬화·지표 계산 오류 방지)
-    return df.dropna(subset=["Close"])
+    return _adjust_splits(df.dropna(subset=["Close"]))
 
 
 @ttl_cache(60)
