@@ -90,22 +90,27 @@ def naver_market_rank(direction: str, market: str, size: int = 5) -> list[dict]:
 
 
 def naver_groups(kind: str) -> list[dict]:
-    """업종/테마 목록 — kind: industry|theme. 등락률 내림차순."""
-    url = f"https://m.stock.naver.com/api/stocks/{kind}?page=1&pageSize=250"
-    req = urllib.request.Request(
-        url, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://m.stock.naver.com/"})
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        data = json.loads(resp.read())
-    out = [
-        {
-            "no": g.get("no"),
-            "name": g.get("name"),
-            "changeRate": _num(g.get("changeRate")) or 0.0,
-            "rise": g.get("riseCount") or 0,
-            "fall": g.get("fallCount") or 0,
-        }
-        for g in data.get("groups") or []
-    ]
+    """업종/테마 목록 — kind: industry|theme. 등락률 내림차순. (pageSize 최대 100 → 페이지 반복)"""
+    out = []
+    for page in range(1, 5):
+        url = f"https://m.stock.naver.com/api/stocks/{kind}?page={page}&pageSize=100"
+        req = urllib.request.Request(
+            url, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://m.stock.naver.com/"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read())
+        groups = data.get("groups") or []
+        out.extend(
+            {
+                "no": g.get("no"),
+                "name": g.get("name"),
+                "changeRate": _num(g.get("changeRate")) or 0.0,
+                "rise": g.get("riseCount") or 0,
+                "fall": g.get("fallCount") or 0,
+            }
+            for g in groups
+        )
+        if len(groups) < 100:
+            break
     out.sort(key=lambda x: x["changeRate"], reverse=True)
     return out
 
