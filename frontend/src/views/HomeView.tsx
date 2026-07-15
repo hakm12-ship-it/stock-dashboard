@@ -155,6 +155,7 @@ export default function HomeView({
   onSelect,
   onAddClick,
   onAddTicker,
+  onMove,
   onManageHoldings,
   onCompare,
 }: {
@@ -164,10 +165,12 @@ export default function HomeView({
   onSelect: (t: FocusTicker) => void
   onAddClick: () => void
   onAddTicker: (t: FocusTicker) => void
+  onMove: (key: string, dir: -1 | 1) => void
   onManageHoldings: () => void
   onCompare: () => void
 }) {
   const [sort, setSort] = useState<'default' | 'gainers' | 'losers'>('default')
+  const [editing, setEditing] = useState(false)
   const [sparkPeriod, setSparkPeriod] = useState<Period>('1m')
 
   // 정렬용 등락률 (카드와 같은 쿼리키 → 캐시 공유, 중복 요청 없음)
@@ -208,6 +211,15 @@ export default function HomeView({
           관심 종목
         </span>
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => {
+              setEditing((v) => !v)
+              if (!editing) setSort('default')
+            }}
+            className={`text-[0.66rem] px-2 py-1 rounded-md ${editing ? 'bg-accent/15 text-accent' : 'text-muted'}`}
+          >
+            {editing ? '완료' : '편집'}
+          </button>
           {(['1m', '3m', '6m'] as Period[]).map((p) => (
             <button
               key={p}
@@ -233,15 +245,39 @@ export default function HomeView({
           ))}
         </div>
       </div>
-      {ordered.map(({ t }) => (
-        <HomeCard
-          key={`${t.market}-${t.ticker}`}
-          t={t}
-          period={sparkPeriod}
-          holding={holdings.find((h) => h.ticker === t.ticker && h.market === t.market)}
-          onClick={() => onSelect(t)}
-        />
-      ))}
+      {editing
+        ? tickers.map((t, i) => (
+            <div
+              key={`${t.market}-${t.ticker}`}
+              className="flex items-center gap-2 bg-surface border border-border rounded-xl px-3.5 py-2.5 card-shadow"
+            >
+              <span className="font-mono text-[0.66rem] text-muted w-4">{i + 1}</span>
+              <span className="text-sm font-medium flex-1 truncate">{t.short}</span>
+              <button
+                onClick={() => onMove(`${t.market}-${t.ticker}`, -1)}
+                disabled={i === 0}
+                className={`px-3 py-1.5 rounded-md border border-border text-sm ${i === 0 ? 'text-muted/30' : 'text-text active:bg-surface-2'}`}
+              >
+                ↑
+              </button>
+              <button
+                onClick={() => onMove(`${t.market}-${t.ticker}`, 1)}
+                disabled={i === tickers.length - 1}
+                className={`px-3 py-1.5 rounded-md border border-border text-sm ${i === tickers.length - 1 ? 'text-muted/30' : 'text-text active:bg-surface-2'}`}
+              >
+                ↓
+              </button>
+            </div>
+          ))
+        : ordered.map(({ t }) => (
+            <HomeCard
+              key={`${t.market}-${t.ticker}`}
+              t={t}
+              period={sparkPeriod}
+              holding={holdings.find((h) => h.ticker === t.ticker && h.market === t.market)}
+              onClick={() => onSelect(t)}
+            />
+          ))}
       <div className="flex gap-2">
         <button
           onClick={onAddClick}
@@ -257,7 +293,14 @@ export default function HomeView({
         </button>
       </div>
 
-      <MarketTop existing={tickers} onAdd={onAddTicker} />
+      <MarketTop
+        existing={tickers}
+        onAdd={onAddTicker}
+        onOpen={(code) => {
+          const f = tickers.find((x) => x.ticker === code && x.market === 'KR')
+          if (f) onSelect(f)
+        }}
+      />
     </div>
   )
 }

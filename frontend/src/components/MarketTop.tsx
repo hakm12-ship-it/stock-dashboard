@@ -10,9 +10,11 @@ type Mkt = 'KOSPI' | 'KOSDAQ'
 export default function MarketTop({
   existing,
   onAdd,
+  onOpen,
 }: {
   existing: FocusTicker[]
   onAdd: (t: FocusTicker) => void
+  onOpen: (ticker: string) => void
 }) {
   const [dir, setDir] = useState<Dir>('up')
   const [mkt, setMkt] = useState<Mkt>('KOSPI')
@@ -79,10 +81,16 @@ export default function MarketTop({
                 className="flex items-center gap-2 py-2 border-b border-border last:border-0"
               >
                 <span className="font-mono text-[0.66rem] text-muted w-4 shrink-0">{i + 1}</span>
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium truncate">{s.name}</div>
+                <button
+                  onClick={() => added && onOpen(s.ticker)}
+                  className="min-w-0 flex-1 text-left"
+                >
+                  <div className="text-sm font-medium truncate">
+                    {s.name}
+                    {added && <span className="text-accent text-[0.6rem] ml-1">›</span>}
+                  </div>
                   <div className="font-mono text-[0.62rem] text-muted">{s.ticker}</div>
-                </div>
+                </button>
                 <div className="text-right shrink-0">
                   <div className="font-mono text-sm tnum">
                     {s.price != null ? `${Math.round(s.price).toLocaleString()}원` : '—'}

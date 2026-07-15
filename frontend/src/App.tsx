@@ -52,7 +52,32 @@ export default function App() {
     return () => clearInterval(id)
   }, [qc])
 
-  const all = [...TICKERS, ...custom]
+  const [order, setOrder] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('tickerOrder') || '[]')
+    } catch {
+      return []
+    }
+  })
+  const tkey = (x: FocusTicker) => `${x.market}-${x.ticker}`
+  const all = [...TICKERS, ...custom].sort((a, b) => {
+    const ia = order.indexOf(tkey(a))
+    const ib = order.indexOf(tkey(b))
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib)
+  })
+  const moveTicker = (k: string, dir: -1 | 1) => {
+    const keys = all.map(tkey)
+    const i = keys.indexOf(k)
+    const j = i + dir
+    if (i === -1 || j < 0 || j >= keys.length) return
+    ;[keys[i], keys[j]] = [keys[j], keys[i]]
+    setOrder(keys)
+    try {
+      localStorage.setItem('tickerOrder', JSON.stringify(keys))
+    } catch {
+      /* ignore */
+    }
+  }
 
   const refresh = () => {
     qc.invalidateQueries()
@@ -182,6 +207,7 @@ export default function App() {
               }}
               onAddClick={() => setSearchOpen(true)}
               onAddTicker={addTicker}
+              onMove={moveTicker}
               onManageHoldings={() => setHoldingsOpen(true)}
               onCompare={() => setComparisonOpen(true)}
             />
