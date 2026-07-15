@@ -4,15 +4,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: '#0A0C10',
-        surface: '#12151C',
-        'surface-2': '#171B24',
-        border: '#232833',
-        text: '#E8EBF0',
-        muted: '#8B94A3',
-        accent: '#E0A63C',
-        up: '#F23645',
-        down: '#2E86FF',
+        ink: 'rgb(var(--ink) / <alpha-value>)',
+        surface: 'rgb(var(--surface) / <alpha-value>)',
+        'surface-2': 'rgb(var(--surface-2) / <alpha-value>)',
+        border: 'rgb(var(--border) / <alpha-value>)',
+        text: 'rgb(var(--text) / <alpha-value>)',
+        muted: 'rgb(var(--muted) / <alpha-value>)',
+        accent: 'rgb(var(--accent) / <alpha-value>)',
+        up: 'rgb(var(--up) / <alpha-value>)',
+        down: 'rgb(var(--down) / <alpha-value>)',
       },
       fontFamily: {
         sans: ['"IBM Plex Sans KR"', 'system-ui', 'sans-serif'],

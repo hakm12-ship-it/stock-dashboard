@@ -3,6 +3,32 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 색상 토큰 (R G B 채널) — 테마 전환 시 이 값만 바뀜 */
+:root {
+  --ink: 10 12 16;
+  --surface: 18 21 28;
+  --surface-2: 23 27 36;
+  --border: 35 40 51;
+  --text: 232 235 240;
+  --muted: 139 148 163;
+  --accent: 224 166 60;
+  --up: 242 54 69;
+  --down: 46 134 255;
+  --glow: 224 166 60;
+}
+:root[data-theme='light'] {
+  --ink: 247 248 250;
+  --surface: 255 255 255;
+  --surface-2: 240 242 245;
+  --border: 224 227 232;
+  --text: 22 27 38;
+  --muted: 92 102 116;
+  --accent: 168 112 20;
+  --up: 214 53 69;
+  --down: 40 104 214;
+  --glow: 168 112 20;
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
@@ -10,10 +36,9 @@
   body {
     @apply text-text font-sans antialiased;
     margin: 0;
-    /* 상단에 은은한 앰버 글로우로 깊이감 */
     background:
-      radial-gradient(900px 380px at 50% -8%, rgba(224, 166, 60, 0.06), transparent 62%),
-      #0a0c10;
+      radial-gradient(900px 380px at 50% -8%, rgb(var(--glow) / 0.06), transparent 62%),
+      rgb(var(--ink));
     background-attachment: fixed;
     min-height: 100vh;
   }
@@ -48,10 +73,22 @@
     animation: fadeIn 0.28s ease both;
   }
   .shimmer {
-    background: linear-gradient(90deg, #12151c 25%, #1a2029 37%, #12151c 63%);
+    background: linear-gradient(
+      90deg,
+      rgb(var(--surface)) 25%,
+      rgb(var(--surface-2)) 37%,
+      rgb(var(--surface)) 63%
+    );
     background-size: 400% 100%;
     animation: shimmer 1.4s ease infinite;
   }
+}
+
+/* 라이트 모드에선 그림자를 옅게 */
+:root[data-theme='light'] .card-shadow {
+  box-shadow:
+    0 1px 2px rgba(20, 26, 38, 0.06),
+    0 6px 18px rgba(20, 26, 38, 0.07);
 }
 
 @keyframes fadeIn {

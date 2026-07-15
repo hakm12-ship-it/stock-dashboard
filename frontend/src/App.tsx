@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { TICKERS, type FocusTicker } from './data/tickers'
 import type { Period } from './lib/api'
@@ -21,7 +21,15 @@ export default function App() {
   const [updatedAt, setUpdatedAt] = useState<Date>(() => new Date())
   const [custom, setCustom] = useState<FocusTicker[]>(loadCustom)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [theme, setTheme] = useState<'dark' | 'light'>(
+    () => (localStorage.getItem('theme') as 'dark' | 'light') || 'dark',
+  )
   const qc = useQueryClient()
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    localStorage.setItem('theme', theme)
+  }, [theme])
 
   const all = [...TICKERS, ...custom]
 
@@ -54,15 +62,24 @@ export default function App() {
               BETA
             </span>
           </div>
-          <button
-            onClick={refresh}
-            className="flex items-center gap-1.5 font-mono text-[0.66rem] text-muted active:text-text"
-          >
-            <span className="text-sm leading-none">↻</span>
-            <span>
-              {updatedAt.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="text-base leading-none active:opacity-60"
+              aria-label="다크/화이트 전환"
+            >
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
+            <button
+              onClick={refresh}
+              className="flex items-center gap-1.5 font-mono text-[0.66rem] text-muted active:text-text"
+            >
+              <span className="text-sm leading-none">↻</span>
+              <span>
+                {updatedAt.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </button>
+          </div>
         </div>
 
         <div key={`${tab}-${t.ticker}`} className="fade-in space-y-3">
@@ -82,7 +99,9 @@ export default function App() {
               <StockHeader t={t} period={period} />
               <div className="pt-1">
                 {tab === 'signal' && <SignalView t={t} />}
-                {tab === 'tech' && <TechnicalView t={t} period={period} setPeriod={setPeriod} />}
+                {tab === 'tech' && (
+                <TechnicalView t={t} period={period} setPeriod={setPeriod} light={theme === 'light'} />
+              )}
                 {tab === 'fund' && <FundamentalView t={t} />}
                 {tab === 'news' && <NewsView t={t} />}
               </div>

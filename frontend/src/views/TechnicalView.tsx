@@ -13,10 +13,12 @@ export default function TechnicalView({
   t,
   period,
   setPeriod,
+  light,
 }: {
   t: FocusTicker
   period: Period
   setPeriod: (p: Period) => void
+  light: boolean
 }) {
   const [showMA, setShowMA] = useState(true)
   const [showBB, setShowBB] = useState(false)
@@ -73,7 +75,7 @@ export default function TechnicalView({
           }}
         />
       ) : prices.data && ind.data && prices.data.length ? (
-        <TechnicalCharts candles={prices.data} ind={ind.data} showMA={showMA} showBB={showBB} />
+        <TechnicalCharts candles={prices.data} ind={ind.data} showMA={showMA} showBB={showBB} light={light} />
       ) : (
         <Empty />
       )}

@@ -8,21 +8,26 @@ const GOLD = '#E0B84D'
 const GRAY = '#8B94A3'
 const ACCENT = '#E0A63C'
 
-const base = {
-  layout: {
-    background: { type: ColorType.Solid, color: 'transparent' },
-    textColor: '#8B94A3',
-    fontFamily: '"IBM Plex Mono", monospace',
-    fontSize: 10,
-  },
-  grid: {
-    vertLines: { color: 'rgba(35,40,51,0.4)' },
-    horzLines: { color: 'rgba(35,40,51,0.4)' },
-  },
-  rightPriceScale: { borderColor: '#232833' },
-  timeScale: { borderColor: '#232833', timeVisible: false },
-  crosshair: { mode: 1 as const },
-  autoSize: true,
+function makeBase(light: boolean) {
+  const text = light ? '#5C6672' : '#8B94A3'
+  const grid = light ? 'rgba(22,27,38,0.07)' : 'rgba(35,40,51,0.4)'
+  const bd = light ? '#E0E3E8' : '#232833'
+  return {
+    layout: {
+      background: { type: ColorType.Solid, color: 'transparent' },
+      textColor: text,
+      fontFamily: '"IBM Plex Mono", monospace',
+      fontSize: 10,
+    },
+    grid: {
+      vertLines: { color: grid },
+      horzLines: { color: grid },
+    },
+    rightPriceScale: { borderColor: bd },
+    timeScale: { borderColor: bd, timeVisible: false },
+    crosshair: { mode: 1 as const },
+    autoSize: true,
+  }
 }
 
 function line(times: string[], vals: (number | null)[]) {
@@ -39,11 +44,13 @@ export default function TechnicalCharts({
   ind,
   showMA,
   showBB,
+  light,
 }: {
   candles: Candle[]
   ind: Indicators
   showMA: boolean
   showBB: boolean
+  light: boolean
 }) {
   const priceRef = useRef<HTMLDivElement>(null)
   const legendRef = useRef<HTMLDivElement>(null)
@@ -52,6 +59,7 @@ export default function TechnicalCharts({
 
   useEffect(() => {
     if (!candles.length || !priceRef.current) return
+    const base = makeBase(light)
     const charts: IChartApi[] = []
 
     // 가격 + 이평 + 볼린저
@@ -144,7 +152,7 @@ export default function TechnicalCharts({
     }
 
     return () => charts.forEach((c) => c.remove())
-  }, [candles, ind, showMA, showBB])
+  }, [candles, ind, showMA, showBB, light])
 
   return (
     <div className="space-y-1">
