@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { TICKERS, type FocusTicker } from './data/tickers'
 import type { Period } from './lib/api'
@@ -58,6 +58,33 @@ export default function App() {
     qc.invalidateQueries()
     setUpdatedAt(new Date())
   }
+
+  // 당겨서 새로고침 (PWA엔 브라우저 새로고침이 없어서)
+  const [pull, setPull] = useState(0)
+  const [refreshing, setRefreshing] = useState(false)
+  const touch = useRef({ y: 0, active: false })
+  const PULL_THRESHOLD = 60
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (window.scrollY <= 0 && e.touches.length === 1) {
+      touch.current = { y: e.touches[0].clientY, active: true }
+    }
+  }
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (!touch.current.active) return
+    const d = e.touches[0].clientY - touch.current.y
+    if (d > 0 && window.scrollY <= 0) setPull(Math.min(d * 0.4, 90))
+    else setPull(0)
+  }
+  const onTouchEnd = () => {
+    if (pull >= PULL_THRESHOLD) {
+      setRefreshing(true)
+      refresh()
+      setTimeout(() => setRefreshing(false), 900)
+    }
+    setPull(0)
+    touch.current.active = false
+  }
   const addTicker = (tk: FocusTicker) => {
     if (all.some((x) => x.ticker === tk.ticker && x.market === tk.market)) return
     const next = [...custom, tk]
@@ -92,7 +119,27 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+      {/* 당김 인디케이터 */}
+      {(pull > 0 || refreshing) && (
+        <div
+          className="flex items-end justify-center overflow-hidden text-muted"
+          style={{ height: refreshing ? 40 : pull }}
+        >
+          <span
+            className="font-mono text-[0.66rem] pb-2 inline-flex items-center gap-1.5"
+            style={{ opacity: refreshing ? 1 : Math.min(pull / PULL_THRESHOLD, 1) }}
+          >
+            <span
+              className={refreshing ? 'animate-spin inline-block' : 'inline-block transition-transform'}
+              style={refreshing ? undefined : { transform: `rotate(${(pull / PULL_THRESHOLD) * 180}deg)` }}
+            >
+              ↻
+            </span>
+            {refreshing ? '새로고침 중…' : pull >= PULL_THRESHOLD ? '놓으면 새로고침' : '당겨서 새로고침'}
+          </span>
+        </div>
+      )}
       <div className="mx-auto max-w-app px-3 pt-safe pb-28 space-y-3">
         {/* 브랜드 + 새로고침 */}
         <div className="flex items-center justify-between">
