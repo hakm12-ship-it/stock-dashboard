@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { getSignal, getForecast, getValuation } from '../lib/api'
+import { getSignal, getForecast, getValuation, getSignalHistory, type SignalPerf } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import { Panel, Loading, Empty, ErrorState, Metric } from '../components/ui'
 import { fmtQuote, fmtNum, fmtPct } from '../lib/format'
@@ -15,10 +15,43 @@ function band(v: number | null, lo: number, hi: number, labels: [string, string,
   return v < lo ? labels[0] : v > hi ? labels[2] : labels[1]
 }
 
+function PerfBox({
+  label,
+  perf,
+  horizon,
+}: {
+  label: string
+  perf: SignalPerf | null
+  horizon: number
+}) {
+  if (!perf) {
+    return (
+      <div className="bg-surface-2/60 border border-border rounded-lg p-3">
+        <div className="text-[0.66rem] font-semibold uppercase tracking-[0.06em] text-muted">{label}</div>
+        <div className="text-xs text-muted mt-2">신호 없음</div>
+      </div>
+    )
+  }
+  const r = perf.avgReturn
+  return (
+    <div className="bg-surface-2/60 border border-border rounded-lg p-3">
+      <div className="text-[0.66rem] font-semibold uppercase tracking-[0.06em] text-muted">{label}</div>
+      <div className={`font-mono text-lg font-semibold tnum mt-1 ${r >= 0 ? 'text-up' : 'text-down'}`}>
+        {r >= 0 ? '+' : ''}
+        {r.toFixed(2)}%
+      </div>
+      <div className="font-mono text-[0.66rem] text-muted mt-0.5">
+        {horizon}일 평균 · {perf.count}회 · 적중 {perf.winRate.toFixed(0)}%
+      </div>
+    </div>
+  )
+}
+
 export default function SignalView({ t }: { t: FocusTicker }) {
   const sig = useQuery({ queryKey: ['signal', t.ticker], queryFn: () => getSignal(t.ticker) })
   const fc = useQuery({ queryKey: ['forecast', t.ticker], queryFn: () => getForecast(t.ticker) })
   const val = useQuery({ queryKey: ['val', t.market, t.ticker], queryFn: () => getValuation(t.market, t.ticker) })
+  const hist = useQuery({ queryKey: ['sighist', t.ticker], queryFn: () => getSignalHistory(t.ticker) })
 
   if (sig.isLoading) return <Loading />
   if (sig.isError) return <ErrorState onRetry={() => sig.refetch()} />
@@ -92,6 +125,20 @@ export default function SignalView({ t }: { t: FocusTicker }) {
           ))}
         </ul>
       </Panel>
+
+      {/* 신호 과거 성과 (미니 백테스트) */}
+      {hist.data && (hist.data.buy || hist.data.sell) && (
+        <Panel label="🧪 최근 1년, 이 신호의 성과" help="backtest">
+          <div className="grid grid-cols-2 gap-2">
+            <PerfBox label="매수 우위 후" perf={hist.data.buy} horizon={hist.data.horizon} />
+            <PerfBox label="매도 우위 후" perf={hist.data.sell} horizon={hist.data.horizon} />
+          </div>
+          <p className="text-[0.62rem] text-muted mt-2">
+            같은 규칙을 지난 1년에 적용한 결과 · 신호일로부터 {hist.data.horizon}거래일 뒤 기준 · 과거
+            성과가 미래를 보장하지 않아요
+          </p>
+        </Panel>
+      )}
 
       {/* 참고 가격대 */}
       <Panel label="참고 가격대" help="sr">

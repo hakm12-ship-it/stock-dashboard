@@ -69,6 +69,19 @@ export interface SignalData {
   resistance: { label: string; value: number }[]
 }
 
+export interface SignalPerf {
+  count: number
+  avgReturn: number
+  winRate: number
+}
+export interface SignalHistory {
+  horizon: number
+  evaluated: number
+  buy: SignalPerf | null
+  sell: SignalPerf | null
+  recent: { date: string; verdict: string; fwdReturn: number | null }[]
+}
+
 export interface ForecastBand {
   time: string
   upper_inner: number
@@ -114,6 +127,8 @@ export const getForwardPe = (market: Market, ticker: string) =>
 export const getTrend = (market: Market, ticker: string) =>
   get<Trend | null>('/api/trend', { market, ticker })
 export const getSignal = (ticker: string) => get<SignalData>('/api/signal', { ticker })
+export const getSignalHistory = (ticker: string) =>
+  get<SignalHistory>('/api/signal-history', { ticker })
 export const getForecast = (ticker: string) => get<Forecast>('/api/forecast', { ticker })
 export const getNews = (market: Market, name: string) =>
   get<NewsItem[]>('/api/news', { market, name })

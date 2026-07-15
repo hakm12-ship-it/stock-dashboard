@@ -51,6 +51,68 @@ def technical_signals(df: pd.DataFrame):
     return signals, total, verdict
 
 
+def signal_history(df: pd.DataFrame, horizon: int = 5):
+    """과거 매수/매도 우위 신호의 이후 성과 요약 (미니 백테스트).
+
+    technical_signals와 같은 규칙을 과거 각 날짜에 적용하고,
+    신호 발생일로부터 horizon 거래일 뒤 수익률을 집계한다.
+    ⚠️ 과거 성과는 미래를 보장하지 않는다 — 참고용.
+    """
+    close = df["Close"]
+    if len(close) < 80:
+        return {"horizon": horizon, "evaluated": 0, "buy": None, "sell": None, "recent": []}
+
+    r = rsi(close)
+    hist = macd(close)["hist"]
+    ma20 = close.rolling(20).mean()
+    ma60 = close.rolling(60).mean()
+    bb = bollinger(close)
+    width = (bb["upper"] - bb["lower"]).replace(0, float("nan"))
+    bpos = (close - bb["lower"]) / width
+
+    score = (
+        (r < 30).astype(int) - (r > 70).astype(int)
+        + (hist > 0).astype(int) - (hist < 0).astype(int)
+        + ((close > ma20).astype(int) * 2 - 1)
+        + ((ma20 > ma60).astype(int) * 2 - 1)
+        + (bpos < 0.2).astype(int) - (bpos > 0.8).astype(int)
+    )
+
+    valid = ma60.notna() & bpos.notna()
+    fwd = close.shift(-horizon) / close - 1  # horizon일 뒤 수익률
+
+    def agg(mask, win_positive: bool):
+        rets = fwd[mask & fwd.notna()]
+        if len(rets) == 0:
+            return None
+        wins = (rets > 0) if win_positive else (rets < 0)
+        return {
+            "count": int(len(rets)),
+            "avgReturn": float(rets.mean() * 100),
+            "winRate": float(wins.mean() * 100),
+        }
+
+    buy_mask = valid & (score >= 2)
+    sell_mask = valid & (score <= -2)
+
+    recent = []
+    for ts in list(df.index[buy_mask | sell_mask])[-5:]:
+        f = fwd.loc[ts]
+        recent.append({
+            "date": ts.strftime("%Y-%m-%d"),
+            "verdict": "매수 우위" if score.loc[ts] >= 2 else "매도 우위",
+            "fwdReturn": None if pd.isna(f) else float(f * 100),
+        })
+
+    return {
+        "horizon": horizon,
+        "evaluated": int((valid & fwd.notna()).sum()),
+        "buy": agg(buy_mask, win_positive=True),
+        "sell": agg(sell_mask, win_positive=False),  # 매도신호는 하락해야 적중
+        "recent": recent,
+    }
+
+
 def price_levels(df: pd.DataFrame):
     """(현재가, 지지목록, 저항목록) 반환. 목록은 [(라벨, 가격)], 현재가 기준 근접순."""
     close = df["Close"]

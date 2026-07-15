@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 from analysis.forecast import expected_range
 from analysis.fundamental import analyst_target, forward_pe, revenue_trend, valuation
-from analysis.signal import price_levels, technical_signals
+from analysis.signal import price_levels, signal_history, technical_signals
 from analysis.technical import bollinger, macd, rsi
 from cache import ttl_cache
 from data.naver_index import realtime_index
@@ -138,6 +138,11 @@ def api_signal(ticker: str, period: str = "6m"):
         "support": [{"label": k, "value": float(v)} for k, v in below],
         "resistance": [{"label": k, "value": float(v)} for k, v in above],
     }
+
+
+@app.get("/api/signal-history")
+def api_signal_history(ticker: str, horizon: int = 5):
+    return signal_history(_load(ticker, "1y"), horizon=horizon)
 
 
 @app.get("/api/forecast")
