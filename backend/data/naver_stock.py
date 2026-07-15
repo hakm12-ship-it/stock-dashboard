@@ -1,0 +1,64 @@
+"""네이버 종목 재무 — 클라우드(Render)에서 yfinance가 야후에 차단될 때의 국내 대안.
+
+m.stock.naver.com 모바일 API로 PER·PBR·EPS·BPS·배당·시총·추정PER/EPS 를 가져온다.
+표준 라이브러리만 사용.
+"""
+
+import json
+import re
+import urllib.request
+
+
+def _api(code: str) -> dict:
+    req = urllib.request.Request(
+        f"https://m.stock.naver.com/api/stock/{code}/integration",
+        headers={"User-Agent": "Mozilla/5.0", "Referer": "https://m.stock.naver.com/"},
+    )
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return json.loads(resp.read())
+
+
+def _num(s) -> float | None:
+    if s is None:
+        return None
+    m = re.search(r"-?\d[\d,]*\.?\d*", str(s))
+    return float(m.group().replace(",", "")) if m else None
+
+
+def _won(s) -> float | None:
+    """'1,622조 3,423억' → 숫자."""
+    if s is None:
+        return None
+    txt = str(s).replace(",", "").replace(" ", "")
+    total = 0.0
+    found = False
+    for pat, mul in ((r"(\d+\.?\d*)조", 1e12), (r"(\d+\.?\d*)억", 1e8)):
+        m = re.search(pat, txt)
+        if m:
+            total += float(m.group(1)) * mul
+            found = True
+    if not found:
+        m = re.search(r"(\d+\.?\d*)", txt)
+        if m:
+            total = float(m.group(1))
+    return total or None
+
+
+def naver_fundamentals(code: str) -> dict:
+    """국내 종목 재무 지표. ROE는 EPS/BPS로 근사."""
+    d = _api(code)
+    info = {r.get("code"): r.get("value") for r in (d.get("totalInfos") or [])}
+    eps = _num(info.get("eps"))
+    bps = _num(info.get("bps"))
+    return {
+        "name": d.get("stockName"),
+        "per": _num(info.get("per")),
+        "pbr": _num(info.get("pbr")),
+        "eps": eps,
+        "bps": bps,
+        "roe": (eps / bps) if (eps and bps) else None,  # 근사
+        "divYield": _num(info.get("dividendYieldRatio")),
+        "marketCap": _won(info.get("marketValue")),
+        "cnsPer": _num(info.get("cnsPer")),  # 추정 PER (컨센서스)
+        "cnsEps": _num(info.get("cnsEps")),  # 추정 EPS
+    }

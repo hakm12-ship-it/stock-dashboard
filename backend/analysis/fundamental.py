@@ -9,6 +9,8 @@ import functools
 import pandas as pd
 import yfinance as yf
 
+from data.naver_stock import naver_fundamentals
+
 
 def _safe_info(t: yf.Ticker) -> dict:
     try:
@@ -48,7 +50,22 @@ def _equity(t: yf.Ticker):
 
 
 def valuation(market: str, ticker: str) -> dict:
-    """밸류에이션 지표 딕셔너리. 값이 없으면 None."""
+    """밸류에이션 지표 딕셔너리. 값이 없으면 None.
+
+    국내는 네이버(클라우드에서도 됨)를 먼저 쓰고, 실패 시 yfinance로 폴백.
+    """
+    if market == "한국":
+        try:
+            n = naver_fundamentals(ticker)
+            if n["per"] or n["pbr"]:
+                return {
+                    "종목": n["name"] or ticker, "섹터": None, "통화": "KRW",
+                    "PER": n["per"], "PBR": n["pbr"], "EPS": n["eps"],
+                    "ROE": n["roe"], "배당수익률": n["divYield"], "시가총액": n["marketCap"],
+                }
+        except Exception:
+            pass
+
     t, symbol, info = _resolve(market, ticker)
     price = info.get("currentPrice") or info.get("regularMarketPrice")
     shares = info.get("sharesOutstanding")
@@ -112,7 +129,20 @@ def revenue_trend(market: str, ticker: str):
 
 
 def forward_pe(market: str, ticker: str) -> dict:
-    """현재 PER + 미래 PER(올해·내년 컨센서스). 애널리스트 예상EPS만 사용."""
+    """현재 PER + 미래 PER(컨센서스). 국내는 네이버(추정PER), 그 외 yfinance(올해·내년)."""
+    if market == "한국":
+        try:
+            n = naver_fundamentals(ticker)
+            forward = []
+            if n["cnsPer"]:
+                forward.append(
+                    {"period": "추정 (컨센서스)", "eps": n["cnsEps"], "per": n["cnsPer"]}
+                )
+            if n["per"] or forward:
+                return {"price": None, "trailing": n["per"], "forward": forward}
+        except Exception:
+            pass
+
     t, symbol, info = _resolve(market, ticker)
     price = info.get("currentPrice") or info.get("regularMarketPrice")
 
