@@ -38,11 +38,15 @@ export default function SignalView({ t }: { t: FocusTicker }) {
       </p>
 
       {/* 판정 */}
-      <div className={`rounded-xl border px-4 py-3 ${VERDICT_STYLE[s.verdict] ?? VERDICT_STYLE['중립']}`}>
-        <div className="text-[0.68rem] uppercase tracking-[0.08em] opacity-80">기술적 신호 종합</div>
-        <div className="text-lg font-bold mt-0.5">
-          {s.verdict}{' '}
-          <span className="font-mono text-sm opacity-80">({s.total > 0 ? '+' : ''}{s.total} / ±5)</span>
+      <div className={`rounded-xl border px-4 py-3.5 card-shadow ${VERDICT_STYLE[s.verdict] ?? VERDICT_STYLE['중립']}`}>
+        <div className="text-[0.66rem] uppercase tracking-[0.09em] opacity-70">기술적 신호 종합</div>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="h-2.5 w-2.5 rounded-full bg-current opacity-90" />
+          <span className="text-xl font-bold">{s.verdict}</span>
+          <span className="ml-auto font-mono text-sm opacity-70">
+            {s.total > 0 ? '+' : ''}
+            {s.total} / ±5
+          </span>
         </div>
       </div>
 
