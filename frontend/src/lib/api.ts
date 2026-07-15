@@ -162,6 +162,17 @@ export const getMarketTop = (
   market: 'KOSPI' | 'KOSDAQ' | 'NASDAQ' | 'CRYPTO',
 ) => get<MarketTopItem[]>('/api/market-top', { direction, market })
 
+export interface Group {
+  no: number
+  name: string
+  changeRate: number
+  rise: number
+  fall: number
+}
+export const getGroups = (kind: 'industry' | 'theme') => get<Group[]>('/api/groups', { kind })
+export const getGroupStocks = (kind: 'industry' | 'theme', no: number) =>
+  get<MarketTopItem[]>('/api/group-stocks', { kind, no })
+
 export interface Peer {
   ticker: string
   name: string

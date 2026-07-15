@@ -89,6 +89,45 @@ def naver_market_rank(direction: str, market: str, size: int = 5) -> list[dict]:
     ]
 
 
+def naver_groups(kind: str) -> list[dict]:
+    """업종/테마 목록 — kind: industry|theme. 등락률 내림차순."""
+    url = f"https://m.stock.naver.com/api/stocks/{kind}?page=1&pageSize=250"
+    req = urllib.request.Request(
+        url, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://m.stock.naver.com/"})
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        data = json.loads(resp.read())
+    out = [
+        {
+            "no": g.get("no"),
+            "name": g.get("name"),
+            "changeRate": _num(g.get("changeRate")) or 0.0,
+            "rise": g.get("riseCount") or 0,
+            "fall": g.get("fallCount") or 0,
+        }
+        for g in data.get("groups") or []
+    ]
+    out.sort(key=lambda x: x["changeRate"], reverse=True)
+    return out
+
+
+def naver_group_stocks(kind: str, no: int, size: int = 5) -> list[dict]:
+    """업종/테마 구성 종목 상위."""
+    url = f"https://m.stock.naver.com/api/stocks/{kind}/{no}?page=1&pageSize={size}"
+    req = urllib.request.Request(
+        url, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://m.stock.naver.com/"})
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        data = json.loads(resp.read())
+    return [
+        {
+            "ticker": s.get("itemCode"),
+            "name": s.get("stockName"),
+            "price": _num(s.get("closePrice")),
+            "changePct": _num(s.get("fluctuationsRatio")),
+        }
+        for s in data.get("stocks") or []
+    ]
+
+
 def naver_peers(code: str) -> list[dict]:
     """동종업종 비교 종목 (네이버 industryCompareInfo). 시총 단위는 백만원 → 원 환산."""
     d = _api(code)

@@ -5,6 +5,7 @@ import type { FocusTicker } from '../data/tickers'
 import IndexStrip from '../components/IndexStrip'
 import PortfolioSummary from '../components/PortfolioSummary'
 import MarketTop from '../components/MarketTop'
+import GroupsPanel from '../components/GroupsPanel'
 import type { Holding } from '../lib/holdings'
 import { loadSignalConfig, cfgKey, cfgParams } from '../lib/signalConfig'
 import { fmtQuote, changeColor, changeSign } from '../lib/format'
@@ -303,6 +304,15 @@ export default function HomeView({
       </div>
 
       <MarketTop
+        existing={tickers}
+        onAdd={onAddTicker}
+        onOpen={(code) => {
+          const f = tickers.find((x) => x.ticker === code)
+          if (f) onSelect(f)
+        }}
+      />
+
+      <GroupsPanel
         existing={tickers}
         onAdd={onAddTicker}
         onOpen={(code) => {

@@ -22,7 +22,14 @@ from analysis.technical import bollinger, macd, rsi
 from cache import ttl_cache
 from data.crypto import upbit_top
 from data.naver_index import realtime_index
-from data.naver_stock import naver_deal_trend, naver_market_rank, naver_peers, naver_profile
+from data.naver_stock import (
+    naver_deal_trend,
+    naver_group_stocks,
+    naver_groups,
+    naver_market_rank,
+    naver_peers,
+    naver_profile,
+)
 from data.news import fetch_news
 from data.symbols import symbols
 
@@ -35,6 +42,8 @@ _deal_trend = ttl_cache(60 * 30)(naver_deal_trend)
 _market_rank = ttl_cache(60 * 5)(naver_market_rank)
 _peers = ttl_cache(60 * 30)(naver_peers)
 _crypto_top = ttl_cache(60)(upbit_top)
+_groups = ttl_cache(60 * 5)(naver_groups)
+_group_stocks = ttl_cache(60 * 5)(naver_group_stocks)
 
 app = FastAPI(title="스톡 인사이트 API")
 app.add_middleware(
@@ -244,6 +253,24 @@ def api_market_top(direction: str = "up", market: str = "KOSPI"):
         if m == "CRYPTO":
             return _crypto_top(d)
         return _market_rank(d, m)
+    except Exception:
+        return []
+
+
+@app.get("/api/groups")
+def api_groups(kind: str = "industry"):
+    k = "theme" if kind == "theme" else "industry"
+    try:
+        return _groups(k)
+    except Exception:
+        return []
+
+
+@app.get("/api/group-stocks")
+def api_group_stocks(no: int, kind: str = "industry"):
+    k = "theme" if kind == "theme" else "industry"
+    try:
+        return _group_stocks(k, no)
     except Exception:
         return []
 
