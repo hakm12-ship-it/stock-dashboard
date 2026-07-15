@@ -1,17 +1,41 @@
 import { useQuery } from '@tanstack/react-query'
-import { getPrices, type Period } from '../lib/api'
+import { getPrices, getIndex, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import { fmtQuote, changeColor, changeSign } from '../lib/format'
 
 export default function StockHeader({ t, period }: { t: FocusTicker; period: Period }) {
-  const { data } = useQuery({
+  const isIndex = t.kind === 'index' && !!t.indexName
+  const prices = useQuery({
     queryKey: ['prices', t.ticker, period],
     queryFn: () => getPrices(t.ticker, period),
   })
-  const last = data?.[data.length - 1]
-  const prev = data?.[data.length - 2]
-  const chg = last && prev ? last.close - prev.close : 0
-  const pct = last && prev && prev.close ? (chg / prev.close) * 100 : 0
+  const idx = useQuery({
+    queryKey: ['index', t.indexName],
+    queryFn: () => getIndex(t.indexName as string),
+    enabled: isIndex,
+  })
+
+  const last = prices.data?.[prices.data.length - 1]
+  const prev = prices.data?.[prices.data.length - 2]
+
+  // 지수는 실시간 API 값을, 그 외는 일봉 마지막 값을 사용
+  let priceVal: number | undefined
+  let chg = 0
+  let pct = 0
+  let hasChange = false
+  if (isIndex && idx.data) {
+    priceVal = idx.data.last
+    chg = idx.data.change
+    pct = idx.data.changePct
+    hasChange = true
+  } else if (last) {
+    priceVal = last.close
+    if (prev) {
+      chg = last.close - prev.close
+      pct = prev.close ? (chg / prev.close) * 100 : 0
+      hasChange = true
+    }
+  }
 
   return (
     <div className="pt-1 pb-3 border-b border-border">
@@ -33,9 +57,9 @@ export default function StockHeader({ t, period }: { t: FocusTicker; period: Per
       </div>
       <div className="flex items-baseline gap-3 mt-2">
         <span className="font-mono text-3xl font-semibold tnum tracking-tight">
-          {last ? fmtQuote(last.close, t) : '—'}
+          {fmtQuote(priceVal, t)}
         </span>
-        {last && prev && (
+        {hasChange && (
           <span className={`font-mono text-sm font-semibold ${changeColor(chg)}`}>
             {changeSign(chg)} {Math.abs(pct).toFixed(2)}%
           </span>

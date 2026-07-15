@@ -20,12 +20,14 @@ from analysis.fundamental import forward_pe, revenue_trend, valuation
 from analysis.signal import price_levels, technical_signals
 from analysis.technical import bollinger, macd, rsi
 from cache import ttl_cache
+from data.naver_index import realtime_index
 from data.news import fetch_news
 from data.symbols import symbols
 
 # 캐시된 조회 래퍼 (반복 호출 흡수)
 _symbols = ttl_cache(60 * 60 * 24)(symbols)
 _news = ttl_cache(60 * 15)(fetch_news)
+_naver_index = ttl_cache(30)(realtime_index)  # 실시간이라 짧게
 
 app = FastAPI(title="스톡 인사이트 API")
 app.add_middleware(
@@ -164,10 +166,17 @@ def api_index(name: str):
     df = _load_index(code)
     close = df["Close"].dropna()
     last, prev = float(close.iloc[-1]), float(close.iloc[-2])
+    change = last - prev
+    pct = (change / prev * 100) if prev else 0
+    # 코스피는 네이버 실시간으로 현재값 덮어쓰기 (FDR 지수 갱신 지연 보완)
+    if name.upper() == "KOSPI":
+        try:
+            rt = _naver_index("KOSPI")
+            last, change, pct = rt["last"], rt["change"], rt["changePct"]
+        except Exception:
+            pass
     return {
-        "name": name.upper(), "last": last,
-        "change": last - prev,
-        "changePct": (last - prev) / prev * 100 if prev else 0,
+        "name": name.upper(), "last": last, "change": change, "changePct": pct,
         "series": [{"time": i.strftime("%Y-%m-%d"), "close": float(c)} for i, c in close.items()],
     }
 

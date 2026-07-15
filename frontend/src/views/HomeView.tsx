@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { getPrices, getSignal } from '../lib/api'
+import { getPrices, getSignal, getIndex } from '../lib/api'
 import { TICKERS, type FocusTicker } from '../data/tickers'
 import IndexStrip from '../components/IndexStrip'
 import { fmtQuote, changeColor, changeSign } from '../lib/format'
@@ -31,15 +31,38 @@ const VERDICT_COLOR: Record<string, string> = {
 }
 
 function HomeCard({ t, onClick }: { t: FocusTicker; onClick: () => void }) {
+  const isIndex = t.kind === 'index' && !!t.indexName
   const prices = useQuery({ queryKey: ['prices', t.ticker, '1m'], queryFn: () => getPrices(t.ticker, '1m') })
   const sig = useQuery({ queryKey: ['signal', t.ticker], queryFn: () => getSignal(t.ticker) })
+  const idx = useQuery({
+    queryKey: ['index', t.indexName],
+    queryFn: () => getIndex(t.indexName as string),
+    enabled: isIndex,
+  })
 
   const series = prices.data?.map((c) => c.close) ?? []
   const last = prices.data?.at(-1)
   const prev = prices.data?.at(-2)
-  const chg = last && prev ? last.close - prev.close : 0
-  const pct = last && prev && prev.close ? (chg / prev.close) * 100 : 0
-  const up = series.length > 1 ? series[series.length - 1] >= series[0] : true
+
+  // 지수는 실시간 값, 그 외는 일봉 마지막
+  let priceVal: number | undefined
+  let chg = 0
+  let pct = 0
+  let hasChange = false
+  if (isIndex && idx.data) {
+    priceVal = idx.data.last
+    chg = idx.data.change
+    pct = idx.data.changePct
+    hasChange = true
+  } else if (last) {
+    priceVal = last.close
+    if (prev) {
+      chg = last.close - prev.close
+      pct = prev.close ? (chg / prev.close) * 100 : 0
+      hasChange = true
+    }
+  }
+  const up = hasChange ? chg >= 0 : series.length > 1 ? series[series.length - 1] >= series[0] : true
 
   return (
     <button
@@ -56,10 +79,8 @@ function HomeCard({ t, onClick }: { t: FocusTicker; onClick: () => void }) {
           <div className="font-mono text-[0.65rem] text-muted mt-0.5">{t.ticker}</div>
         </div>
         <div className="text-right shrink-0">
-          <div className="font-mono font-semibold tnum text-[0.95rem]">
-            {last ? fmtQuote(last.close, t) : '—'}
-          </div>
-          {last && prev && (
+          <div className="font-mono font-semibold tnum text-[0.95rem]">{fmtQuote(priceVal, t)}</div>
+          {hasChange && (
             <div className={`font-mono text-[0.72rem] ${changeColor(chg)}`}>
               {changeSign(chg)} {Math.abs(pct).toFixed(2)}%
             </div>
