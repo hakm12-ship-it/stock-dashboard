@@ -3,6 +3,8 @@ import { useQuery, useQueries } from '@tanstack/react-query'
 import { getPrices, getSignal, getIndex } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import IndexStrip from '../components/IndexStrip'
+import PortfolioSummary from '../components/PortfolioSummary'
+import type { Holding } from '../lib/holdings'
 import { fmtQuote, changeColor, changeSign } from '../lib/format'
 
 const UP = '#F23645'
@@ -104,12 +106,16 @@ function HomeCard({ t, onClick }: { t: FocusTicker; onClick: () => void }) {
 
 export default function HomeView({
   tickers,
+  holdings,
   onSelect,
   onAddClick,
+  onManageHoldings,
 }: {
   tickers: FocusTicker[]
+  holdings: Holding[]
   onSelect: (t: FocusTicker) => void
   onAddClick: () => void
+  onManageHoldings: () => void
 }) {
   const [sort, setSort] = useState<'default' | 'gainers' | 'losers'>('default')
 
@@ -144,6 +150,7 @@ export default function HomeView({
 
   return (
     <div className="space-y-2">
+      <PortfolioSummary holdings={holdings} onManage={onManageHoldings} />
       <IndexStrip />
       <div className="flex items-center justify-between pt-2 pb-0.5">
         <span className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted">

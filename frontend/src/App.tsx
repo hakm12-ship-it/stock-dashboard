@@ -12,7 +12,9 @@ import TechnicalView from './views/TechnicalView'
 import FundamentalView from './views/FundamentalView'
 import NewsView from './views/NewsView'
 import SearchSheet from './components/SearchSheet'
+import HoldingsSheet from './components/HoldingsSheet'
 import { loadCustom, saveCustom } from './lib/customTickers'
+import { loadHoldings, saveHoldings, type Holding } from './lib/holdings'
 
 export default function App() {
   const [t, setT] = useState<FocusTicker>(TICKERS[0])
@@ -21,6 +23,8 @@ export default function App() {
   const [updatedAt, setUpdatedAt] = useState<Date>(() => new Date())
   const [custom, setCustom] = useState<FocusTicker[]>(loadCustom)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [holdings, setHoldings] = useState<Holding[]>(loadHoldings)
+  const [holdingsOpen, setHoldingsOpen] = useState(false)
   const [theme, setTheme] = useState<'dark' | 'light'>(
     () => (localStorage.getItem('theme') as 'dark' | 'light') || 'dark',
   )
@@ -48,6 +52,16 @@ export default function App() {
     setCustom(next)
     saveCustom(next)
     if (t.ticker === tk.ticker && t.market === tk.market) setT(TICKERS[0])
+  }
+  const saveHolding = (h: Holding) => {
+    const next = [...holdings.filter((x) => !(x.ticker === h.ticker && x.market === h.market)), h]
+    setHoldings(next)
+    saveHoldings(next)
+  }
+  const removeHolding = (h: Holding) => {
+    const next = holdings.filter((x) => !(x.ticker === h.ticker && x.market === h.market))
+    setHoldings(next)
+    saveHoldings(next)
   }
 
   return (
@@ -86,11 +100,13 @@ export default function App() {
           {tab === 'home' ? (
             <HomeView
               tickers={all}
+              holdings={holdings}
               onSelect={(tk) => {
                 setT(tk)
                 setTab('signal')
               }}
               onAddClick={() => setSearchOpen(true)}
+              onManageHoldings={() => setHoldingsOpen(true)}
             />
           ) : (
             <>
@@ -123,6 +139,16 @@ export default function App() {
           onAdd={addTicker}
           onRemove={removeTicker}
           onClose={() => setSearchOpen(false)}
+        />
+      )}
+
+      {holdingsOpen && (
+        <HoldingsSheet
+          holdings={holdings}
+          tickers={all}
+          onSave={saveHolding}
+          onRemove={removeHolding}
+          onClose={() => setHoldingsOpen(false)}
         />
       )}
     </div>
