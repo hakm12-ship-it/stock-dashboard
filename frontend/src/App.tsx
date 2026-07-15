@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { TICKERS, type FocusTicker } from './data/tickers'
 import type { Period } from './lib/api'
 import IndexStrip from './components/IndexStrip'
@@ -14,17 +15,35 @@ export default function App() {
   const [t, setT] = useState<FocusTicker>(TICKERS[0])
   const [period, setPeriod] = useState<Period>('3m')
   const [tab, setTab] = useState<TabKey>('signal')
+  const [updatedAt, setUpdatedAt] = useState<Date>(() => new Date())
+  const qc = useQueryClient()
+
+  const refresh = () => {
+    qc.invalidateQueries()
+    setUpdatedAt(new Date())
+  }
 
   return (
     <div className="min-h-screen">
       <div className="mx-auto max-w-app px-3 pt-3 pb-28 space-y-3">
-        {/* 브랜드 */}
-        <div className="flex items-center gap-2">
-          <span className="text-base">📈</span>
-          <span className="text-base font-bold tracking-tight">스톡 인사이트</span>
-          <span className="font-mono text-[0.55rem] text-accent border border-accent/40 rounded px-1.5 py-0.5 tracking-[0.1em]">
-            BETA
-          </span>
+        {/* 브랜드 + 새로고침 */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-base">📈</span>
+            <span className="text-base font-bold tracking-tight">스톡 인사이트</span>
+            <span className="font-mono text-[0.55rem] text-accent border border-accent/40 rounded px-1.5 py-0.5 tracking-[0.1em]">
+              BETA
+            </span>
+          </div>
+          <button
+            onClick={refresh}
+            className="flex items-center gap-1.5 font-mono text-[0.66rem] text-muted active:text-text"
+          >
+            <span className="text-sm leading-none">↻</span>
+            <span>
+              {updatedAt.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </button>
         </div>
 
         <IndexStrip />
@@ -37,6 +56,10 @@ export default function App() {
           {tab === 'fund' && <FundamentalView t={t} />}
           {tab === 'news' && <NewsView t={t} />}
         </div>
+
+        <p className="text-[0.6rem] text-muted text-center pt-3 leading-relaxed">
+          시세는 실시간이 아닌 지연 데이터입니다 · 우측 상단 ↻ 로 새로고침하세요
+        </p>
       </div>
 
       <BottomNav active={tab} onChange={setTab} />

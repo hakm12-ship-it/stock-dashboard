@@ -42,13 +42,13 @@ def _market(code: str) -> str:
     return "한국" if code.upper() == "KR" else "미국"
 
 
-@ttl_cache(60 * 5)
+@ttl_cache(60)
 def _load(ticker: str, period: str) -> pd.DataFrame:
     start = date.today() - timedelta(days=PERIOD_DAYS.get(period, 90))
     return fdr.DataReader(ticker, start)
 
 
-@ttl_cache(60 * 5)
+@ttl_cache(60)
 def _load_index(code: str) -> pd.DataFrame:
     return fdr.DataReader(code, date.today() - timedelta(days=120))
 
