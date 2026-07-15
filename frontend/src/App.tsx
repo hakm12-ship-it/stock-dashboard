@@ -6,6 +6,7 @@ import IndexStrip from './components/IndexStrip'
 import TickerSwitcher from './components/TickerSwitcher'
 import StockHeader from './components/StockHeader'
 import BottomNav, { type TabKey } from './components/BottomNav'
+import HomeView from './views/HomeView'
 import SignalView from './views/SignalView'
 import TechnicalView from './views/TechnicalView'
 import FundamentalView from './views/FundamentalView'
@@ -14,7 +15,7 @@ import NewsView from './views/NewsView'
 export default function App() {
   const [t, setT] = useState<FocusTicker>(TICKERS[0])
   const [period, setPeriod] = useState<Period>('3m')
-  const [tab, setTab] = useState<TabKey>('signal')
+  const [tab, setTab] = useState<TabKey>('home')
   const [updatedAt, setUpdatedAt] = useState<Date>(() => new Date())
   const qc = useQueryClient()
 
@@ -46,16 +47,26 @@ export default function App() {
           </button>
         </div>
 
-        <IndexStrip />
-        <TickerSwitcher selected={t} onSelect={setT} />
-        <StockHeader t={t} period={period} />
-
-        <div className="pt-1">
-          {tab === 'signal' && <SignalView t={t} />}
-          {tab === 'tech' && <TechnicalView t={t} period={period} setPeriod={setPeriod} />}
-          {tab === 'fund' && <FundamentalView t={t} />}
-          {tab === 'news' && <NewsView t={t} />}
-        </div>
+        {tab === 'home' ? (
+          <HomeView
+            onSelect={(tk) => {
+              setT(tk)
+              setTab('signal')
+            }}
+          />
+        ) : (
+          <>
+            <IndexStrip />
+            <TickerSwitcher selected={t} onSelect={setT} />
+            <StockHeader t={t} period={period} />
+            <div className="pt-1">
+              {tab === 'signal' && <SignalView t={t} />}
+              {tab === 'tech' && <TechnicalView t={t} period={period} setPeriod={setPeriod} />}
+              {tab === 'fund' && <FundamentalView t={t} />}
+              {tab === 'news' && <NewsView t={t} />}
+            </div>
+          </>
+        )}
 
         <p className="text-[0.6rem] text-muted text-center pt-3 leading-relaxed">
           시세는 실시간이 아닌 지연 데이터입니다 · 우측 상단 ↻ 로 새로고침하세요

@@ -1,0 +1,95 @@
+import { useQuery } from '@tanstack/react-query'
+import { getPrices, getSignal } from '../lib/api'
+import { TICKERS, type FocusTicker } from '../data/tickers'
+import IndexStrip from '../components/IndexStrip'
+import { fmtQuote, changeColor, changeSign } from '../lib/format'
+
+const UP = '#F23645'
+const DOWN = '#2E86FF'
+
+function Sparkline({ data, up }: { data: number[]; up: boolean }) {
+  if (!data || data.length < 2) return <div className="h-8" />
+  const w = 120
+  const h = 32
+  const min = Math.min(...data)
+  const max = Math.max(...data)
+  const range = max - min || 1
+  const pts = data
+    .map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * (h - 2) - 1}`)
+    .join(' ')
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-8" preserveAspectRatio="none">
+      <polyline points={pts} fill="none" stroke={up ? UP : DOWN} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+    </svg>
+  )
+}
+
+const VERDICT_COLOR: Record<string, string> = {
+  '매수 우위': 'text-up',
+  '매도 우위': 'text-down',
+  중립: 'text-muted',
+}
+
+function HomeCard({ t, onClick }: { t: FocusTicker; onClick: () => void }) {
+  const prices = useQuery({ queryKey: ['prices', t.ticker, '1m'], queryFn: () => getPrices(t.ticker, '1m') })
+  const sig = useQuery({ queryKey: ['signal', t.ticker], queryFn: () => getSignal(t.ticker) })
+
+  const series = prices.data?.map((c) => c.close) ?? []
+  const last = prices.data?.at(-1)
+  const prev = prices.data?.at(-2)
+  const chg = last && prev ? last.close - prev.close : 0
+  const pct = last && prev && prev.close ? (chg / prev.close) * 100 : 0
+  const up = series.length > 1 ? series[series.length - 1] >= series[0] : true
+
+  return (
+    <button
+      onClick={onClick}
+      className="w-full bg-surface border border-border rounded-xl p-3.5 active:bg-surface-2 text-left transition-colors"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className="font-semibold truncate">{t.short}</span>
+            {t.kind === 'etf' && <span className="font-mono text-[0.55rem] text-accent">3X</span>}
+            {t.kind === 'index' && <span className="font-mono text-[0.55rem] text-muted">지수</span>}
+          </div>
+          <div className="font-mono text-[0.65rem] text-muted mt-0.5">{t.ticker}</div>
+        </div>
+        <div className="text-right shrink-0">
+          <div className="font-mono font-semibold tnum text-[0.95rem]">
+            {last ? fmtQuote(last.close, t) : '—'}
+          </div>
+          {last && prev && (
+            <div className={`font-mono text-[0.72rem] ${changeColor(chg)}`}>
+              {changeSign(chg)} {Math.abs(pct).toFixed(2)}%
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-3 mt-2">
+        <div className="flex-1 min-w-0">
+          <Sparkline data={series} up={up} />
+        </div>
+        {sig.data && (
+          <span className={`font-mono text-[0.7rem] font-semibold shrink-0 ${VERDICT_COLOR[sig.data.verdict] ?? 'text-muted'}`}>
+            {sig.data.verdict}
+          </span>
+        )}
+      </div>
+    </button>
+  )
+}
+
+export default function HomeView({ onSelect }: { onSelect: (t: FocusTicker) => void }) {
+  return (
+    <div className="space-y-2">
+      <IndexStrip />
+      <div className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted pt-2 pb-0.5">
+        관심 종목
+      </div>
+      {TICKERS.map((t) => (
+        <HomeCard key={t.ticker} t={t} onClick={() => onSelect(t)} />
+      ))}
+    </div>
+  )
+}

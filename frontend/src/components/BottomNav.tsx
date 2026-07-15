@@ -1,6 +1,7 @@
-export type TabKey = 'signal' | 'tech' | 'fund' | 'news'
+export type TabKey = 'home' | 'signal' | 'tech' | 'fund' | 'news'
 
 const TABS: { key: TabKey; label: string; icon: string }[] = [
+  { key: 'home', label: '홈', icon: '🏠' },
   { key: 'signal', label: '종합', icon: '🎯' },
   { key: 'tech', label: '차트', icon: '📊' },
   { key: 'fund', label: '가치', icon: '💰' },
@@ -16,7 +17,7 @@ export default function BottomNav({
 }) {
   return (
     <nav className="fixed bottom-0 inset-x-0 z-20 border-t border-border bg-ink/90 backdrop-blur">
-      <div className="mx-auto max-w-app grid grid-cols-4">
+      <div className="mx-auto max-w-app grid grid-cols-5">
         {TABS.map((t) => {
           const on = t.key === active
           return (
