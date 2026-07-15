@@ -87,7 +87,9 @@ function HomeCard({
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="font-semibold truncate">{t.short}</span>
-            {t.kind === 'etf' && <span className="font-mono text-[0.55rem] text-accent">3X</span>}
+            {t.kind === 'etf' && (
+              <span className="font-mono text-[0.55rem] text-accent">{t.lev ?? 'ETF'}</span>
+            )}
             {t.kind === 'index' && <span className="font-mono text-[0.55rem] text-muted">지수</span>}
             {holding && (
               <span

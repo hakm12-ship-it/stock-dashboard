@@ -47,7 +47,7 @@ export default function StockHeader({ t, period }: { t: FocusTicker; period: Per
         </span>
         {t.kind === 'etf' && (
           <span className="font-mono text-[0.6rem] text-accent border border-accent/40 rounded px-1.5 py-0.5">
-            3X ETF
+            {t.lev ? `${t.lev} ETF` : 'ETF'}
           </span>
         )}
         {t.kind === 'index' && (
