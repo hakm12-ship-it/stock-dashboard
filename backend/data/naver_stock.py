@@ -69,15 +69,18 @@ def naver_fundamentals(code: str) -> dict:
 
 
 def naver_market_rank(direction: str, market: str, size: int = 5) -> list[dict]:
-    """오늘의 급등/급락 상위 — direction: up|down, market: KOSPI|KOSDAQ."""
-    url = f"https://m.stock.naver.com/api/stocks/{direction}/{market}?page=1&pageSize={size}"
+    """오늘의 급등/급락 상위 — direction: up|down, market: KOSPI|KOSDAQ|NASDAQ|NYSE."""
+    if market in ("KOSPI", "KOSDAQ"):
+        url = f"https://m.stock.naver.com/api/stocks/{direction}/{market}?page=1&pageSize={size}"
+    else:
+        url = f"https://api.stock.naver.com/stock/exchange/{market}/{direction}?page=1&pageSize={size}"
     req = urllib.request.Request(
         url, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://m.stock.naver.com/"})
     with urllib.request.urlopen(req, timeout=10) as resp:
         data = json.loads(resp.read())
     return [
         {
-            "ticker": s.get("itemCode"),
+            "ticker": s.get("itemCode") or s.get("symbolCode"),
             "name": s.get("stockName"),
             "price": _num(s.get("closePrice")),
             "changePct": _num(s.get("fluctuationsRatio")),

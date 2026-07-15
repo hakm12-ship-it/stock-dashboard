@@ -306,7 +306,7 @@ export default function HomeView({
         existing={tickers}
         onAdd={onAddTicker}
         onOpen={(code) => {
-          const f = tickers.find((x) => x.ticker === code && x.market === 'KR')
+          const f = tickers.find((x) => x.ticker === code)
           if (f) onSelect(f)
         }}
       />

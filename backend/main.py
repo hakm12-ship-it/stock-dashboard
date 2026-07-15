@@ -236,7 +236,7 @@ def api_target(market: str, ticker: str):
 @app.get("/api/market-top")
 def api_market_top(direction: str = "up", market: str = "KOSPI"):
     d = "down" if direction == "down" else "up"
-    m = market.upper() if market.upper() in ("KOSPI", "KOSDAQ") else "KOSPI"
+    m = market.upper() if market.upper() in ("KOSPI", "KOSDAQ", "NASDAQ", "NYSE") else "KOSPI"
     try:
         return _market_rank(d, m)
     except Exception:

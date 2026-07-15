@@ -5,7 +5,8 @@ import type { FocusTicker } from '../data/tickers'
 import { changeColor, changeSign } from '../lib/format'
 
 type Dir = 'up' | 'down'
-type Mkt = 'KOSPI' | 'KOSDAQ'
+type Mkt = 'KOSPI' | 'KOSDAQ' | 'NASDAQ' | 'NYSE'
+const MKTS: Mkt[] = ['KOSPI', 'KOSDAQ', 'NASDAQ', 'NYSE']
 
 export default function MarketTop({
   existing,
@@ -25,7 +26,10 @@ export default function MarketTop({
     staleTime: 5 * 60 * 1000,
   })
 
-  const isAdded = (ticker: string) => existing.some((x) => x.ticker === ticker && x.market === 'KR')
+  const mktKr = mkt === 'KOSPI' || mkt === 'KOSDAQ'
+  const tickerMarket = mktKr ? 'KR' : 'US'
+  const isAdded = (ticker: string) =>
+    existing.some((x) => x.ticker === ticker && x.market === tickerMarket)
 
   return (
     <section className="bg-surface border border-border rounded-xl p-4 card-shadow">
@@ -33,16 +37,16 @@ export default function MarketTop({
         <span className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted">
           🔥 오늘의 시장 TOP
         </span>
-        <div className="flex gap-1">
-          {(['KOSPI', 'KOSDAQ'] as Mkt[]).map((m) => (
+        <div className="flex gap-0.5">
+          {MKTS.map((m) => (
             <button
               key={m}
               onClick={() => setMkt(m)}
-              className={`font-mono text-[0.6rem] px-1.5 py-1 rounded ${
+              className={`font-mono text-[0.56rem] px-1 py-1 rounded ${
                 mkt === m ? 'bg-accent/15 text-accent' : 'text-muted/70'
               }`}
             >
-              {m}
+              {m === 'NASDAQ' ? 'NAS' : m === 'KOSPI' ? '코스피' : m === 'KOSDAQ' ? '코스닥' : 'NYSE'}
             </button>
           ))}
         </div>
@@ -93,7 +97,11 @@ export default function MarketTop({
                 </button>
                 <div className="text-right shrink-0">
                   <div className="font-mono text-sm tnum">
-                    {s.price != null ? `${Math.round(s.price).toLocaleString()}원` : '—'}
+                    {s.price == null
+                      ? '—'
+                      : mktKr
+                        ? `${Math.round(s.price).toLocaleString()}원`
+                        : `$${s.price.toFixed(2)}`}
                   </div>
                   <div className={`font-mono text-[0.7rem] ${s.changePct != null ? changeColor(s.changePct) : 'text-muted'}`}>
                     {s.changePct != null
@@ -104,7 +112,13 @@ export default function MarketTop({
                 <button
                   disabled={added}
                   onClick={() =>
-                    onAdd({ ticker: s.ticker, name: s.name, short: s.name, market: 'KR', kind: 'stock' })
+                    onAdd({
+                      ticker: s.ticker,
+                      name: s.name,
+                      short: s.name,
+                      market: tickerMarket,
+                      kind: 'stock',
+                    })
                   }
                   className={`shrink-0 text-[0.66rem] px-2 py-1 rounded-md border ${
                     added ? 'text-muted border-border' : 'text-accent border-accent/50 active:bg-accent/10'
