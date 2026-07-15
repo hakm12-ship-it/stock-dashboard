@@ -1,32 +1,29 @@
-# React + TypeScript + Vite
+# 스톡 인사이트 — 프론트엔드 (React + Vite)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+스톡 인사이트 웹앱의 프론트엔드입니다. 전체 개요·아키텍처·배포는 [루트 README](../README.md) 참고.
 
-Currently, two official plugins are available:
+## 개발
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev      # 개발 서버 (5173) — /api 는 backend(8000)로 프록시
+npm run build    # 프로덕션 빌드 (dist/) — tsc 타입체크 포함
+npm run preview  # 빌드 결과 미리보기
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+> 백엔드(FastAPI, 8000)가 먼저 떠 있어야 `/api` 데이터가 로드됩니다.
+
+## 구조
+
+```
+src/
+├─ App.tsx              # 레이아웃 · 상태 · 시트(검색/보유/비교)
+├─ components/          # IndexStrip · StockHeader · BottomNav · 차트 · Help · 시트 등
+├─ views/               # HomeView · SignalView · TechnicalView · FundamentalView · NewsView
+├─ lib/                 # api(백엔드 호출) · format · market · holdings · customTickers
+└─ data/tickers.ts      # 기본 종목 목록
+```
+
+## 스택
+
+React · TypeScript · Tailwind CSS · lightweight-charts · TanStack Query · PWA(manifest + service worker)
