@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { getPrices, getIndex, type Period } from '../lib/api'
+import { getPrices, getIndex, getProfile, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import { fmtQuote, changeColor, changeSign } from '../lib/format'
 import { marketStatus } from '../lib/market'
@@ -15,6 +15,12 @@ export default function StockHeader({ t, period }: { t: FocusTicker; period: Per
     queryFn: () => getIndex(t.indexName as string),
     enabled: isIndex,
   })
+  const profile = useQuery({
+    queryKey: ['profile', t.market, t.ticker],
+    queryFn: () => getProfile(t.market, t.ticker),
+    enabled: t.market === 'KR' && t.kind !== 'index',
+  })
+  const logo = profile.data?.logo
 
   const last = prices.data?.[prices.data.length - 1]
   const prev = prices.data?.[prices.data.length - 2]
@@ -41,6 +47,16 @@ export default function StockHeader({ t, period }: { t: FocusTicker; period: Per
   return (
     <div className="pt-1 pb-3 border-b border-border">
       <div className="flex items-center gap-2 flex-wrap">
+        {logo && (
+          <img
+            src={logo}
+            alt=""
+            className="h-6 w-6 rounded-full border border-border bg-surface object-contain"
+            onError={(e) => {
+              ;(e.target as HTMLImageElement).style.display = 'none'
+            }}
+          />
+        )}
         <span className="text-lg font-bold tracking-tight">{t.name}</span>
         <span className="font-mono text-xs text-muted border border-border rounded px-1.5 py-0.5">
           {t.ticker} · {t.market}

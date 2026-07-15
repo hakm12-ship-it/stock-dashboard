@@ -9,9 +9,9 @@ import re
 import urllib.request
 
 
-def _api(code: str) -> dict:
+def _api(code: str, path: str = "integration") -> dict:
     req = urllib.request.Request(
-        f"https://m.stock.naver.com/api/stock/{code}/integration",
+        f"https://m.stock.naver.com/api/stock/{code}/{path}",
         headers={"User-Agent": "Mozilla/5.0", "Referer": "https://m.stock.naver.com/"},
     )
     with urllib.request.urlopen(req, timeout=10) as resp:
@@ -65,4 +65,28 @@ def naver_fundamentals(code: str) -> dict:
         "cnsEps": _num(info.get("cnsEps")),  # 추정 EPS
         "target": _num(ci.get("priceTargetMean")),  # 목표주가 평균
         "recomm": _num(ci.get("recommMean")),  # 투자의견 평균 (높을수록 매수)
+    }
+
+
+def naver_profile(code: str) -> dict:
+    """종목 프로필 — 개요(주로 ETF), 로고, 최근 증권사 리포트."""
+    d = _api(code)
+    researches = []
+    for r in (d.get("researches") or [])[:5]:
+        wdt = str(r.get("wdt") or "")
+        pub = f"{wdt[:4]}-{wdt[4:6]}-{wdt[6:]}" if len(wdt) == 8 else wdt
+        researches.append({"title": r.get("tit"), "brokerage": r.get("bnm"), "date": pub})
+
+    logo = None
+    try:
+        b = _api(code, "basic")
+        logo = b.get("itemLogoPngUrl") or b.get("itemLogoUrl")
+    except Exception:
+        pass
+
+    return {
+        "name": d.get("stockName"),
+        "description": d.get("description"),  # ETF/ETN 상품 개요 (주식은 대개 None)
+        "logo": logo,
+        "researches": researches,
     }

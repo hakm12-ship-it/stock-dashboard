@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { getValuation, getForwardPe, getTrend, getTarget, getPrices } from '../lib/api'
+import { getValuation, getForwardPe, getTrend, getTarget, getPrices, getProfile } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import { Panel, Loading, Empty, ErrorState, Metric } from '../components/ui'
 import { fmtNum, fmtEps, fmtCap, fmtPrice } from '../lib/format'
@@ -52,6 +52,11 @@ function RevenueBars({
 
 export default function FundamentalView({ t }: { t: FocusTicker }) {
   const isStock = t.kind === 'stock'
+  const profile = useQuery({
+    queryKey: ['profile', t.market, t.ticker],
+    queryFn: () => getProfile(t.market, t.ticker),
+    enabled: t.market === 'KR',
+  })
   const val = useQuery({ queryKey: ['val', t.market, t.ticker], queryFn: () => getValuation(t.market, t.ticker), enabled: isStock })
   const fpe = useQuery({ queryKey: ['fpe', t.market, t.ticker], queryFn: () => getForwardPe(t.market, t.ticker), enabled: isStock })
   const trend = useQuery({ queryKey: ['trend', t.market, t.ticker], queryFn: () => getTrend(t.market, t.ticker), enabled: isStock })
@@ -60,24 +65,32 @@ export default function FundamentalView({ t }: { t: FocusTicker }) {
 
   if (!isStock) {
     const isIndex = t.kind === 'index'
+    const desc = profile.data?.description
     return (
-      <Panel label={isIndex ? '지수 안내' : 'ETF 안내'}>
-        <p className="text-sm text-muted leading-relaxed">
-          {isIndex ? (
-            <>
-              <b className="text-text">{t.name}</b> 는 지수라 PER·PBR 같은 개별 기업 밸류에이션이 없어요.
-              <br />
-              차트·종합신호 탭에서 지수 흐름과 예상 변동 범위를 확인하세요.
-            </>
-          ) : (
-            <>
-              <b className="text-text">{t.name}</b> 는 ETF라 PER·PBR 같은 개별 기업 밸류에이션이 적용되지 않아요.
-              <br />
-              <span className="text-up">레버리지</span> 상품이라 변동성이 매우 큽니다 — 차트·종합신호 탭에서 확인하세요.
-            </>
-          )}
-        </p>
-      </Panel>
+      <div className="space-y-3">
+        <Panel label={isIndex ? '지수 안내' : 'ETF 안내'}>
+          <p className="text-sm text-muted leading-relaxed">
+            {isIndex ? (
+              <>
+                <b className="text-text">{t.name}</b> 는 지수라 PER·PBR 같은 개별 기업 밸류에이션이 없어요.
+                <br />
+                차트·종합신호 탭에서 지수 흐름과 예상 변동 범위를 확인하세요.
+              </>
+            ) : (
+              <>
+                <b className="text-text">{t.name}</b> 는 ETF라 PER·PBR 같은 개별 기업 밸류에이션이 적용되지 않아요.
+                <br />
+                <span className="text-up">레버리지</span> 상품이라 변동성이 매우 큽니다 — 차트·종합신호 탭에서 확인하세요.
+              </>
+            )}
+          </p>
+        </Panel>
+        {!isIndex && desc && (
+          <Panel label="상품 개요">
+            <p className="text-xs text-muted leading-relaxed">{desc}</p>
+          </Panel>
+        )}
+      </div>
     )
   }
 
@@ -167,6 +180,30 @@ export default function FundamentalView({ t }: { t: FocusTicker }) {
           </p>
         </Panel>
       ) : null}
+
+      {/* 증권사 리포트 (국내) */}
+      {profile.data && profile.data.researches.length > 0 && (
+        <Panel label="📑 최근 증권사 리포트">
+          <div className="space-y-2.5">
+            {profile.data.researches.map((r, i) => (
+              <div key={i} className="border-b border-border last:border-0 pb-2.5 last:pb-0">
+                <div className="text-sm font-medium leading-snug">{r.title}</div>
+                <div className="font-mono text-[0.66rem] text-muted mt-0.5">
+                  {r.brokerage} · {r.date}
+                </div>
+              </div>
+            ))}
+          </div>
+          <a
+            href={`https://m.stock.naver.com/domestic/stock/${t.ticker}/research`}
+            target="_blank"
+            rel="noreferrer"
+            className="block text-center text-[0.7rem] text-accent mt-3 active:opacity-70"
+          >
+            네이버 증권에서 리포트 더보기 →
+          </a>
+        </Panel>
+      )}
 
       {!v && !val.isLoading && <Empty label="재무 정보를 불러오지 못했어요" />}
     </div>

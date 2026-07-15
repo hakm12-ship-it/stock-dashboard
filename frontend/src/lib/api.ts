@@ -128,3 +128,12 @@ export interface Fx {
   changePct: number
 }
 export const getFx = () => get<Fx>('/api/fx', {})
+
+export interface Profile {
+  name: string | null
+  description: string | null
+  logo: string | null
+  researches: { title: string; brokerage: string; date: string }[]
+}
+export const getProfile = (market: Market, ticker: string) =>
+  get<Profile>('/api/profile', { market, ticker })
