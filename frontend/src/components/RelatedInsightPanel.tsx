@@ -37,7 +37,10 @@ export default function RelatedInsightPanel({ ticker }: { ticker: string }) {
           ))}
         </div>
       )}
-      <p className="text-[0.6rem] text-muted mt-2">AI 생성 요약 — 참고용, 투자 권유 아님</p>
+      <p className="text-[0.6rem] text-muted mt-2">
+        AI 생성 요약 — 참고용, 투자 권유 아님
+        {data.stale && ' · 새 요약을 못 받아 직전 요약을 보여주고 있어요 (등락률은 최신)'}
+      </p>
     </div>
   )
 }

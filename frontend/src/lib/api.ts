@@ -171,6 +171,8 @@ export const getDailyReport = () => get<DailyReport>('/api/daily-report', {})
 
 export interface AiBriefing {
   available: boolean
+  /** LLM 호출 실패(할당량 초과 등)로 직전 분석을 대신 내려준 경우 true */
+  stale?: boolean
   error?: string
   stance?: '강세' | '약세' | '중립'
   summary?: string
@@ -213,6 +215,8 @@ export interface RelatedStock {
 export interface RelatedInsight {
   available: boolean
   insight?: string | null
+  /** LLM 호출 실패로 직전 문구를 대신 내려준 경우 true (등락률은 항상 최신) */
+  stale?: boolean
   stocks?: RelatedStock[]
 }
 export const getRelatedInsight = (ticker: string) =>

@@ -35,7 +35,10 @@ export default function AiBriefingPanel({ t }: { t: FocusTicker }) {
           ))}
         </ul>
       )}
-      <p className="text-[0.6rem] opacity-50 mt-2">AI 생성 분석 — 참고용, 투자 권유 아님</p>
+      <p className="text-[0.6rem] opacity-50 mt-2">
+        AI 생성 분석 — 참고용, 투자 권유 아님
+        {data.stale && ' · 새 분석을 못 받아 직전 분석을 보여주고 있어요'}
+      </p>
     </div>
   )
 }

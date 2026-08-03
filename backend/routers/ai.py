@@ -5,6 +5,7 @@ LLM 호출은 비용이 있으므로 모두 TTL 캐시를 거친다. 캐시 키�
 키가 바뀌어 캐시가 사실상 무효화된다.
 """
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 
 from fastapi import APIRouter
@@ -103,6 +104,12 @@ def _ai_briefing(market: str, ticker: str, name: str, changePct: float, verdict:
     return generate_briefing(name, ticker, context)
 
 
+# 종목별 마지막 성공 결과. 무료 등급 할당량 초과(429) 등으로 LLM이 실패해도
+# 패널이 통째로 사라지지 않도록, 직전 분석을 stale 표시와 함께 내려준다.
+_last_briefing: dict[str, dict] = {}
+_last_insight: dict[str, str] = {}
+
+
 @router.get("/api/ai-briefing")
 def api_ai_briefing(market: str, ticker: str, name: str = ""):
     df = load(ticker, "3m")
@@ -116,8 +123,12 @@ def api_ai_briefing(market: str, ticker: str, name: str = ""):
             val.get("PER"), val.get("PBR"),
         )
     except Exception as e:
+        stale = _last_briefing.get(ticker)
+        if stale:
+            return {"available": True, "stale": True, **stale}
         return {"available": False, "error": str(e)}
-    return {"available": True, **result}
+    _last_briefing[ticker] = result
+    return {"available": True, "stale": False, **result}
 
 
 @ttl_cache(60 * 30)  # LLM 호출 비용 절감 — 30분 캐시
@@ -131,21 +142,33 @@ def api_related_insight(ticker: str):
     if not chain:
         return {"available": False}
 
-    stocks = []
-    for tk, name, role in chain:
+    def pct_of(tk: str):
         try:
             _, _, pct = change_of(load(tk, "5d")["Close"].dropna())
             # 반올림해서 담는다: 이 값이 캐시 키가 되므로 원본 실수를 쓰면
             # 10개 중 하나만 움직여도 캐시가 무효화된다. 표시도 소수 2자리.
-            pct = round(pct, 2)
+            return round(pct, 2)
         except Exception:
-            pct = None
-        stocks.append({"ticker": tk, "name": name, "role": role, "changePct": pct})
+            return None
 
+    # 10개 종목은 순차 조회하면 콜드 캐시에서 5초 넘게 걸린다. 전부
+    # 네트워크 대기라 스레드로 겹쳐 받는다 (순서는 chain 순서 유지).
+    with ThreadPoolExecutor(max_workers=len(chain)) as pool:
+        pcts = list(pool.map(pct_of, [tk for tk, _, _ in chain]))
+
+    stocks = [
+        {"ticker": tk, "name": name, "role": role, "changePct": pct}
+        for (tk, name, role), pct in zip(chain, pcts)
+    ]
+
+    stale = False
     try:
         # dict는 캐시 키로 못 쓰니 튜플로 변환
         insight = _related_insight(ticker, tuple(tuple(s.items()) for s in stocks))
+        _last_insight[ticker] = insight
     except Exception:
-        insight = None
+        # 할당량 초과 등 — 마지막 성공 문구로 버틴다 (등락률 표는 항상 최신).
+        insight = _last_insight.get(ticker)
+        stale = insight is not None
 
-    return {"available": True, "insight": insight, "stocks": stocks}
+    return {"available": True, "insight": insight, "stale": stale, "stocks": stocks}
