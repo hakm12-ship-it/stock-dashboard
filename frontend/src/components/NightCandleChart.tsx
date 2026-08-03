@@ -50,13 +50,14 @@ export default function NightCandleChart({ ticker, light }: { ticker: string; li
 
   return (
     <div>
+      {/* 터치타겟 44px 이상 (모바일 우선 원칙) */}
       <div className="flex gap-1 mb-1.5">
         {INTERVALS.map(([iv, label]) => (
           <button
             key={iv}
             onClick={() => setInterval(iv)}
-            className={`font-mono text-[0.62rem] px-2 py-1 rounded transition-colors ${
-              interval === iv ? 'bg-accent/15 text-accent' : 'text-muted/70'
+            className={`font-mono text-[0.7rem] min-w-[44px] min-h-[44px] px-3 rounded-lg transition-colors ${
+              interval === iv ? 'bg-accent/15 text-accent font-semibold' : 'text-muted/70 active:bg-surface-2'
             }`}
           >
             {label}
