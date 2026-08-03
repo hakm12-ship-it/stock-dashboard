@@ -25,6 +25,7 @@ from analysis.technical import bollinger, macd, rsi
 from cache import ttl_cache
 from data.ai_briefing import generate_briefing
 from data.crypto import upbit_top
+from data.hyperliquid import TICKER_TO_PERP, fetch_perp_prices
 from data.naver_index import realtime_index
 from data.naver_stock import (
     naver_deal_trend,
@@ -47,6 +48,7 @@ _market_rank = ttl_cache(60 * 5)(naver_market_rank)
 _peers = ttl_cache(60 * 30)(naver_peers)
 _crypto_top = ttl_cache(60)(upbit_top)
 _groups = ttl_cache(60 * 5)(naver_groups)
+_perp_prices = ttl_cache(30)(fetch_perp_prices)
 _group_stocks = ttl_cache(60 * 5)(naver_group_stocks)
 
 app = FastAPI(title="스톡 인사이트 API")
@@ -447,6 +449,32 @@ def _build_daily_report():
 @app.get("/api/daily-report")
 def api_daily_report():
     return _build_daily_report()
+
+
+@app.get("/api/night-price")
+def api_night_price(ticker: str):
+    perp = TICKER_TO_PERP.get(ticker)
+    if not perp:
+        return {"available": False}
+    prices = _perp_prices()
+    usd = prices.get(perp)
+    if usd is None:
+        return {"available": False}
+    fx_last, _, _ = _change_of(_load_fx()["Close"].dropna())
+    krw = usd * fx_last
+
+    df = _load(ticker, "5d")
+    close = df["Close"].dropna()
+    krx_close = float(close.iloc[-1])
+    gap_pct = (krw - krx_close) / krx_close * 100 if krx_close else 0
+
+    return {
+        "available": True,
+        "usd": usd,
+        "krw": krw,
+        "krxClose": krx_close,
+        "gapPct": gap_pct,
+    }
 
 
 @ttl_cache(60 * 60 * 3)  # 호출 비용 절감 — 3시간 캐시

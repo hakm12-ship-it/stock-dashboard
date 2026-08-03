@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getPrices, getIndex, getProfile, type Period } from '../lib/api'
+import { getPrices, getIndex, getProfile, getNightPrice, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import { fmtQuote, changeColor, changeSign } from '../lib/format'
 import { marketStatus } from '../lib/market'
+
+const NIGHT_PRICE_TICKERS = new Set(['005930', '000660'])
 
 export default function StockHeader({ t, period }: { t: FocusTicker; period: Period }) {
   const isIndex = t.kind === 'index' && !!t.indexName
@@ -22,6 +24,14 @@ export default function StockHeader({ t, period }: { t: FocusTicker; period: Per
     enabled: t.market === 'KR' && t.kind !== 'index',
   })
   const logo = profile.data?.logo
+
+  const nightEnabled = t.market === 'KR' && NIGHT_PRICE_TICKERS.has(t.ticker)
+  const night = useQuery({
+    queryKey: ['night-price', t.ticker],
+    queryFn: () => getNightPrice(t.ticker),
+    enabled: nightEnabled,
+    refetchInterval: nightEnabled ? 30_000 : false,
+  })
 
   const last = prices.data?.[prices.data.length - 1]
   const prev = prices.data?.[prices.data.length - 2]
@@ -122,6 +132,17 @@ export default function StockHeader({ t, period }: { t: FocusTicker; period: Per
           </span>
         )}
       </div>
+      {nightEnabled && night.data?.available && (
+        <div className="flex items-baseline gap-2 mt-1">
+          <span className="text-[0.62rem] text-muted">🌙 야간(perp)</span>
+          <span className="font-mono text-sm font-medium tnum">
+            ₩{Math.round(night.data.krw ?? 0).toLocaleString()}
+          </span>
+          <span className={`font-mono text-[0.7rem] ${changeColor(night.data.gapPct ?? 0)}`}>
+            {changeSign(night.data.gapPct ?? 0)} {Math.abs(night.data.gapPct ?? 0).toFixed(2)}%
+          </span>
+        </div>
+      )}
     </div>
   )
 }

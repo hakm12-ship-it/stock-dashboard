@@ -179,6 +179,15 @@ export interface AiBriefing {
 export const getAiBriefing = (market: Market, ticker: string, name: string) =>
   get<AiBriefing>('/api/ai-briefing', { market, ticker, name })
 
+export interface NightPrice {
+  available: boolean
+  usd?: number
+  krw?: number
+  krxClose?: number
+  gapPct?: number
+}
+export const getNightPrice = (ticker: string) => get<NightPrice>('/api/night-price', { ticker })
+
 export interface MarketTopItem {
   ticker: string
   name: string
