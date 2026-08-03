@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { getPrices, getSignal, getIndex, getProfile, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
+import DailyReportCard from '../components/DailyReportCard'
 import IndexStrip from '../components/IndexStrip'
+import MacroStrip from '../components/MacroStrip'
 import PortfolioSummary from '../components/PortfolioSummary'
 import MarketTop from '../components/MarketTop'
 import GroupsPanel from '../components/GroupsPanel'
@@ -213,6 +215,8 @@ export default function HomeView({
         onManage={onManageHoldings}
         onJournal={onOpenJournal}
       />
+      <DailyReportCard />
+      <MacroStrip />
       <IndexStrip />
       <div className="pt-2 pb-0.5 space-y-1">
         <div className="flex items-center justify-between">

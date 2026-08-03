@@ -151,6 +151,34 @@ export interface FxPoint {
 }
 export const getFxHistory = (period: Period) => get<FxPoint[]>('/api/fx-history', { period })
 
+export interface MacroItem {
+  last: number
+  change: number
+  changePct: number
+}
+export interface Macro {
+  usdkrw: MacroItem
+  wti: MacroItem
+}
+export const getMacro = () => get<Macro>('/api/macro', {})
+
+export interface DailyReport {
+  date: string
+  summary: string
+  tags: { label: string; pct: number }[]
+}
+export const getDailyReport = () => get<DailyReport>('/api/daily-report', {})
+
+export interface AiBriefing {
+  available: boolean
+  error?: string
+  stance?: '강세' | '약세' | '중립'
+  summary?: string
+  bullets?: string[]
+}
+export const getAiBriefing = (market: Market, ticker: string, name: string) =>
+  get<AiBriefing>('/api/ai-briefing', { market, ticker, name })
+
 export interface MarketTopItem {
   ticker: string
   name: string

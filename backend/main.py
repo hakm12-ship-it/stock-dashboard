@@ -11,15 +11,19 @@ from pathlib import Path
 
 import FinanceDataReader as fdr
 import pandas as pd
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 from analysis.forecast import expected_range
 from analysis.fundamental import analyst_target, forward_pe, revenue_trend, valuation
 from analysis.signal import price_levels, signal_history, technical_signals
 from analysis.technical import bollinger, macd, rsi
 from cache import ttl_cache
+from data.ai_briefing import generate_briefing
 from data.crypto import upbit_top
 from data.naver_index import realtime_index
 from data.naver_stock import (
@@ -358,6 +362,120 @@ def api_fx():
         "change": last - prev,
         "changePct": (last - prev) / prev * 100 if prev else 0,
     }
+
+
+@ttl_cache(60 * 30)
+def _load_wti():
+    return fdr.DataReader("CL=F", date.today() - timedelta(days=30))
+
+
+def _change_of(close: "pd.Series"):
+    last = float(close.iloc[-1])
+    prev = float(close.iloc[-2]) if len(close) > 1 else last
+    return last, last - prev, (last - prev) / prev * 100 if prev else 0
+
+
+@app.get("/api/macro")
+def api_macro():
+    fx_last, fx_chg, fx_pct = _change_of(_load_fx()["Close"].dropna())
+    wti_last, wti_chg, wti_pct = _change_of(_load_wti()["Close"].dropna())
+    return {
+        "usdkrw": {"last": fx_last, "change": fx_chg, "changePct": fx_pct},
+        "wti": {"last": wti_last, "change": wti_chg, "changePct": wti_pct},
+    }
+
+
+@ttl_cache(60 * 10)
+def _build_daily_report():
+    tags = []
+    parts = []
+
+    for name in ("KOSPI", "KOSDAQ"):
+        try:
+            d = _naver_index(name)
+            tags.append({"label": name, "pct": d["changePct"]})
+        except Exception:
+            pass
+    try:
+        idx = _load_index("IXIC")["Close"].dropna()
+        _, _, pct = _change_of(idx)
+        tags.append({"label": "NASDAQ", "pct": pct})
+    except Exception:
+        pass
+
+    kospi = next((t for t in tags if t["label"] == "KOSPI"), None)
+    if kospi:
+        direction = "강세" if kospi["pct"] >= 0 else "약세"
+        parts.append(f"코스피가 {abs(kospi['pct']):.2f}% {direction}를 보이며 마감했습니다.")
+
+    nasdaq = next((t for t in tags if t["label"] == "NASDAQ"), None)
+    if nasdaq:
+        direction = "상승" if nasdaq["pct"] >= 0 else "하락"
+        parts.append(f"전일 나스닥은 {abs(nasdaq['pct']):.2f}% {direction}했습니다.")
+
+    try:
+        fx_last, fx_chg, fx_pct = _change_of(_load_fx()["Close"].dropna())
+        tags.append({"label": "원/달러", "pct": fx_pct})
+        direction = "상승" if fx_chg >= 0 else "하락"
+        parts.append(f"원/달러 환율은 {fx_last:,.1f}원으로 {abs(fx_pct):.2f}% {direction}했습니다.")
+    except Exception:
+        pass
+
+    try:
+        wti_last, wti_chg, wti_pct = _change_of(_load_wti()["Close"].dropna())
+        tags.append({"label": "WTI", "pct": wti_pct})
+        direction = "상승" if wti_chg >= 0 else "하락"
+        parts.append(f"WTI 원유는 ${wti_last:,.2f}로 {abs(wti_pct):.2f}% {direction}했습니다.")
+    except Exception:
+        pass
+
+    try:
+        gainers = _market_rank("up", "KOSPI", 1)
+        if gainers:
+            g = gainers[0]
+            parts.append(f"코스피 급등 상위는 {g['name']}(+{g['changePct']:.2f}%)입니다.")
+    except Exception:
+        pass
+
+    return {
+        "date": date.today().isoformat(),
+        "summary": " ".join(parts) if parts else "오늘의 시장 데이터를 불러오지 못했습니다.",
+        "tags": tags,
+    }
+
+
+@app.get("/api/daily-report")
+def api_daily_report():
+    return _build_daily_report()
+
+
+@ttl_cache(60 * 60 * 3)  # 호출 비용 절감 — 3시간 캐시
+def _ai_briefing(market: str, ticker: str, name: str, changePct: float, verdict: str,
+                 per: float | None, pbr: float | None):
+    context = {
+        "등락률(%)": round(changePct, 2),
+        "규칙기반신호": verdict,
+        "PER": per,
+        "PBR": pbr,
+    }
+    return generate_briefing(name, ticker, context)
+
+
+@app.get("/api/ai-briefing")
+def api_ai_briefing(market: str, ticker: str, name: str = ""):
+    df = _load(ticker, "3m")
+    close = df["Close"].dropna()
+    last, chg, pct = _change_of(close)
+    signals, _, verdict, _ = technical_signals(df)
+    val = valuation(_market(market), ticker)
+    try:
+        result = _ai_briefing(
+            market, ticker, name or ticker, pct, verdict,
+            val.get("PER"), val.get("PBR"),
+        )
+    except Exception as e:
+        return {"available": False, "error": str(e)}
+    return {"available": True, **result}
 
 
 # ---- 프로덕션: 빌드된 프론트엔드 정적 서빙 (단일 서비스 배포용) ----

@@ -11,6 +11,7 @@ import {
   type SignalConfig,
 } from '../lib/signalConfig'
 import type { FocusTicker } from '../data/tickers'
+import AiBriefingPanel from '../components/AiBriefingPanel'
 import { Panel, Loading, Empty, ErrorState, Metric } from '../components/ui'
 import { fmtQuote, fmtNum, fmtPct } from '../lib/format'
 
@@ -224,6 +225,8 @@ export default function SignalView({ t }: { t: FocusTicker }) {
       </div>
 
       {cfgOpen && <ConfigSheet cfg={cfg} onApply={applyCfg} onClose={() => setCfgOpen(false)} />}
+
+      <AiBriefingPanel t={t} />
 
       {/* 예상 변동 범위 */}
       {b && (
