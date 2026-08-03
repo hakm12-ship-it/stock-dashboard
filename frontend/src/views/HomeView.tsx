@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
-import { getPrices, getSignal, getIndex, getProfile, type Period } from '../lib/api'
+import { getPrices, getSignal, getIndex, getProfile, getNightPrice, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
+import { hasNightPrice, nightLabel } from '../lib/night'
 import DailyReportCard from '../components/DailyReportCard'
 import IndexStrip from '../components/IndexStrip'
 import MacroStrip from '../components/MacroStrip'
@@ -68,6 +69,16 @@ function HomeCard({
   })
   const logo = prof.data?.logo
 
+  // 장 마감 뒤에도 흐름을 보려는 게 이 기능의 요점이라 홈에서도 바로 보여준다.
+  // 상세 화면과 같은 queryKey라 캐시를 공유한다(중복 요청 없음).
+  const nightEnabled = hasNightPrice(t)
+  const night = useQuery({
+    queryKey: ['night-price', t.ticker],
+    queryFn: () => getNightPrice(t.ticker),
+    enabled: nightEnabled,
+    refetchInterval: nightEnabled ? 60_000 : false,
+  })
+
   const series = prices.data?.map((c) => c.close) ?? []
   const last = prices.data?.at(-1)
   const prev = prices.data?.at(-2)
@@ -133,6 +144,18 @@ function HomeCard({
           {hasChange && (
             <div className={`font-mono text-[0.72rem] ${changeColor(chg)}`}>
               {changeSign(chg)} {Math.abs(pct).toFixed(2)}%
+            </div>
+          )}
+          {nightEnabled && night.data?.available && (
+            <div className="flex items-center justify-end gap-1 mt-0.5">
+              <span className="text-[0.55rem] text-muted">{nightLabel(t)}</span>
+              <span className="font-mono text-[0.62rem] tnum text-muted">
+                ₩{Math.round(night.data.krw ?? 0).toLocaleString()}
+              </span>
+              <span className={`font-mono text-[0.62rem] ${changeColor(night.data.gapPct ?? 0)}`}>
+                {changeSign(night.data.gapPct ?? 0)}
+                {Math.abs(night.data.gapPct ?? 0).toFixed(2)}%
+              </span>
             </div>
           )}
         </div>
