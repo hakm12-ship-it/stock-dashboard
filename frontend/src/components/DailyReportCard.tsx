@@ -2,7 +2,12 @@ import { useQuery } from '@tanstack/react-query'
 import { getDailyReport } from '../lib/api'
 
 export default function DailyReportCard() {
-  const { data } = useQuery({ queryKey: ['daily-report'], queryFn: getDailyReport })
+  const { data } = useQuery({
+    queryKey: ['daily-report'],
+    queryFn: getDailyReport,
+    // 백엔드가 10분 캐시하므로 그보다 자주 물어볼 이유가 없다.
+    staleTime: 10 * 60 * 1000,
+  })
   if (!data) {
     return <div className="h-20 rounded-xl bg-surface-2 animate-pulse" />
   }

@@ -7,6 +7,8 @@ export default function RelatedInsightPanel({ ticker }: { ticker: string }) {
     queryKey: ['related-insight', ticker],
     queryFn: () => getRelatedInsight(ticker),
     retry: false,
+    // 백엔드가 LLM 문구를 30분 캐시한다 (등락률은 그때 함께 갱신).
+    staleTime: 30 * 60 * 1000,
   })
 
   if (isLoading) return <div className="h-32 rounded-xl bg-surface-2 animate-pulse" />

@@ -13,6 +13,8 @@ export default function AiBriefingPanel({ t }: { t: FocusTicker }) {
     queryKey: ['ai-briefing', t.market, t.ticker],
     queryFn: () => getAiBriefing(t.market, t.ticker, t.short),
     retry: false,
+    // 백엔드가 3시간 캐시하므로 창 포커스마다 다시 물어볼 이유가 없다.
+    staleTime: 3 * 60 * 60 * 1000,
   })
 
   if (isLoading) return <div className="h-24 rounded-xl bg-surface-2 animate-pulse" />
