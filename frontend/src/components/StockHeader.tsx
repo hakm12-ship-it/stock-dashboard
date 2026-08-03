@@ -1,10 +1,13 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getPrices, getIndex, getProfile, getNightPrice, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import { fmtQuote, changeColor, changeSign } from '../lib/format'
 import { marketStatus } from '../lib/market'
-import NightCandleChart from './NightCandleChart'
+import { ChartFallback } from './ui'
+
+// 차트 라이브러리가 무거워서 '차트 보기'를 누를 때만 받는다.
+const NightCandleChart = lazy(() => import('./NightCandleChart'))
 
 const NIGHT_PRICE_TICKERS = new Set(['005930', '000660'])
 
@@ -136,7 +139,9 @@ export default function StockHeader({ t, period, light = false }: { t: FocusTick
       </div>
       {nightEnabled && night.data?.available && (
         <div className="flex items-baseline gap-2 mt-1">
-          <span className="text-[0.62rem] text-muted">🌙 야간(perp)</span>
+          <span className="text-[0.62rem] text-muted">
+            {marketStatus(t.market).open ? '🌐 실시간(perp)' : '🌙 야간(perp)'}
+          </span>
           <span className="font-mono text-sm font-medium tnum">
             ₩{Math.round(night.data.krw ?? 0).toLocaleString()}
           </span>
@@ -153,7 +158,9 @@ export default function StockHeader({ t, period, light = false }: { t: FocusTick
       )}
       {nightEnabled && showNightChart && (
         <div className="mt-2">
-          <NightCandleChart ticker={t.ticker} light={light} />
+          <Suspense fallback={<ChartFallback height={250} />}>
+            <NightCandleChart ticker={t.ticker} light={light} />
+          </Suspense>
         </div>
       )}
     </div>

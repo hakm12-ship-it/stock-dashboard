@@ -1,10 +1,13 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { getPrices, getFx } from '../lib/api'
 import type { Holding } from '../lib/holdings'
 import type { Market } from '../data/tickers'
 import { fmtPrice, fmtNum, changeColor, changeSign } from '../lib/format'
-import PortfolioChart from './PortfolioChart'
+import { ChartFallback } from './ui'
+
+// 차트 라이브러리(lightweight-charts)는 무거워서 실제로 펼칠 때만 받는다.
+const PortfolioChart = lazy(() => import('./PortfolioChart'))
 
 export default function PortfolioSummary({
   holdings,
@@ -122,7 +125,11 @@ export default function PortfolioSummary({
           >
             {chartOpen ? '자산 추이 접기 ▴' : '자산 추이 차트 보기 ▾'}
           </button>
-          {chartOpen && <PortfolioChart holdings={holdings} light={light} />}
+          {chartOpen && (
+            <Suspense fallback={<ChartFallback height={180} />}>
+              <PortfolioChart holdings={holdings} light={light} />
+            </Suspense>
+          )}
         </>
       )}
     </div>

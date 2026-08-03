@@ -1,9 +1,12 @@
-import { useState, type ReactNode } from 'react'
+import { lazy, Suspense, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getPrices, getValuation, getSignal, type Period, type Candle } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import { fmtQuote, fmtNum, changeColor } from '../lib/format'
-import CompareChart from './CompareChart'
+import { ChartFallback } from './ui'
+
+// 차트 라이브러리가 무거워서 비교 시트를 열 때만 받는다.
+const CompareChart = lazy(() => import('./CompareChart'))
 
 const PERIODS: Period[] = ['1m', '3m', '6m', '1y']
 const LABEL: Record<Period, string> = { '1m': '1개월', '3m': '3개월', '6m': '6개월', '1y': '1년' }
@@ -124,7 +127,9 @@ export default function ComparisonSheet({
         {/* 수익률 차트 */}
         <div className="bg-surface border border-border rounded-xl p-3 card-shadow">
           <div className="text-[0.66rem] text-muted mb-1">기간 수익률 비교 (시작점 0%)</div>
-          <CompareChart series={series} light={light} />
+          <Suspense fallback={<ChartFallback height={200} />}>
+            <CompareChart series={series} light={light} />
+          </Suspense>
         </div>
 
         {/* 지표 표 */}

@@ -1,9 +1,11 @@
-import { useState, useMemo } from 'react'
+import { lazy, Suspense, useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getPrices, getIndicators, getSignal, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
-import { Loading, Empty, ErrorState, Metric } from '../components/ui'
-import TechnicalCharts from '../components/TechnicalCharts'
+import { Loading, Empty, ErrorState, Metric, ChartFallback } from '../components/ui'
+
+// 차트 라이브러리가 무거워서 차트 탭에 들어올 때만 받는다.
+const TechnicalCharts = lazy(() => import('../components/TechnicalCharts'))
 import { toWeekly } from '../lib/aggregate'
 import { loadSignalConfig, cfgKey, cfgParams } from '../lib/signalConfig'
 import type { Holding } from '../lib/holdings'
@@ -119,16 +121,18 @@ export default function TechnicalView({
         />
       ) : prices.data && ind.data && prices.data.length ? (
         <>
-          <TechnicalCharts
-            candles={weekly ? toWeekly(prices.data) : prices.data}
-            ind={ind.data}
-            showMA={!weekly && showMA}
-            showBB={!weekly && showBB}
-            light={light}
-            levels={weekly ? undefined : levels}
-            simple={weekly}
-            avgPrice={holding?.avg}
-          />
+          <Suspense fallback={<ChartFallback height={480} />}>
+            <TechnicalCharts
+              candles={weekly ? toWeekly(prices.data) : prices.data}
+              ind={ind.data}
+              showMA={!weekly && showMA}
+              showBB={!weekly && showBB}
+              light={light}
+              levels={weekly ? undefined : levels}
+              simple={weekly}
+              avgPrice={holding?.avg}
+            />
+          </Suspense>
           {weekly && (
             <p className="text-[0.62rem] text-muted">주봉은 가격·거래량만 표시돼요 (지표는 일봉 기준)</p>
           )}

@@ -495,6 +495,9 @@ def api_related_insight(ticker: str):
         try:
             close = _load(tk, "5d")["Close"].dropna()
             _, _, pct = _change_of(close)
+            # 반올림해서 담는다: 이 값이 캐시 키가 되므로 원본 실수를 쓰면
+            # 10개 중 하나만 움직여도 캐시가 무효화된다. 표시도 소수 2자리.
+            pct = round(pct, 2)
         except Exception:
             pct = None
         stocks.append({"ticker": tk, "name": name, "role": role, "changePct": pct})
@@ -502,7 +505,7 @@ def api_related_insight(ticker: str):
     try:
         # dict는 캐시 키로 못 쓰니 튜플로 변환
         insight = _related_insight(ticker, tuple(tuple(s.items()) for s in stocks))
-    except Exception as e:
+    except Exception:
         insight = None
 
     return {"available": True, "insight": insight, "stocks": stocks}
@@ -533,7 +536,7 @@ def api_night_candles(ticker: str, interval: str = "5m"):
 def _ai_briefing(market: str, ticker: str, name: str, changePct: float, verdict: str,
                  per: float | None, pbr: float | None):
     context = {
-        "등락률(%)": round(changePct, 2),
+        "등락률(%)": changePct,  # 호출부에서 이미 반올림됨
         "규칙기반신호": verdict,
         "PER": per,
         "PBR": pbr,
@@ -544,13 +547,14 @@ def _ai_briefing(market: str, ticker: str, name: str, changePct: float, verdict:
 @app.get("/api/ai-briefing")
 def api_ai_briefing(market: str, ticker: str, name: str = ""):
     df = _load(ticker, "3m")
-    close = df["Close"].dropna()
-    last, chg, pct = _change_of(close)
-    signals, _, verdict, _ = technical_signals(df)
+    _, _, pct = _change_of(df["Close"].dropna())
+    _, _, verdict, _ = technical_signals(df)
     val = valuation(_market(market), ticker)
     try:
+        # 캐시 키가 되므로 반드시 반올림해서 넘긴다 (원본 실수는 시세가
+        # 움직일 때마다 키가 바뀌어 캐시가 사실상 무효화된다).
         result = _ai_briefing(
-            market, ticker, name or ticker, pct, verdict,
+            market, ticker, name or ticker, round(pct, 2), verdict,
             val.get("PER"), val.get("PBR"),
         )
     except Exception as e:

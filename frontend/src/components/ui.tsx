@@ -60,6 +60,11 @@ export function Loading() {
   )
 }
 
+/** 지연로딩(lazy) 차트의 Suspense 대기 표시 — 차트 높이만큼 자리를 잡아 레이아웃이 튀지 않게 한다. */
+export function ChartFallback({ height = 220 }: { height?: number }) {
+  return <div className="rounded-xl shimmer" style={{ height }} />
+}
+
 export function Empty({ label = '데이터가 없어요' }: { label?: string }) {
   return <div className="text-muted text-sm py-8 text-center">{label}</div>
 }
