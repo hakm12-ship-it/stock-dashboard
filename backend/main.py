@@ -23,9 +23,9 @@ from analysis.fundamental import analyst_target, forward_pe, revenue_trend, valu
 from analysis.signal import price_levels, signal_history, technical_signals
 from analysis.technical import bollinger, macd, rsi
 from cache import ttl_cache
-from data.ai_briefing import generate_briefing
+from data.ai_briefing import generate_briefing, generate_market_insight
 from data.crypto import upbit_top
-from data.hyperliquid import TICKER_TO_PERP, fetch_perp_prices
+from data.hyperliquid import TICKER_TO_PERP, fetch_perp_candles, fetch_perp_prices
 from data.naver_index import realtime_index
 from data.naver_stock import (
     naver_deal_trend,
@@ -36,6 +36,7 @@ from data.naver_stock import (
     naver_profile,
 )
 from data.news import fetch_news
+from data.related_stocks import RELATED_STOCKS
 from data.symbols import symbols
 
 # 캐시된 조회 래퍼 (반복 호출 흡수)
@@ -49,6 +50,7 @@ _peers = ttl_cache(60 * 30)(naver_peers)
 _crypto_top = ttl_cache(60)(upbit_top)
 _groups = ttl_cache(60 * 5)(naver_groups)
 _perp_prices = ttl_cache(30)(fetch_perp_prices)
+_perp_candles = ttl_cache(60)(fetch_perp_candles)
 _group_stocks = ttl_cache(60 * 5)(naver_group_stocks)
 
 app = FastAPI(title="스톡 인사이트 API")
@@ -474,6 +476,56 @@ def api_night_price(ticker: str):
         "krw": krw,
         "krxClose": krx_close,
         "gapPct": gap_pct,
+    }
+
+
+@ttl_cache(60 * 30)  # LLM 호출 비용 절감 — 30분 캐시
+def _related_insight(ticker: str, stocks: tuple):
+    return generate_market_insight(ticker, [dict(s) for s in stocks])
+
+
+@app.get("/api/related-insight")
+def api_related_insight(ticker: str):
+    chain = RELATED_STOCKS.get(ticker)
+    if not chain:
+        return {"available": False}
+
+    stocks = []
+    for tk, name, role in chain:
+        try:
+            close = _load(tk, "5d")["Close"].dropna()
+            _, _, pct = _change_of(close)
+        except Exception:
+            pct = None
+        stocks.append({"ticker": tk, "name": name, "role": role, "changePct": pct})
+
+    try:
+        # dict는 캐시 키로 못 쓰니 튜플로 변환
+        insight = _related_insight(ticker, tuple(tuple(s.items()) for s in stocks))
+    except Exception as e:
+        insight = None
+
+    return {"available": True, "insight": insight, "stocks": stocks}
+
+
+@app.get("/api/night-candles")
+def api_night_candles(ticker: str, interval: str = "5m"):
+    perp = TICKER_TO_PERP.get(ticker)
+    if not perp:
+        return {"available": False, "candles": []}
+    fx_last, _, _ = _change_of(_load_fx()["Close"].dropna())
+    candles = _perp_candles(perp, interval)
+    return {
+        "available": True,
+        "candles": [
+            {
+                "time": c["t"] // 1000,
+                "open": c["o"] * fx_last, "high": c["h"] * fx_last,
+                "low": c["l"] * fx_last, "close": c["c"] * fx_last,
+                "volume": c["v"],
+            }
+            for c in candles
+        ],
     }
 
 

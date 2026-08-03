@@ -188,6 +188,36 @@ export interface NightPrice {
 }
 export const getNightPrice = (ticker: string) => get<NightPrice>('/api/night-price', { ticker })
 
+export type NightInterval = '5m' | '15m' | '60m' | '1d'
+export interface NightCandle {
+  time: number
+  open: number
+  high: number
+  low: number
+  close: number
+  volume: number
+}
+export interface NightCandles {
+  available: boolean
+  candles: NightCandle[]
+}
+export const getNightCandles = (ticker: string, interval: NightInterval) =>
+  get<NightCandles>('/api/night-candles', { ticker, interval })
+
+export interface RelatedStock {
+  ticker: string
+  name: string
+  role: string
+  changePct: number | null
+}
+export interface RelatedInsight {
+  available: boolean
+  insight?: string | null
+  stocks?: RelatedStock[]
+}
+export const getRelatedInsight = (ticker: string) =>
+  get<RelatedInsight>('/api/related-insight', { ticker })
+
 export interface MarketTopItem {
   ticker: string
   name: string

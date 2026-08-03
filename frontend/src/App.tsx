@@ -230,7 +230,7 @@ export default function App() {
             <>
               <IndexStrip />
               <TickerSwitcher tickers={all} selected={t} onSelect={setT} />
-              <StockHeader t={t} period={period} />
+              <StockHeader t={t} period={period} light={theme === 'light'} />
               <Week52Bar t={t} />
               <div className="pt-1">
                 {tab === 'signal' && <SignalView t={t} />}

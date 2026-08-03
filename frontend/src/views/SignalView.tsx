@@ -12,7 +12,10 @@ import {
 } from '../lib/signalConfig'
 import type { FocusTicker } from '../data/tickers'
 import AiBriefingPanel from '../components/AiBriefingPanel'
+import RelatedInsightPanel from '../components/RelatedInsightPanel'
 import { Panel, Loading, Empty, ErrorState, Metric } from '../components/ui'
+
+const RELATED_INSIGHT_TICKERS = new Set(['005930', '000660'])
 import { fmtQuote, fmtNum, fmtPct } from '../lib/format'
 
 const VERDICT_STYLE: Record<string, string> = {
@@ -227,6 +230,8 @@ export default function SignalView({ t }: { t: FocusTicker }) {
       {cfgOpen && <ConfigSheet cfg={cfg} onApply={applyCfg} onClose={() => setCfgOpen(false)} />}
 
       <AiBriefingPanel t={t} />
+
+      {RELATED_INSIGHT_TICKERS.has(t.ticker) && <RelatedInsightPanel ticker={t.ticker} />}
 
       {/* 예상 변동 범위 */}
       {b && (

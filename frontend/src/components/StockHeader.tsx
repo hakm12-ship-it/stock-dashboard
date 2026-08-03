@@ -4,10 +4,11 @@ import { getPrices, getIndex, getProfile, getNightPrice, type Period } from '../
 import type { FocusTicker } from '../data/tickers'
 import { fmtQuote, changeColor, changeSign } from '../lib/format'
 import { marketStatus } from '../lib/market'
+import NightCandleChart from './NightCandleChart'
 
 const NIGHT_PRICE_TICKERS = new Set(['005930', '000660'])
 
-export default function StockHeader({ t, period }: { t: FocusTicker; period: Period }) {
+export default function StockHeader({ t, period, light = false }: { t: FocusTicker; period: Period; light?: boolean }) {
   const isIndex = t.kind === 'index' && !!t.indexName
   const prices = useQuery({
     queryKey: ['prices', t.ticker, period],
@@ -55,6 +56,7 @@ export default function StockHeader({ t, period }: { t: FocusTicker; period: Per
     }
   }
 
+  const [showNightChart, setShowNightChart] = useState(false)
   const [copied, setCopied] = useState(false)
   const share = async () => {
     const text = `${t.name} ${fmtQuote(priceVal, t)} (${changeSign(chg)}${Math.abs(pct).toFixed(2)}%) — 스톡 인사이트`
@@ -141,6 +143,17 @@ export default function StockHeader({ t, period }: { t: FocusTicker; period: Per
           <span className={`font-mono text-[0.7rem] ${changeColor(night.data.gapPct ?? 0)}`}>
             {changeSign(night.data.gapPct ?? 0)} {Math.abs(night.data.gapPct ?? 0).toFixed(2)}%
           </span>
+          <button
+            onClick={() => setShowNightChart((v) => !v)}
+            className="ml-auto text-[0.62rem] text-accent px-2 py-0.5 rounded border border-accent/40"
+          >
+            {showNightChart ? '차트 닫기' : '차트 보기'}
+          </button>
+        </div>
+      )}
+      {nightEnabled && showNightChart && (
+        <div className="mt-2">
+          <NightCandleChart ticker={t.ticker} light={light} />
         </div>
       )}
     </div>
