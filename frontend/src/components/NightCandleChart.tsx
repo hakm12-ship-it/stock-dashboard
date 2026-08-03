@@ -14,10 +14,12 @@ const INTERVALS: [NightInterval, string][] = [
 ]
 
 export default function NightCandleChart({ ticker, light }: { ticker: string; light: boolean }) {
-  const [interval, setInterval] = useState<NightInterval>('5m')
+  // 이름을 interval/setInterval로 두면 전역 setInterval을 가려서, 나중에 이
+  // 컴포넌트에 타이머를 넣을 때 조용히 깨진다. tf(timeframe)로 부른다.
+  const [tf, setTf] = useState<NightInterval>('5m')
   const { data } = useQuery({
-    queryKey: ['night-candles', ticker, interval],
-    queryFn: () => getNightCandles(ticker, interval),
+    queryKey: ['night-candles', ticker, tf],
+    queryFn: () => getNightCandles(ticker, tf),
   })
   const ref = useRef<HTMLDivElement>(null)
 
@@ -55,9 +57,9 @@ export default function NightCandleChart({ ticker, light }: { ticker: string; li
         {INTERVALS.map(([iv, label]) => (
           <button
             key={iv}
-            onClick={() => setInterval(iv)}
+            onClick={() => setTf(iv)}
             className={`font-mono text-[0.7rem] min-w-[44px] min-h-[44px] px-3 rounded-lg transition-colors ${
-              interval === iv ? 'bg-accent/15 text-accent font-semibold' : 'text-muted/70 active:bg-surface-2'
+              tf === iv ? 'bg-accent/15 text-accent font-semibold' : 'text-muted/70 active:bg-surface-2'
             }`}
           >
             {label}
