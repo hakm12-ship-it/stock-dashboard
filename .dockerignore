@@ -5,3 +5,7 @@ frontend/dist
 stock-dashboard
 .git
 *.md
+
+# 시크릿은 이미지에 굽지 않는다 (배포 환경변수로 주입할 것)
+**/.env
+**/*.env
