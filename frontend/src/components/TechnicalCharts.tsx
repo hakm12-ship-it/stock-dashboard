@@ -1,34 +1,11 @@
 import { useEffect, useRef } from 'react'
-import { createChart, ColorType, type IChartApi } from 'lightweight-charts'
+import { createChart, type IChartApi } from 'lightweight-charts'
+import { chartBase, CHART_UP, CHART_DOWN, CHART_ACCENT } from '../lib/chartTheme'
 import type { Candle, Indicators } from '../lib/api'
 
-const UP = '#F23645'
-const DOWN = '#2E86FF'
 const GOLD = '#E0B84D'
 const GRAY = '#8B94A3'
-const ACCENT = '#E0A63C'
 
-function makeBase(light: boolean) {
-  const text = light ? '#5C6672' : '#8B94A3'
-  const grid = light ? 'rgba(22,27,38,0.07)' : 'rgba(35,40,51,0.4)'
-  const bd = light ? '#E0E3E8' : '#232833'
-  return {
-    layout: {
-      background: { type: ColorType.Solid, color: 'transparent' },
-      textColor: text,
-      fontFamily: '"IBM Plex Mono", monospace',
-      fontSize: 10,
-    },
-    grid: {
-      vertLines: { color: grid },
-      horzLines: { color: grid },
-    },
-    rightPriceScale: { borderColor: bd },
-    timeScale: { borderColor: bd, timeVisible: false },
-    crosshair: { mode: 1 as const },
-    autoSize: true,
-  }
-}
 
 function line(times: string[], vals: (number | null)[]) {
   const out: { time: string; value: number }[] = []
@@ -65,18 +42,18 @@ export default function TechnicalCharts({
 
   useEffect(() => {
     if (!candles.length || !priceRef.current) return
-    const base = makeBase(light)
+    const base = chartBase(light)
     const charts: IChartApi[] = []
 
     // 가격 + 이평 + 볼린저
     const pc = createChart(priceRef.current, { ...base, height: 280 })
     charts.push(pc)
     const cs = pc.addCandlestickSeries({
-      upColor: UP,
-      downColor: DOWN,
+      upColor: CHART_UP,
+      downColor: CHART_DOWN,
       borderVisible: false,
-      wickUpColor: UP,
-      wickDownColor: DOWN,
+      wickUpColor: CHART_UP,
+      wickDownColor: CHART_DOWN,
     })
     cs.setData(
       candles.map((c) => ({
@@ -106,7 +83,7 @@ export default function TechnicalCharts({
     // 보유 평균단가 라인
     if (avgPrice && avgPrice > 0) {
       cs.createPriceLine({
-        price: avgPrice, color: ACCENT, lineWidth: 1, lineStyle: 0,
+        price: avgPrice, color: CHART_ACCENT, lineWidth: 1, lineStyle: 0,
         axisLabelVisible: true, title: '내 평단',
       })
     }
@@ -115,13 +92,13 @@ export default function TechnicalCharts({
     if (levels) {
       levels.support.forEach((p) =>
         cs.createPriceLine({
-          price: p, color: DOWN, lineWidth: 1, lineStyle: 2,
+          price: p, color: CHART_DOWN, lineWidth: 1, lineStyle: 2,
           axisLabelVisible: true, title: '지지',
         }),
       )
       levels.resistance.forEach((p) =>
         cs.createPriceLine({
-          price: p, color: UP, lineWidth: 1, lineStyle: 2,
+          price: p, color: CHART_UP, lineWidth: 1, lineStyle: 2,
           axisLabelVisible: true, title: '저항',
         }),
       )
@@ -159,10 +136,10 @@ export default function TechnicalCharts({
     if (!simple && rsiRef.current) {
       const rc = createChart(rsiRef.current, { ...base, height: 96 })
       charts.push(rc)
-      const r = rc.addLineSeries({ color: ACCENT, lineWidth: 1, priceLineVisible: false, lastValueVisible: false })
+      const r = rc.addLineSeries({ color: CHART_ACCENT, lineWidth: 1, priceLineVisible: false, lastValueVisible: false })
       r.setData(line(ind.time, ind.rsi))
-      r.createPriceLine({ price: 70, color: UP, lineWidth: 1, lineStyle: 2, axisLabelVisible: false, title: '' })
-      r.createPriceLine({ price: 30, color: DOWN, lineWidth: 1, lineStyle: 2, axisLabelVisible: false, title: '' })
+      r.createPriceLine({ price: 70, color: CHART_UP, lineWidth: 1, lineStyle: 2, axisLabelVisible: false, title: '' })
+      r.createPriceLine({ price: 30, color: CHART_DOWN, lineWidth: 1, lineStyle: 2, axisLabelVisible: false, title: '' })
       rc.timeScale().fitContent()
     }
 
@@ -173,10 +150,10 @@ export default function TechnicalCharts({
       const h = mc.addHistogramSeries({ priceLineVisible: false, lastValueVisible: false })
       h.setData(
         ind.time
-          .map((t, i) => ({ time: t, value: ind.hist[i], color: (ind.hist[i] ?? 0) >= 0 ? UP : DOWN }))
+          .map((t, i) => ({ time: t, value: ind.hist[i], color: (ind.hist[i] ?? 0) >= 0 ? CHART_UP : CHART_DOWN }))
           .filter((d) => d.value != null) as { time: string; value: number; color: string }[],
       )
-      mc.addLineSeries({ color: ACCENT, lineWidth: 1, priceLineVisible: false, lastValueVisible: false }).setData(line(ind.time, ind.macd))
+      mc.addLineSeries({ color: CHART_ACCENT, lineWidth: 1, priceLineVisible: false, lastValueVisible: false }).setData(line(ind.time, ind.macd))
       mc.addLineSeries({ color: GRAY, lineWidth: 1, priceLineVisible: false, lastValueVisible: false }).setData(line(ind.time, ind.signal))
       mc.timeScale().fitContent()
     }

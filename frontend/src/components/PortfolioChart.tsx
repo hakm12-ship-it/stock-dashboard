@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { createChart, ColorType, type IChartApi } from 'lightweight-charts'
+import { createChart, type IChartApi } from 'lightweight-charts'
+import { chartBase } from '../lib/chartTheme'
 import { getPrices, getFxHistory, type Period, type Candle, type FxPoint } from '../lib/api'
 import type { Holding } from '../lib/holdings'
 import { fmtChange, changeColor } from '../lib/format'
@@ -93,22 +94,7 @@ export default function PortfolioChart({ holdings, light }: { holdings: Holding[
 
   useEffect(() => {
     if (!ref.current || curve.length < 2) return
-    const text = light ? '#5C6672' : '#8B94A3'
-    const grid = light ? 'rgba(22,27,38,0.07)' : 'rgba(35,40,51,0.4)'
-    const bd = light ? '#E0E3E8' : '#232833'
-    const chart: IChartApi = createChart(ref.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: text,
-        fontFamily: '"IBM Plex Mono", monospace',
-        fontSize: 10,
-      },
-      grid: { vertLines: { color: grid }, horzLines: { color: grid } },
-      rightPriceScale: { borderColor: bd },
-      timeScale: { borderColor: bd, timeVisible: false },
-      crosshair: { mode: 1 },
-      autoSize: true,
-    })
+    const chart: IChartApi = createChart(ref.current, chartBase(light))
     const s = chart.addAreaSeries({
       lineColor: '#E0A63C',
       lineWidth: 2,
