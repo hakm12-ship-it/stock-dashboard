@@ -3,6 +3,7 @@ import { useQuery, useQueries } from '@tanstack/react-query'
 import { getPrices, getSignal, getIndex, getProfile, getNightPrice, getSynthPrice, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import { hasNightPrice, nightLabel, showSynthPrice } from '../lib/night'
+import { pickQuote } from '../lib/quote'
 import DailyReportCard from '../components/DailyReportCard'
 import IndexStrip from '../components/IndexStrip'
 import MacroStrip from '../components/MacroStrip'
@@ -90,26 +91,10 @@ function HomeCard({
 
   const series = prices.data?.map((c) => c.close) ?? []
   const last = prices.data?.at(-1)
-  const prev = prices.data?.at(-2)
-
-  // 지수는 실시간 값, 그 외는 일봉 마지막
-  let priceVal: number | undefined
-  let chg = 0
-  let pct = 0
-  let hasChange = false
-  if (isIndex && idx.data) {
-    priceVal = idx.data.last
-    chg = idx.data.change
-    pct = idx.data.changePct
-    hasChange = true
-  } else if (last) {
-    priceVal = last.close
-    if (prev) {
-      chg = last.close - prev.close
-      pct = prev.close ? (chg / prev.close) * 100 : 0
-      hasChange = true
-    }
-  }
+  const { price: priceVal, change: chg, changePct: pct, hasChange } = pickQuote(
+    prices.data,
+    isIndex ? idx.data : undefined,
+  )
   const up = hasChange ? chg >= 0 : series.length > 1 ? series[series.length - 1] >= series[0] : true
   const holdPct = holding && last ? (last.close / holding.avg - 1) * 100 : null
 

@@ -4,6 +4,7 @@ import { getPrices, getIndex, getProfile, getNightPrice, getSynthPrice, type Per
 import type { FocusTicker } from '../data/tickers'
 import { fmtQuote, fmtChange, changeColor, changeSign } from '../lib/format'
 import { marketStatus } from '../lib/market'
+import { pickQuote } from '../lib/quote'
 import { ChartFallback } from './ui'
 import { hasNightPrice, nightLabel, showSynthPrice } from '../lib/night'
 
@@ -45,27 +46,10 @@ export default function StockHeader({ t, period, light = false }: { t: FocusTick
     refetchInterval: synthEnabled ? 60_000 : false,
   })
 
-  const last = prices.data?.[prices.data.length - 1]
-  const prev = prices.data?.[prices.data.length - 2]
-
-  // 지수는 실시간 API 값을, 그 외는 일봉 마지막 값을 사용
-  let priceVal: number | undefined
-  let chg = 0
-  let pct = 0
-  let hasChange = false
-  if (isIndex && idx.data) {
-    priceVal = idx.data.last
-    chg = idx.data.change
-    pct = idx.data.changePct
-    hasChange = true
-  } else if (last) {
-    priceVal = last.close
-    if (prev) {
-      chg = last.close - prev.close
-      pct = prev.close ? (chg / prev.close) * 100 : 0
-      hasChange = true
-    }
-  }
+  const { price: priceVal, change: chg, changePct: pct, hasChange } = pickQuote(
+    prices.data,
+    isIndex ? idx.data : undefined,
+  )
 
   const [showNightChart, setShowNightChart] = useState(false)
   const [copied, setCopied] = useState(false)
