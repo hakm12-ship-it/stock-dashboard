@@ -13,6 +13,7 @@ import {
 import type { FocusTicker } from '../data/tickers'
 import AiBriefingPanel from '../components/AiBriefingPanel'
 import LeverageDecayPanel from '../components/LeverageDecayPanel'
+import NightGapHistoryPanel from '../components/NightGapHistoryPanel'
 import RelatedInsightPanel from '../components/RelatedInsightPanel'
 import { Panel, Loading, Empty, ErrorState, Metric } from '../components/ui'
 
@@ -236,6 +237,8 @@ export default function SignalView({ t }: { t: FocusTicker }) {
       <AiBriefingPanel t={t} />
 
       {RELATED_INSIGHT_TICKERS.has(t.ticker) && <RelatedInsightPanel ticker={t.ticker} />}
+
+      <NightGapHistoryPanel ticker={t.ticker} />
 
       {/* 예상 변동 범위 */}
       {b && (

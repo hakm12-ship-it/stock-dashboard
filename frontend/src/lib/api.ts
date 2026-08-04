@@ -240,6 +240,22 @@ export interface LeverageDecay {
 export const getLeverageDecay = (ticker: string, period: Period) =>
   get<LeverageDecay>('/api/leverage-decay', { ticker, period })
 
+export interface NightGapBucket {
+  label: string
+  count: number
+  avgOpenChange: number
+  upRatio: number
+}
+export interface NightGapHistory {
+  available: boolean
+  samples?: number
+  correlation?: number
+  directionMatch?: number
+  buckets?: NightGapBucket[]
+}
+export const getNightGapHistory = (ticker: string) =>
+  get<NightGapHistory>('/api/night-gap-history', { ticker })
+
 export interface MarketTopItem {
   ticker: string
   name: string

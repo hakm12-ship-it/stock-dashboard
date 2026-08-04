@@ -39,6 +39,12 @@ def fetch_perp_candles(perp: str, interval: str = "5m", bars: int = 288) -> list
     ]
 
 
+def fetch_perp_daily_closes(perp: str, bars: int = 200) -> list[dict]:
+    """[{t(ms), c}] 일봉 종가. 일봉은 KST 09:00 시작·08:59 종료라 종가가
+    KRX 개장 직전 가격이다 (analysis/night_gap.py의 전제)."""
+    return [{"t": c["t"], "c": c["c"]} for c in fetch_perp_candles(perp, "1d", bars)]
+
+
 def fetch_perp_prices() -> dict[str, float]:
     """{perp심볼: markPx(USD)} 전체 조회."""
     r = requests.post(_URL, json={"type": "metaAndAssetCtxs", "dex": _DEX}, timeout=10)
