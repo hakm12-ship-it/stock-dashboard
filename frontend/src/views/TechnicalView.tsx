@@ -30,8 +30,9 @@ export default function TechnicalView({
   const [showMA, setShowMA] = useState(true)
   const [showBB, setShowBB] = useState(false)
   const [showSR, setShowSR] = useState(true)
-  const [interval, setInterval] = useState<'D' | 'W'>('D')
-  const weekly = interval === 'W'
+  // interval/setInterval로 두면 전역 setInterval을 가려 타이머가 조용히 깨진다
+  const [tf, setTf] = useState<'D' | 'W'>('D')
+  const weekly = tf === 'W'
 
   const prices = useQuery({ queryKey: ['prices', t.ticker, period], queryFn: () => getPrices(t.ticker, period) })
   const ind = useQuery({ queryKey: ['ind', t.ticker, period], queryFn: () => getIndicators(t.ticker, period) })
@@ -66,7 +67,7 @@ export default function TechnicalView({
             <button
               key={p}
               onClick={() => setPeriod(p)}
-              className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              className={`flex-1 min-h-[44px] rounded-md text-xs font-medium transition-colors ${
                 p === period ? 'bg-accent/20 text-text' : 'text-muted'
               }`}
             >
@@ -78,9 +79,9 @@ export default function TechnicalView({
           {(['D', 'W'] as const).map((iv) => (
             <button
               key={iv}
-              onClick={() => setInterval(iv)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                iv === interval ? 'bg-accent/20 text-text' : 'text-muted'
+              onClick={() => setTf(iv)}
+              className={`px-3 min-h-[44px] rounded-md text-xs font-medium transition-colors ${
+                iv === tf ? 'bg-accent/20 text-text' : 'text-muted'
               }`}
             >
               {iv === 'D' ? '일봉' : '주봉'}
@@ -148,7 +149,7 @@ function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; labe
   return (
     <button
       onClick={onClick}
-      className={`px-3 py-1.5 rounded-full border font-medium transition-colors ${
+      className={`px-3 min-h-[44px] rounded-full border font-medium transition-colors ${
         on ? 'bg-accent/15 border-accent text-text' : 'bg-surface border-border text-muted'
       }`}
     >

@@ -38,7 +38,7 @@ export default function SearchSheet({
     <div className="fixed inset-0 z-50 bg-ink flex flex-col fade-in">
       <div className="flex items-center justify-between px-4 pt-safe pb-3 border-b border-border">
         <span className="text-base font-bold">종목 추가</span>
-        <button onClick={onClose} className="text-muted text-2xl leading-none px-2 active:text-text">
+        <button onClick={onClose} className="relative z-10 text-muted text-2xl leading-none px-2 active:text-text before:absolute before:-inset-3 before:content-['']">
           ×
         </button>
       </div>
@@ -49,7 +49,7 @@ export default function SearchSheet({
             <button
               key={m}
               onClick={() => setMarket(m)}
-              className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 min-h-[44px] rounded-md text-sm font-medium transition-colors ${
                 m === market ? 'bg-accent/20 text-text' : 'text-muted'
               }`}
             >

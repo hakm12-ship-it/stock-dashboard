@@ -75,7 +75,9 @@ export default function HelpTip({ term }: { term: keyof typeof HELP | string }) 
           e.stopPropagation()
           setOpen(true)
         }}
-        className="inline-flex items-center justify-center h-4 w-4 rounded-full border border-border text-muted text-[0.6rem] leading-none align-middle ml-1"
+        // before:-inset-4 = 보이는 원(16px)은 그대로 두고 탭 영역만 사방 16px 넓혀
+        // 48px를 만든다(44 기준에 여유). 절대배치라 레이아웃은 전혀 밀리지 않는다.
+        className="relative inline-flex items-center justify-center h-4 w-4 rounded-full border border-border text-muted text-[0.6rem] leading-none align-middle ml-1 before:absolute before:-inset-4 before:content-['']"
         aria-label={`${info.title} 설명`}
       >
         ?
@@ -91,7 +93,7 @@ export default function HelpTip({ term }: { term: keyof typeof HELP | string }) 
           >
             <div className="flex items-center justify-between mb-2">
               <span className="font-bold">{info.title}</span>
-              <button onClick={() => setOpen(false)} className="text-muted text-xl leading-none px-1">
+              <button onClick={() => setOpen(false)} className="relative z-10 text-muted text-xl leading-none px-1 before:absolute before:-inset-3 before:content-['']">
                 ×
               </button>
             </div>

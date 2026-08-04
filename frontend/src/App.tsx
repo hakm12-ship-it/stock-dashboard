@@ -189,17 +189,19 @@ export default function App() {
               BETA
             </span>
           </div>
-          <div className="flex items-center gap-3">
+          {/* -my-2로 탭 영역만 넓히고 헤더 높이는 그대로 둔다 (터치타겟 44px) */}
+          <div className="flex items-center -my-2">
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="text-base leading-none active:opacity-60"
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center text-base leading-none active:opacity-60"
               aria-label="다크/화이트 전환"
             >
               {theme === 'dark' ? '☀️' : '🌙'}
             </button>
             <button
               onClick={refresh}
-              className="flex items-center gap-1.5 font-mono text-[0.66rem] text-muted active:text-text"
+              className="min-h-[44px] px-2 flex items-center gap-1.5 font-mono text-[0.66rem] text-muted active:text-text"
+              aria-label="새로고침"
             >
               <span className="text-sm leading-none">↻</span>
               <span>

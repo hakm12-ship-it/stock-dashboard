@@ -116,7 +116,7 @@ export default function StockHeader({ t, period, light = false }: { t: FocusTick
             </span>
           )
         })()}
-        <button onClick={share} aria-label="공유" className="ml-auto text-muted active:text-text p-1">
+        <button onClick={share} aria-label="공유" className="relative ml-auto text-muted active:text-text p-1 before:absolute before:-inset-4 before:content-['']">
           {copied ? (
             <span className="text-[0.62rem] text-accent">복사됨</span>
           ) : (
@@ -147,7 +147,7 @@ export default function StockHeader({ t, period, light = false }: { t: FocusTick
           </span>
           <button
             onClick={() => setShowNightChart((v) => !v)}
-            className="ml-auto text-[0.62rem] text-accent px-2 py-0.5 rounded border border-accent/40"
+            className="relative ml-auto text-[0.62rem] text-accent px-2 py-0.5 rounded border border-accent/40 before:absolute before:-inset-4 before:content-['']"
           >
             {showNightChart ? '차트 닫기' : '차트 보기'}
           </button>

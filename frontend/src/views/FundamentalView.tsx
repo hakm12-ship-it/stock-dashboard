@@ -41,8 +41,8 @@ function PeersPanel({
         {peers.map((p) => {
           const added = findAdded(p.ticker)
           return (
-            <div key={p.ticker} className="flex items-center gap-2 py-2 border-b border-border last:border-0">
-              <button onClick={() => added && onOpen(added)} className="min-w-0 flex-1 text-left">
+            <div key={p.ticker} className="flex items-center gap-2 min-h-[44px] border-b border-border last:border-0">
+              <button onClick={() => added && onOpen(added)} className="min-w-0 flex-1 self-stretch text-left">
                 <div className="text-sm font-medium truncate">
                   {p.name}
                   {added && <span className="text-accent text-[0.6rem] ml-1">›</span>}
@@ -64,7 +64,7 @@ function PeersPanel({
                 onClick={() =>
                   onAddTicker({ ticker: p.ticker, name: p.name, short: p.name, market: 'KR', kind: 'stock' })
                 }
-                className={`shrink-0 text-[0.66rem] px-2 py-1 rounded-md border ${
+                className={`shrink-0 text-[0.66rem] px-2 min-w-[44px] min-h-[44px] rounded-md border ${
                   added ? 'text-muted border-border' : 'text-accent border-accent/50 active:bg-accent/10'
                 }`}
               >
@@ -342,7 +342,7 @@ export default function FundamentalView({
             href={`https://m.stock.naver.com/domestic/stock/${t.ticker}/research`}
             target="_blank"
             rel="noreferrer"
-            className="block text-center text-[0.7rem] text-accent mt-3 active:opacity-70"
+            className="flex items-center justify-center min-h-[44px] text-[0.7rem] text-accent mt-1 active:opacity-70"
           >
             네이버 증권에서 리포트 더보기 →
           </a>

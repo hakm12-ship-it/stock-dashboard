@@ -251,7 +251,7 @@ export default function HomeView({
               setEditing((v) => !v)
               if (!editing) setSort('default')
             }}
-            className={`text-[0.66rem] px-2.5 py-1 rounded-md border ${
+            className={`text-[0.66rem] px-2.5 min-h-[44px] rounded-md border ${
               editing ? 'bg-accent/15 border-accent/50 text-accent' : 'border-border text-muted'
             }`}
           >
@@ -265,7 +265,7 @@ export default function HomeView({
                 <button
                   key={p}
                   onClick={() => setSparkPeriod(p)}
-                  className={`font-mono text-[0.62rem] px-2 py-1 rounded transition-colors ${
+                  className={`font-mono text-[0.62rem] min-w-[44px] min-h-[44px] rounded transition-colors ${
                     sparkPeriod === p ? 'bg-accent/15 text-accent' : 'text-muted/70'
                   }`}
                 >
@@ -278,7 +278,7 @@ export default function HomeView({
                 <button
                   key={k}
                   onClick={() => setSort(k)}
-                  className={`text-[0.66rem] px-2 py-1 rounded-md transition-colors ${
+                  className={`text-[0.66rem] px-2 min-w-[44px] min-h-[44px] rounded-md transition-colors ${
                     sort === k ? 'bg-accent/15 text-accent' : 'text-muted'
                   }`}
                 >
@@ -300,14 +300,14 @@ export default function HomeView({
               <button
                 onClick={() => onMove(`${t.market}-${t.ticker}`, -1)}
                 disabled={i === 0}
-                className={`px-3 py-1.5 rounded-md border border-border text-sm ${i === 0 ? 'text-muted/30' : 'text-text active:bg-surface-2'}`}
+                className={`min-w-[44px] min-h-[44px] rounded-md border border-border text-sm ${i === 0 ? 'text-muted/30' : 'text-text active:bg-surface-2'}`}
               >
                 ↑
               </button>
               <button
                 onClick={() => onMove(`${t.market}-${t.ticker}`, 1)}
                 disabled={i === tickers.length - 1}
-                className={`px-3 py-1.5 rounded-md border border-border text-sm ${i === tickers.length - 1 ? 'text-muted/30' : 'text-text active:bg-surface-2'}`}
+                className={`min-w-[44px] min-h-[44px] rounded-md border border-border text-sm ${i === tickers.length - 1 ? 'text-muted/30' : 'text-text active:bg-surface-2'}`}
               >
                 ↓
               </button>

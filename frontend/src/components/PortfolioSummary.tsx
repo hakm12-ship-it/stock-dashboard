@@ -63,18 +63,25 @@ export default function PortfolioSummary({
         <span className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted">
           내 자산
         </span>
-        <div className="flex gap-3">
-          <button onClick={onJournal} className="text-[0.66rem] text-muted active:opacity-70">
+        {/* -my-3로 탭 영역만 넓히고 줄 높이는 유지 (터치타겟 44px) */}
+        <div className="flex -my-3">
+          <button
+            onClick={onJournal}
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center text-[0.66rem] text-muted active:opacity-70"
+          >
             일지
           </button>
-          <button onClick={onManage} className="text-[0.66rem] text-accent active:opacity-70">
+          <button
+            onClick={onManage}
+            className="min-w-[44px] min-h-[44px] flex items-center justify-end text-[0.66rem] text-accent active:opacity-70"
+          >
             관리
           </button>
         </div>
       </div>
 
       {!hasHoldings ? (
-        <button onClick={onManage} className="w-full text-sm text-muted py-1.5 text-left">
+        <button onClick={onManage} className="w-full min-h-[44px] flex items-center text-sm text-muted text-left">
           보유종목을 추가해 손익을 확인하세요 →
         </button>
       ) : (

@@ -216,7 +216,7 @@ export default function SignalView({ t }: { t: FocusTicker }) {
           <span className="text-[0.66rem] uppercase tracking-[0.09em] opacity-70">
             기술적 신호 종합{!isDefaultConfig(cfg) && ' · 내 규칙'}
           </span>
-          <button onClick={() => setCfgOpen(true)} aria-label="신호 규칙 설정" className="opacity-70 active:opacity-100 text-sm leading-none">
+          <button onClick={() => setCfgOpen(true)} aria-label="신호 규칙 설정" className="relative z-10 opacity-70 active:opacity-100 text-sm leading-none before:absolute before:-inset-4 before:content-['']">
             ⚙️
           </button>
         </div>

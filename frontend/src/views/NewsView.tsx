@@ -78,7 +78,7 @@ export default function NewsView({ t, tickers }: { t: FocusTicker; tickers: Focu
           <button
             key={m}
             onClick={() => setMode(m)}
-            className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
+            className={`flex-1 min-h-[44px] rounded-md text-xs font-medium transition-colors ${
               m === mode ? 'bg-accent/20 text-text' : 'text-muted'
             }`}
           >

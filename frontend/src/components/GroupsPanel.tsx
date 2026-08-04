@@ -31,8 +31,8 @@ function GroupStocks({
       {q.data.map((s) => {
         const added = findAdded(s.ticker)
         return (
-          <div key={s.ticker} className="flex items-center gap-2 py-1.5 border-t border-border/60">
-            <button onClick={() => added && onOpen(s.ticker)} className="min-w-0 flex-1 text-left">
+          <div key={s.ticker} className="flex items-center gap-2 min-h-[44px] border-t border-border/60">
+            <button onClick={() => added && onOpen(s.ticker)} className="min-w-0 flex-1 self-stretch text-left">
               <span className="text-xs font-medium truncate">
                 {s.name}
                 {added && <span className="text-accent text-[0.6rem] ml-1">›</span>}
@@ -51,7 +51,7 @@ function GroupStocks({
               onClick={() =>
                 onAdd({ ticker: s.ticker, name: s.name, short: s.name, market: 'KR', kind: 'stock' })
               }
-              className={`shrink-0 text-[0.6rem] px-1.5 py-0.5 rounded border ${
+              className={`shrink-0 text-[0.6rem] px-1.5 min-w-[44px] min-h-[44px] rounded border ${
                 added ? 'text-muted border-border' : 'text-accent border-accent/50 active:bg-accent/10'
               }`}
             >
@@ -102,7 +102,7 @@ export default function GroupsPanel({
                 setKind(k)
                 setOpenNo(null)
               }}
-              className={`text-[0.66rem] px-2 py-1 rounded-md ${
+              className={`text-[0.66rem] px-2 min-w-[44px] min-h-[44px] rounded-md ${
                 kind === k ? 'bg-accent/15 text-accent' : 'text-muted'
               }`}
             >
@@ -122,7 +122,7 @@ export default function GroupsPanel({
             <div key={g.no} className="border-b border-border last:border-0">
               <button
                 onClick={() => setOpenNo(openNo === g.no ? null : g.no)}
-                className="w-full flex items-center gap-2 py-2.5 text-left"
+                className="w-full flex items-center gap-2 min-h-[44px] text-left"
               >
                 <span className="text-sm font-medium flex-1 truncate">{g.name}</span>
                 <span className="font-mono text-[0.62rem] text-muted shrink-0">

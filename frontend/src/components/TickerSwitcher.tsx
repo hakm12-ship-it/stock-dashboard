@@ -17,7 +17,7 @@ export default function TickerSwitcher({
           <button
             key={t.ticker}
             onClick={() => onSelect(t)}
-            className={`shrink-0 px-4 py-2 rounded-full border text-sm font-medium transition-colors ${
+            className={`shrink-0 px-4 min-h-[44px] rounded-full border text-sm font-medium transition-colors ${
               active
                 ? 'bg-accent/15 border-accent text-text'
                 : 'bg-surface border-border text-muted active:bg-surface-2'

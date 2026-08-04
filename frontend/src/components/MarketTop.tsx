@@ -48,7 +48,7 @@ export default function MarketTop({
             <button
               key={m}
               onClick={() => setMkt(m)}
-              className={`font-mono text-[0.56rem] px-1 py-1 rounded ${
+              className={`font-mono text-[0.56rem] px-1 min-w-[44px] min-h-[44px] rounded ${
                 mkt === m ? 'bg-accent/15 text-accent' : 'text-muted/70'
               }`}
             >
@@ -68,7 +68,7 @@ export default function MarketTop({
           <button
             key={d}
             onClick={() => setDir(d)}
-            className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
+            className={`flex-1 min-h-[44px] rounded-md text-xs font-medium transition-colors ${
               d === dir ? 'bg-accent/20 text-text' : 'text-muted'
             }`}
           >
@@ -88,12 +88,12 @@ export default function MarketTop({
             return (
               <div
                 key={s.ticker}
-                className="flex items-center gap-2 py-2 border-b border-border last:border-0"
+                className="flex items-center gap-2 min-h-[44px] border-b border-border last:border-0"
               >
                 <span className="font-mono text-[0.66rem] text-muted w-4 shrink-0">{i + 1}</span>
                 <button
                   onClick={() => added && onOpen(s.ticker)}
-                  className="min-w-0 flex-1 text-left"
+                  className="min-w-0 flex-1 self-stretch text-left"
                 >
                   <div className="text-sm font-medium truncate">
                     {s.name}
@@ -129,7 +129,7 @@ export default function MarketTop({
                         kind: 'stock',
                       })
                     }
-                    className={`shrink-0 text-[0.66rem] px-2 py-1 rounded-md border ${
+                    className={`shrink-0 text-[0.66rem] px-2 min-w-[44px] min-h-[44px] rounded-md border ${
                       added ? 'text-muted border-border' : 'text-accent border-accent/50 active:bg-accent/10'
                     }`}
                   >

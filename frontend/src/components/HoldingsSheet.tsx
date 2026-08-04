@@ -96,7 +96,7 @@ export default function HoldingsSheet({
     <div className="fixed inset-0 z-50 bg-ink flex flex-col fade-in">
       <div className="flex items-center justify-between px-4 pt-safe pb-3 border-b border-border">
         <span className="text-base font-bold">보유종목 · 손익</span>
-        <button onClick={onClose} className="text-muted text-2xl leading-none px-2 active:text-text">
+        <button onClick={onClose} className="relative z-10 text-muted text-2xl leading-none px-2 active:text-text before:absolute before:-inset-3 before:content-['']">
           ×
         </button>
       </div>
@@ -135,7 +135,7 @@ export default function HoldingsSheet({
           </div>
           <button
             onClick={add}
-            className="w-full bg-accent/15 border border-accent/50 text-accent rounded-lg py-2 text-sm font-medium active:bg-accent/25"
+            className="w-full bg-accent/15 border border-accent/50 text-accent rounded-lg min-h-[44px] text-sm font-medium active:bg-accent/25"
           >
             추가 / 수정
           </button>
@@ -166,7 +166,7 @@ export default function HoldingsSheet({
           <div className="flex gap-2">
             <button
               onClick={doExport}
-              className="flex-1 border border-border rounded-lg py-2 text-sm text-text active:bg-surface-2"
+              className="flex-1 border border-border rounded-lg min-h-[44px] text-sm text-text active:bg-surface-2"
             >
               내보내기 (복사)
             </button>
@@ -175,7 +175,7 @@ export default function HoldingsSheet({
                 setImportOpen((v) => !v)
                 setBackupMsg('')
               }}
-              className="flex-1 border border-border rounded-lg py-2 text-sm text-text active:bg-surface-2"
+              className="flex-1 border border-border rounded-lg min-h-[44px] text-sm text-text active:bg-surface-2"
             >
               가져오기
             </button>
@@ -191,7 +191,7 @@ export default function HoldingsSheet({
               />
               <button
                 onClick={doImport}
-                className="w-full bg-accent/15 border border-accent/50 text-accent rounded-lg py-2 text-sm font-medium active:bg-accent/25"
+                className="w-full bg-accent/15 border border-accent/50 text-accent rounded-lg min-h-[44px] text-sm font-medium active:bg-accent/25"
               >
                 적용 (기존 목록 교체)
               </button>
