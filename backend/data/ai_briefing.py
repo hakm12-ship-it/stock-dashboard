@@ -8,8 +8,29 @@ _MODEL = "gemini-flash-latest"
 _URL = f"https://generativelanguage.googleapis.com/v1beta/models/{_MODEL}:generateContent"
 
 
-def _api_key() -> str | None:
-    return os.environ.get("GEMINI_API_KEY")
+def _ask(prompt: str, as_json: bool = False) -> str:
+    """Gemini에 한 번 물어보고 본문 텍스트를 돌려준다.
+
+    키가 없거나 호출이 실패하면 예외를 그대로 올린다 — 호출부(routers/ai.py)가
+    직전 성공 결과로 대체할지 판단한다.
+    """
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key:
+        raise RuntimeError("GEMINI_API_KEY not set")
+
+    payload: dict = {"contents": [{"parts": [{"text": prompt}]}]}
+    if as_json:
+        payload["generationConfig"] = {"responseMimeType": "application/json"}
+
+    req = urllib.request.Request(
+        f"{_URL}?key={key}",
+        data=json.dumps(payload).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        data = json.loads(resp.read())
+    return data["candidates"][0]["content"]["parts"][0]["text"]
 
 
 def generate_briefing(name: str, ticker: str, context: dict) -> dict:
@@ -17,10 +38,6 @@ def generate_briefing(name: str, ticker: str, context: dict) -> dict:
 
     반환: {stance, summary, bullets: [str]}. 키가 없거나 실패하면 예외를 던진다.
     """
-    key = _api_key()
-    if not key:
-        raise RuntimeError("GEMINI_API_KEY not set")
-
     prompt = f"""당신은 한국 주식 투자자를 위한 간단한 시황 브리핑을 작성하는 애널리스트입니다.
 아래 데이터를 참고해 "{name}({ticker})"에 대한 짧은 브리핑을 JSON으로만 작성하세요.
 
@@ -31,22 +48,7 @@ def generate_briefing(name: str, ticker: str, context: dict) -> dict:
 
 투자 조언이 아닌 참고용 해설임을 전제로, 과장 없이 데이터에 근거해 작성하세요."""
 
-    body = json.dumps({
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"responseMimeType": "application/json"},
-    }).encode()
-
-    req = urllib.request.Request(
-        f"{_URL}?key={key}",
-        data=body,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=20) as resp:
-        data = json.loads(resp.read())
-
-    text = data["candidates"][0]["content"]["parts"][0]["text"]
-    parsed = json.loads(text)
+    parsed = json.loads(_ask(prompt, as_json=True))
     return {
         "stance": parsed.get("stance", "중립"),
         "summary": parsed.get("summary", ""),
@@ -56,10 +58,6 @@ def generate_briefing(name: str, ticker: str, context: dict) -> dict:
 
 def generate_market_insight(name: str, stocks: list[dict]) -> str:
     """stocks: [{name, role, changePct}] — 관련종목 등락으로 한 줄 시사점 생성."""
-    key = _api_key()
-    if not key:
-        raise RuntimeError("GEMINI_API_KEY not set")
-
     prompt = f"""당신은 반도체 밸류체인을 분석하는 애널리스트입니다.
 "{name}"의 관련종목(미국 증시) 등락률 데이터를 보고, 이 데이터가 {name}에 시사하는 바를 한국어 한두 문장으로 요약하세요.
 
@@ -68,10 +66,4 @@ def generate_market_insight(name: str, stocks: list[dict]) -> str:
 과장 없이 데이터에 근거해, 방향성이 뚜렷한지 엇갈리는지도 언급하세요.
 출력은 순수 텍스트 한두 문장만 (따옴표·JSON 없이)."""
 
-    body = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode()
-    req = urllib.request.Request(
-        f"{_URL}?key={key}", data=body, headers={"Content-Type": "application/json"}, method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=20) as resp:
-        data = json.loads(resp.read())
-    return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+    return _ask(prompt).strip()
