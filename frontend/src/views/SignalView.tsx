@@ -12,6 +12,7 @@ import {
 } from '../lib/signalConfig'
 import type { FocusTicker } from '../data/tickers'
 import AiBriefingPanel from '../components/AiBriefingPanel'
+import FxAttributionPanel from '../components/FxAttributionPanel'
 import LeverageDecayPanel from '../components/LeverageDecayPanel'
 import NightGapHistoryPanel from '../components/NightGapHistoryPanel'
 import RelatedInsightPanel from '../components/RelatedInsightPanel'
@@ -231,8 +232,9 @@ export default function SignalView({ t }: { t: FocusTicker }) {
 
       {cfgOpen && <ConfigSheet cfg={cfg} onApply={applyCfg} onClose={() => setCfgOpen(false)} />}
 
-      {/* 레버리지 상품이면 감쇠 경고를 먼저 — 보유 중이면 실제 손익에 직결된다 */}
+      {/* 기대와 실제가 벌어지는 이유들 — 보유 중이면 손익에 직결된다 */}
       <LeverageDecayPanel ticker={t.ticker} period="6m" />
+      <FxAttributionPanel ticker={t.ticker} market={t.market} period="3m" />
 
       <AiBriefingPanel t={t} />
 

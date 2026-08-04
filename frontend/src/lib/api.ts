@@ -256,6 +256,19 @@ export interface NightGapHistory {
 export const getNightGapHistory = (ticker: string) =>
   get<NightGapHistory>('/api/night-gap-history', { ticker })
 
+export interface FxAttribution {
+  available: boolean
+  days?: number
+  priceReturn?: number
+  fxReturn?: number
+  crossTerm?: number
+  krwReturn?: number
+  fxStart?: number
+  fxEnd?: number
+}
+export const getFxAttribution = (ticker: string, market: Market, period: Period) =>
+  get<FxAttribution>('/api/fx-attribution', { ticker, market, period })
+
 export interface MarketTopItem {
   ticker: string
   name: string

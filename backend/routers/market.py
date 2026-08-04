@@ -11,6 +11,7 @@ from deps import (
     cached_naver_index,
     cached_news,
     change_of,
+    load,
     load_fx,
     load_fx_hist,
     load_index,
@@ -89,6 +90,40 @@ def api_fx_history(period: str = "3m"):
 def api_fx():
     last, change, pct = change_of(load_fx()["Close"].dropna())
     return {"usdkrw": last, "change": change, "changePct": pct}
+
+
+@router.get("/api/fx-attribution")
+def api_fx_attribution(ticker: str, market: str, period: str = "3m"):
+    """미국 자산의 원화 수익률을 주가 기여와 환율 기여로 분해.
+
+    원화가치 = 달러가격 × 환율 이므로
+    (1+원화수익) = (1+주가수익)(1+환율수익) — 교차항은 두 수익의 곱이다.
+    """
+    if market.upper() != "US":
+        return {"available": False}
+    try:
+        price = load(ticker, period)["Close"].dropna()
+        fx = load_fx_hist(period)["Close"].dropna()
+    except Exception:
+        return {"available": False}
+
+    idx = price.index.intersection(fx.index)
+    if len(idx) < 5:
+        return {"available": False}
+    p, f = price[idx], fx[idx]
+
+    rp = float(p.iloc[-1] / p.iloc[0] - 1)
+    rf = float(f.iloc[-1] / f.iloc[0] - 1)
+    return {
+        "available": True,
+        "days": len(idx),
+        "priceReturn": rp * 100,
+        "fxReturn": rf * 100,
+        "crossTerm": rp * rf * 100,
+        "krwReturn": ((1 + rp) * (1 + rf) - 1) * 100,
+        "fxStart": float(f.iloc[0]),
+        "fxEnd": float(f.iloc[-1]),
+    }
 
 
 @router.get("/api/macro")
