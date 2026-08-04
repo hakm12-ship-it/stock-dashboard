@@ -48,7 +48,7 @@ export default function BottomNav({
               >
                 <path d={ICONS[t.key]} />
               </svg>
-              <span className={`text-[0.66rem] font-medium ${on ? 'text-accent' : 'text-muted'}`}>
+              <span className={`text-label font-medium ${on ? 'text-accent' : 'text-muted'}`}>
                 {t.label}
               </span>
             </button>

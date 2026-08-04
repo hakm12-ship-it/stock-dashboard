@@ -35,14 +35,14 @@ function GroupStocks({
             <button onClick={() => added && onOpen(s.ticker)} className="min-w-0 flex-1 self-stretch text-left">
               <span className="text-xs font-medium truncate">
                 {s.name}
-                {added && <span className="text-accent text-[0.6rem] ml-1">›</span>}
+                {added && <span className="text-muted text-label ml-1">›</span>}
               </span>
             </button>
             <span className="font-mono text-xs tnum shrink-0">
               {s.price != null ? `${Math.round(s.price).toLocaleString()}원` : '—'}
             </span>
             <span
-              className={`font-mono text-[0.66rem] w-14 text-right shrink-0 ${s.changePct != null ? changeColor(s.changePct) : 'text-muted'}`}
+              className={`font-mono text-label w-14 text-right shrink-0 ${s.changePct != null ? changeColor(s.changePct) : 'text-muted'}`}
             >
               {s.changePct != null ? `${changeSign(s.changePct)}${Math.abs(s.changePct).toFixed(1)}%` : '—'}
             </span>
@@ -51,8 +51,8 @@ function GroupStocks({
               onClick={() =>
                 onAdd({ ticker: s.ticker, name: s.name, short: s.name, market: 'KR', kind: 'stock' })
               }
-              className={`shrink-0 text-[0.6rem] px-1.5 min-w-[44px] min-h-[44px] rounded border ${
-                added ? 'text-muted border-border' : 'text-accent border-accent/50 active:bg-accent/10'
+              className={`shrink-0 text-label px-1.5 min-w-[44px] min-h-[44px] rounded border ${
+                added ? 'text-muted border-border' : 'text-text border-border active:border-accent'
               }`}
             >
               {added ? '✓' : '+'}
@@ -86,7 +86,7 @@ export default function GroupsPanel({
   return (
     <section className="bg-surface border border-border rounded-xl p-4 card-shadow">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted">
+        <span className="text-label font-semibold uppercase tracking-[0.08em] text-muted">
           🏷️ 업종·테마 시세
         </span>
         <div className="flex gap-1">
@@ -102,8 +102,8 @@ export default function GroupsPanel({
                 setKind(k)
                 setOpenNo(null)
               }}
-              className={`text-[0.66rem] px-2 min-w-[44px] min-h-[44px] rounded-md ${
-                kind === k ? 'bg-accent/15 text-accent' : 'text-muted'
+              className={`text-label px-2 min-w-[44px] min-h-[44px] rounded-md ${
+                kind === k ? 'bg-surface-2 text-text' : 'text-muted'
               }`}
             >
               {label}
@@ -125,14 +125,14 @@ export default function GroupsPanel({
                 className="w-full flex items-center gap-2 min-h-[44px] text-left"
               >
                 <span className="text-sm font-medium flex-1 truncate">{g.name}</span>
-                <span className="font-mono text-[0.62rem] text-muted shrink-0">
+                <span className="font-mono text-label text-muted shrink-0">
                   <span className="text-up">▲{g.rise}</span> <span className="text-down">▼{g.fall}</span>
                 </span>
                 <span className={`font-mono text-sm tnum w-16 text-right shrink-0 ${changeColor(g.changeRate)}`}>
                   {changeSign(g.changeRate)}
                   {Math.abs(g.changeRate).toFixed(2)}%
                 </span>
-                <span className={`text-muted text-[0.6rem] transition-transform ${openNo === g.no ? 'rotate-90' : ''}`}>
+                <span className={`text-muted text-label transition-transform ${openNo === g.no ? 'rotate-90' : ''}`}>
                   ›
                 </span>
               </button>
@@ -141,7 +141,7 @@ export default function GroupsPanel({
               )}
             </div>
           ))}
-          <p className="text-[0.58rem] text-muted mt-2">
+          <p className="text-label text-muted mt-2">
             등락률 상위 순 · 탭하면 구성 종목 · 장중에 갱신돼요
           </p>
         </div>

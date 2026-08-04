@@ -60,20 +60,20 @@ export default function PortfolioSummary({
   return (
     <div className="bg-surface border border-border rounded-xl p-4 card-shadow">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted">
+        <span className="text-label font-semibold uppercase tracking-[0.08em] text-muted">
           내 자산
         </span>
         {/* -my-3로 탭 영역만 넓히고 줄 높이는 유지 (터치타겟 44px) */}
         <div className="flex -my-3">
           <button
             onClick={onJournal}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center text-[0.66rem] text-muted active:opacity-70"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center text-label text-muted active:opacity-70"
           >
             일지
           </button>
           <button
             onClick={onManage}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-end text-[0.66rem] text-accent active:opacity-70"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-end text-label text-text active:opacity-70"
           >
             관리
           </button>
@@ -88,7 +88,7 @@ export default function PortfolioSummary({
         <>
           {canUnify && (
             <div className="mb-3">
-              <div className="text-[0.62rem] text-muted">총 평가 (원 환산)</div>
+              <div className="text-label text-muted">총 평가 (원 환산)</div>
               <div className="font-mono text-2xl font-semibold tnum leading-tight">
                 {fmtPrice(uniValue, 'KR')}
               </div>
@@ -105,7 +105,7 @@ export default function PortfolioSummary({
                   <span className="text-xs text-muted">{r.m === 'KR' ? '🇰🇷 한국' : '🇺🇸 미국'}</span>
                   <div className="text-right">
                     <span className="font-mono tnum text-sm">{fmtPrice(r.value, r.m)}</span>
-                    <span className={`font-mono text-[0.72rem] ml-2 ${changeColor(r.pl)}`}>
+                    <span className={`font-mono text-label ml-2 ${changeColor(r.pl)}`}>
                       {fmtChange(r.pct, r.pl)}
                     </span>
                   </div>
@@ -115,7 +115,7 @@ export default function PortfolioSummary({
           )}
 
           {rate != null && (
-            <div className="text-[0.62rem] text-muted mt-2 font-mono">
+            <div className="text-label text-muted mt-2 font-mono">
               USD/KRW {fmtNum(rate, 1)}
               {fx.data && (
                 <span className={changeColor(fx.data.change)}>
@@ -128,7 +128,7 @@ export default function PortfolioSummary({
 
           <button
             onClick={() => setChartOpen((v) => !v)}
-            className="w-full text-[0.66rem] text-accent text-center mt-2 active:opacity-70"
+            className="w-full text-label text-muted text-center mt-2 active:opacity-70"
           >
             {chartOpen ? '자산 추이 접기 ▴' : '자산 추이 차트 보기 ▾'}
           </button>

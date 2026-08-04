@@ -40,7 +40,7 @@ export default function MarketTop({
   return (
     <section className="bg-surface border border-border rounded-xl p-4 card-shadow">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted">
+        <span className="text-label font-semibold uppercase tracking-[0.08em] text-muted">
           🔥 오늘의 시장 TOP
         </span>
         <div className="flex gap-0.5">
@@ -48,8 +48,8 @@ export default function MarketTop({
             <button
               key={m}
               onClick={() => setMkt(m)}
-              className={`font-mono text-[0.56rem] px-1 min-w-[44px] min-h-[44px] rounded ${
-                mkt === m ? 'bg-accent/15 text-accent' : 'text-muted/70'
+              className={`font-mono text-label px-1 min-w-[44px] min-h-[44px] rounded ${
+                mkt === m ? 'bg-surface-2 text-text' : 'text-muted/70'
               }`}
             >
               {m === 'NASDAQ' ? 'NAS' : m === 'KOSPI' ? '코스피' : m === 'KOSDAQ' ? '코스닥' : '코인'}
@@ -69,7 +69,7 @@ export default function MarketTop({
             key={d}
             onClick={() => setDir(d)}
             className={`flex-1 min-h-[44px] rounded-md text-xs font-medium transition-colors ${
-              d === dir ? 'bg-accent/20 text-text' : 'text-muted'
+              d === dir ? 'bg-surface-2 text-text' : 'text-muted'
             }`}
           >
             {label}
@@ -90,16 +90,16 @@ export default function MarketTop({
                 key={s.ticker}
                 className="flex items-center gap-2 min-h-[44px] border-b border-border last:border-0"
               >
-                <span className="font-mono text-[0.66rem] text-muted w-4 shrink-0">{i + 1}</span>
+                <span className="font-mono text-label text-muted w-4 shrink-0">{i + 1}</span>
                 <button
                   onClick={() => added && onOpen(s.ticker)}
                   className="min-w-0 flex-1 self-stretch text-left"
                 >
                   <div className="text-sm font-medium truncate">
                     {s.name}
-                    {added && <span className="text-accent text-[0.6rem] ml-1">›</span>}
+                    {added && <span className="text-muted text-label ml-1">›</span>}
                   </div>
-                  <div className="font-mono text-[0.62rem] text-muted">{s.ticker}</div>
+                  <div className="font-mono text-label text-muted">{s.ticker}</div>
                 </button>
                 <div className="text-right shrink-0">
                   <div className="font-mono text-sm tnum">
@@ -111,7 +111,7 @@ export default function MarketTop({
                           ? `${Math.round(s.price).toLocaleString()}원`
                           : `$${s.price.toFixed(2)}`}
                   </div>
-                  <div className={`font-mono text-[0.7rem] ${s.changePct != null ? changeColor(s.changePct) : 'text-muted'}`}>
+                  <div className={`font-mono text-label ${s.changePct != null ? changeColor(s.changePct) : 'text-muted'}`}>
                     {s.changePct != null
                       ? fmtChange(s.changePct)
                       : '—'}
@@ -129,8 +129,8 @@ export default function MarketTop({
                         kind: 'stock',
                       })
                     }
-                    className={`shrink-0 text-[0.66rem] px-2 min-w-[44px] min-h-[44px] rounded-md border ${
-                      added ? 'text-muted border-border' : 'text-accent border-accent/50 active:bg-accent/10'
+                    className={`shrink-0 text-label px-2 min-w-[44px] min-h-[44px] rounded-md border ${
+                      added ? 'text-muted border-border' : 'text-text border-border active:border-accent'
                     }`}
                   >
                     {added ? '추가됨' : '+담기'}
@@ -139,7 +139,7 @@ export default function MarketTop({
               </div>
             )
           })}
-          <p className="text-[0.58rem] text-muted mt-2">
+          <p className="text-label text-muted mt-2">
             {isCrypto
               ? '업비트 KRW 마켓 · 24시간 등락 기준 · 참고용 · 투자 조언 아님'
               : '급등락 상위는 변동성이 매우 큰 종목이에요 — 참고용 · 투자 조언 아님'}

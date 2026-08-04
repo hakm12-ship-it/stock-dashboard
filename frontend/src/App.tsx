@@ -166,7 +166,7 @@ export default function App() {
           style={{ height: refreshing ? 40 : pull }}
         >
           <span
-            className="font-mono text-[0.66rem] pb-2 inline-flex items-center gap-1.5"
+            className="font-mono text-label pb-2 inline-flex items-center gap-1.5"
             style={{ opacity: refreshing ? 1 : Math.min(pull / PULL_THRESHOLD, 1) }}
           >
             <span
@@ -185,7 +185,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             <span className="text-base">📈</span>
             <span className="text-base font-bold tracking-tight">스톡 인사이트</span>
-            <span className="font-mono text-[0.55rem] text-accent border border-accent/40 rounded px-1.5 py-0.5 tracking-[0.1em]">
+            <span className="font-mono text-label text-accent border border-accent/40 rounded px-1.5 py-0.5 tracking-[0.1em]">
               BETA
             </span>
           </div>
@@ -200,7 +200,7 @@ export default function App() {
             </button>
             <button
               onClick={refresh}
-              className="min-h-[44px] px-2 flex items-center gap-1.5 font-mono text-[0.66rem] text-muted active:text-text"
+              className="min-h-[44px] px-2 flex items-center gap-1.5 font-mono text-label text-muted active:text-text"
               aria-label="새로고침"
             >
               <span className="text-sm leading-none">↻</span>
@@ -254,7 +254,7 @@ export default function App() {
           )}
         </div>
 
-        <p className="text-[0.6rem] text-muted text-center pt-3 leading-relaxed">
+        <p className="text-label text-muted text-center pt-3 leading-relaxed">
           시세는 실시간이 아닌 지연 데이터입니다 · 우측 상단 ↻ 로 새로고침하세요
         </p>
       </div>

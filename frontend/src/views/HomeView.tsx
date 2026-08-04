@@ -118,12 +118,12 @@ function HomeCard({
             )}
             <span className="font-semibold truncate">{t.short}</span>
             {t.kind === 'etf' && (
-              <span className="font-mono text-[0.55rem] text-accent">{t.lev ?? 'ETF'}</span>
+              <span className="font-mono text-label text-muted">{t.lev ?? 'ETF'}</span>
             )}
-            {t.kind === 'index' && <span className="font-mono text-[0.55rem] text-muted">지수</span>}
+            {t.kind === 'index' && <span className="font-mono text-label text-muted">지수</span>}
             {holding && (
               <span
-                className={`font-mono text-[0.55rem] px-1 py-0.5 rounded border shrink-0 ${
+                className={`font-mono text-label px-1 py-0.5 rounded border shrink-0 ${
                   holdPct != null && holdPct >= 0 ? 'border-up/40 text-up' : 'border-down/40 text-down'
                 }`}
               >
@@ -131,33 +131,33 @@ function HomeCard({
               </span>
             )}
           </div>
-          <div className="font-mono text-[0.65rem] text-muted mt-0.5">{t.ticker}</div>
+          <div className="font-mono text-label text-muted mt-0.5">{t.ticker}</div>
         </div>
         <div className="text-right shrink-0">
-          <div className="font-mono font-semibold tnum text-[0.95rem]">{fmtQuote(priceVal, t)}</div>
+          <div className="font-mono font-semibold tnum text-body">{fmtQuote(priceVal, t)}</div>
           {hasChange && (
-            <div className={`font-mono text-[0.72rem] ${changeColor(chg)}`}>
+            <div className={`font-mono text-label ${changeColor(chg)}`}>
               {fmtChange(pct, chg)}
             </div>
           )}
           {nightEnabled && night.data?.available && (
             <div className="flex items-center justify-end gap-1 mt-0.5">
-              <span className="text-[0.55rem] text-muted">{nightLabel(t)}</span>
-              <span className="font-mono text-[0.62rem] tnum text-muted">
+              <span className="text-label text-muted">{nightLabel(t)}</span>
+              <span className="font-mono text-label tnum text-muted">
                 ₩{Math.round(night.data.krw ?? 0).toLocaleString()}
               </span>
-              <span className={`font-mono text-[0.62rem] ${changeColor(night.data.gapPct ?? 0)}`}>
+              <span className={`font-mono text-label ${changeColor(night.data.gapPct ?? 0)}`}>
                 {fmtChange(night.data.gapPct ?? 0)}
               </span>
             </div>
           )}
           {synthEnabled && synth.data?.available && (
             <div className="flex items-center justify-end gap-1 mt-0.5">
-              <span className="text-[0.55rem] text-accent border border-accent/40 rounded px-1">추정</span>
-              <span className="font-mono text-[0.62rem] tnum text-muted">
+              <span className="text-label text-accent border border-accent/40 rounded px-1">추정</span>
+              <span className="font-mono text-label tnum text-muted">
                 {fmtQuote(synth.data.estimate, t)}
               </span>
-              <span className={`font-mono text-[0.62rem] ${changeColor(synth.data.changePct ?? 0)}`}>
+              <span className={`font-mono text-label ${changeColor(synth.data.changePct ?? 0)}`}>
                 {fmtChange(synth.data.changePct ?? 0)}
               </span>
             </div>
@@ -169,7 +169,7 @@ function HomeCard({
           <Sparkline data={series} up={up} />
         </div>
         {sig.data && (
-          <span className={`font-mono text-[0.7rem] font-semibold shrink-0 ${VERDICT_COLOR[sig.data.verdict] ?? 'text-muted'}`}>
+          <span className={`font-mono text-label font-semibold shrink-0 ${VERDICT_COLOR[sig.data.verdict] ?? 'text-muted'}`}>
             {sig.data.verdict}
           </span>
         )}
@@ -247,7 +247,7 @@ export default function HomeView({
       <IndexStrip />
       <div className="pt-2 pb-0.5 space-y-1">
         <div className="flex items-center justify-between">
-          <span className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted">
+          <span className="text-label font-semibold uppercase tracking-[0.08em] text-muted">
             관심 종목
           </span>
           <button
@@ -255,8 +255,8 @@ export default function HomeView({
               setEditing((v) => !v)
               if (!editing) setSort('default')
             }}
-            className={`text-[0.66rem] px-2.5 min-h-[44px] rounded-md border ${
-              editing ? 'bg-accent/15 border-accent/50 text-accent' : 'border-border text-muted'
+            className={`text-label px-2.5 min-h-[44px] rounded-md border ${
+              editing ? 'bg-surface-2 border-border text-text' : 'border-border text-muted'
             }`}
           >
             {editing ? '완료' : '순서 편집'}
@@ -269,8 +269,8 @@ export default function HomeView({
                 <button
                   key={p}
                   onClick={() => setSparkPeriod(p)}
-                  className={`font-mono text-[0.62rem] min-w-[44px] min-h-[44px] rounded transition-colors ${
-                    sparkPeriod === p ? 'bg-accent/15 text-accent' : 'text-muted/70'
+                  className={`font-mono text-label min-w-[44px] min-h-[44px] rounded transition-colors ${
+                    sparkPeriod === p ? 'bg-surface-2 text-text' : 'text-muted/70'
                   }`}
                 >
                   {p.toUpperCase()}
@@ -282,8 +282,8 @@ export default function HomeView({
                 <button
                   key={k}
                   onClick={() => setSort(k)}
-                  className={`text-[0.66rem] px-2 min-w-[44px] min-h-[44px] rounded-md transition-colors ${
-                    sort === k ? 'bg-accent/15 text-accent' : 'text-muted'
+                  className={`text-label px-2 min-w-[44px] min-h-[44px] rounded-md transition-colors ${
+                    sort === k ? 'bg-surface-2 text-text' : 'text-muted'
                   }`}
                 >
                   {label}
@@ -299,7 +299,7 @@ export default function HomeView({
               key={`${t.market}-${t.ticker}`}
               className="flex items-center gap-2 bg-surface border border-border rounded-xl px-3.5 py-2.5 card-shadow"
             >
-              <span className="font-mono text-[0.66rem] text-muted w-4">{i + 1}</span>
+              <span className="font-mono text-label text-muted w-4">{i + 1}</span>
               <span className="text-sm font-medium flex-1 truncate">{t.short}</span>
               <button
                 onClick={() => onMove(`${t.market}-${t.ticker}`, -1)}

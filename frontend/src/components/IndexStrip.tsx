@@ -10,7 +10,7 @@ function IndexItem({ name, market }: { name: string; market: Market }) {
   return (
     <div className="flex-1 min-w-0 bg-surface border border-border rounded-lg px-2.5 py-2 card-shadow">
       <div className="flex items-center justify-between gap-1">
-        <span className="text-[0.6rem] uppercase tracking-[0.05em] text-muted truncate">{name}</span>
+        <span className="text-label uppercase tracking-[0.05em] text-muted truncate">{name}</span>
         <span
           className={`h-1.5 w-1.5 rounded-full shrink-0 ${st.open ? 'bg-accent animate-pulse' : 'bg-muted/50'}`}
           title={st.label}
@@ -18,10 +18,10 @@ function IndexItem({ name, market }: { name: string; market: Market }) {
       </div>
       {data ? (
         <div className="min-w-0">
-          <div className="font-mono font-semibold tnum text-[0.85rem] leading-tight truncate">
+          <div className="font-mono font-semibold tnum text-caption leading-tight truncate">
             {fmtNum(data.last, data.last >= 10000 ? 0 : 2)}
           </div>
-          <div className={`font-mono text-[0.64rem] ${changeColor(data.change)}`}>
+          <div className={`font-mono text-label ${changeColor(data.change)}`}>
             {fmtChange(data.changePct, data.change)}
           </div>
         </div>
