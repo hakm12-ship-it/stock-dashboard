@@ -21,17 +21,17 @@ def _safe_info(t: yf.Ticker) -> dict:
 
 @functools.lru_cache(maxsize=1024)
 def _resolve(market: str, ticker: str):
-    """(Ticker, 심볼, info) 반환. 국내는 .KS(코스피)→.KQ(코스닥) 순으로 탐색."""
+    """(Ticker, info) 반환. 국내는 .KS(코스피)→.KQ(코스닥) 순으로 탐색."""
     if market != "한국":
         t = yf.Ticker(ticker)
-        return t, ticker, _safe_info(t)
+        return t, _safe_info(t)
     for suffix in (".KS", ".KQ"):
         t = yf.Ticker(ticker + suffix)
         info = _safe_info(t)
         if info.get("marketCap"):
-            return t, ticker + suffix, info
+            return t, info
     t = yf.Ticker(ticker + ".KS")
-    return t, ticker + ".KS", _safe_info(t)
+    return t, _safe_info(t)
 
 
 def _equity(t: yf.Ticker):
@@ -67,7 +67,7 @@ def valuation(market: str, ticker: str) -> dict:
         except Exception:
             pass
 
-    t, symbol, info = _resolve(market, ticker)
+    t, info = _resolve(market, ticker)
     price = info.get("currentPrice") or info.get("regularMarketPrice")
     shares = info.get("sharesOutstanding")
 
@@ -103,7 +103,7 @@ def valuation(market: str, ticker: str) -> dict:
 
 def revenue_trend(market: str, ticker: str):
     """연간 매출·영업이익·순이익 추이 DataFrame (연도 인덱스). 없으면 None."""
-    t, symbol, info = _resolve(market, ticker)
+    t, info = _resolve(market, ticker)
     try:
         fs = t.income_stmt
     except Exception:
@@ -156,7 +156,7 @@ def forward_pe(market: str, ticker: str) -> dict:
         except Exception:
             pass
 
-    t, symbol, info = _resolve(market, ticker)
+    t, info = _resolve(market, ticker)
     price = info.get("currentPrice") or info.get("regularMarketPrice")
 
     trailing = info.get("trailingPE")

@@ -2,7 +2,7 @@ import { lazy, Suspense, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getPrices, getIndex, getProfile, getNightPrice, getSynthPrice, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
-import { fmtQuote, changeColor, changeSign } from '../lib/format'
+import { fmtQuote, fmtChange, changeColor, changeSign } from '../lib/format'
 import { marketStatus } from '../lib/market'
 import { ChartFallback } from './ui'
 import { hasNightPrice, nightLabel, showSynthPrice } from '../lib/night'
@@ -141,7 +141,7 @@ export default function StockHeader({ t, period, light = false }: { t: FocusTick
         </span>
         {hasChange && (
           <span className={`font-mono text-sm font-semibold ${changeColor(chg)}`}>
-            {changeSign(chg)} {Math.abs(pct).toFixed(2)}%
+            {fmtChange(pct, chg)}
           </span>
         )}
       </div>
@@ -152,7 +152,7 @@ export default function StockHeader({ t, period, light = false }: { t: FocusTick
             ₩{Math.round(night.data.krw ?? 0).toLocaleString()}
           </span>
           <span className={`font-mono text-[0.7rem] ${changeColor(night.data.gapPct ?? 0)}`}>
-            {changeSign(night.data.gapPct ?? 0)} {Math.abs(night.data.gapPct ?? 0).toFixed(2)}%
+            {fmtChange(night.data.gapPct ?? 0)}
           </span>
           <button
             onClick={() => setShowNightChart((v) => !v)}
@@ -172,8 +172,7 @@ export default function StockHeader({ t, period, light = false }: { t: FocusTick
               {fmtQuote(synth.data.estimate, t)}
             </span>
             <span className={`font-mono text-[0.72rem] ${changeColor(synth.data.changePct ?? 0)}`}>
-              {changeSign(synth.data.changePct ?? 0)}{' '}
-              {Math.abs(synth.data.changePct ?? 0).toFixed(2)}%
+              {fmtChange(synth.data.changePct ?? 0)}
             </span>
           </div>
           <div className="text-[0.6rem] text-muted mt-1 leading-relaxed">

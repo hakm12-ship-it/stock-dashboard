@@ -9,7 +9,7 @@ import {
   getDealTrend,
   getPeers,
 } from '../lib/api'
-import { changeColor, changeSign } from '../lib/format'
+import { changeColor, fmtChange } from '../lib/format'
 import type { FocusTicker } from '../data/tickers'
 import { Panel, Loading, Empty, ErrorState, Metric } from '../components/ui'
 import { fmtNum, fmtEps, fmtCap, fmtPrice } from '../lib/format'
@@ -56,7 +56,7 @@ function PeersPanel({
                   {p.price != null ? `${Math.round(p.price).toLocaleString()}원` : '—'}
                 </div>
                 <div className={`font-mono text-[0.7rem] ${p.changePct != null ? changeColor(p.changePct) : 'text-muted'}`}>
-                  {p.changePct != null ? `${changeSign(p.changePct)} ${Math.abs(p.changePct).toFixed(2)}%` : '—'}
+                  {p.changePct != null ? fmtChange(p.changePct) : '—'}
                 </div>
               </div>
               <button

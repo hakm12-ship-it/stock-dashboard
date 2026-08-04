@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getMarketTop } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
-import { changeColor, changeSign } from '../lib/format'
+import { changeColor, fmtChange } from '../lib/format'
 
 type Dir = 'up' | 'down'
 type Mkt = 'KOSPI' | 'KOSDAQ' | 'NASDAQ' | 'CRYPTO'
@@ -113,7 +113,7 @@ export default function MarketTop({
                   </div>
                   <div className={`font-mono text-[0.7rem] ${s.changePct != null ? changeColor(s.changePct) : 'text-muted'}`}>
                     {s.changePct != null
-                      ? `${changeSign(s.changePct)} ${Math.abs(s.changePct).toFixed(2)}%`
+                      ? fmtChange(s.changePct)
                       : '—'}
                   </div>
                 </div>

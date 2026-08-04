@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { getMacro } from '../lib/api'
-import { fmtNum, changeColor, changeSign } from '../lib/format'
+import { getMacro, type MacroItem as MacroValue } from '../lib/api'
+import { fmtNum, fmtChange, changeColor } from '../lib/format'
 
-function MacroItem({ label, unit, value }: { label: string; unit: string; value?: { last: number; change: number; changePct: number } }) {
+function MacroItem({ label, unit, value }: { label: string; unit: string; value?: MacroValue }) {
   return (
     <div className="flex-1 min-w-0 bg-surface border border-border rounded-lg px-2.5 py-2 card-shadow">
       <span className="text-[0.6rem] uppercase tracking-[0.05em] text-muted truncate block">{label}</span>
@@ -13,7 +13,7 @@ function MacroItem({ label, unit, value }: { label: string; unit: string; value?
             {unit}
           </div>
           <div className={`font-mono text-[0.64rem] ${changeColor(value.change)}`}>
-            {changeSign(value.change)} {Math.abs(value.changePct).toFixed(2)}%
+            {fmtChange(value.changePct, value.change)}
           </div>
         </div>
       ) : (

@@ -16,7 +16,7 @@ export function nightLabel(t: FocusTicker): string {
 /** 기초자산 perp로 추정가를 합성할 수 있는 종목 — 백엔드 data/synthetic.py와 맞출 것 */
 const SYNTH_TICKERS = new Set(['KORU', '0193T0'])
 
-export function hasSynthPrice(t: FocusTicker): boolean {
+function hasSynthPrice(t: FocusTicker): boolean {
   return SYNTH_TICKERS.has(t.ticker)
 }
 

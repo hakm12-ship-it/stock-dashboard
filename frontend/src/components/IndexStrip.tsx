@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getIndex } from '../lib/api'
-import { fmtNum, changeColor, changeSign } from '../lib/format'
+import { fmtNum, fmtChange, changeColor } from '../lib/format'
 import { marketStatus } from '../lib/market'
 import type { Market } from '../data/tickers'
 
@@ -22,7 +22,7 @@ function IndexItem({ name, market }: { name: string; market: Market }) {
             {fmtNum(data.last, data.last >= 10000 ? 0 : 2)}
           </div>
           <div className={`font-mono text-[0.64rem] ${changeColor(data.change)}`}>
-            {changeSign(data.change)} {Math.abs(data.changePct).toFixed(2)}%
+            {fmtChange(data.changePct, data.change)}
           </div>
         </div>
       ) : (

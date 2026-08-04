@@ -55,7 +55,7 @@ export interface ForwardPe {
 
 export type Trend = { years: number[] } & Record<string, (number | null)[] | number[]>
 
-export interface SignalItem {
+interface SignalItem {
   name: string
   score: number
   detail: string
@@ -83,7 +83,7 @@ export interface SignalHistory {
   recent: { date: string; verdict: string; fwdReturn: number | null }[]
 }
 
-export interface ForecastBand {
+interface ForecastBand {
   time: string
   upper_inner: number
   lower_inner: number
@@ -191,7 +191,7 @@ export interface NightPrice {
 export const getNightPrice = (ticker: string) => get<NightPrice>('/api/night-price', { ticker })
 
 export type NightInterval = '5m' | '15m' | '60m' | '1d'
-export interface NightCandle {
+interface NightCandle {
   time: number
   open: number
   high: number
@@ -220,7 +220,7 @@ export interface SynthPrice {
 }
 export const getSynthPrice = (ticker: string) => get<SynthPrice>('/api/synth-price', { ticker })
 
-export interface RelatedStock {
+interface RelatedStock {
   ticker: string
   name: string
   role: string
@@ -254,7 +254,7 @@ export interface LeverageDecay {
 export const getLeverageDecay = (ticker: string, period: Period) =>
   get<LeverageDecay>('/api/leverage-decay', { ticker, period })
 
-export interface NightGapBucket {
+interface NightGapBucket {
   label: string
   count: number
   avgOpenChange: number

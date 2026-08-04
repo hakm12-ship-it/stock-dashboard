@@ -3,7 +3,7 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { createChart, ColorType, type IChartApi } from 'lightweight-charts'
 import { getPrices, getFxHistory, type Period, type Candle, type FxPoint } from '../lib/api'
 import type { Holding } from '../lib/holdings'
-import { changeColor, changeSign } from '../lib/format'
+import { fmtChange, changeColor } from '../lib/format'
 
 const PERIODS: Period[] = ['1m', '3m', '6m']
 const LABEL: Record<string, string> = { '1m': '1개월', '3m': '3개월', '6m': '6개월' }
@@ -132,7 +132,7 @@ export default function PortfolioChart({ holdings, light }: { holdings: Holding[
           자산 추이
           {ret != null && (
             <span className={`font-mono ml-2 ${changeColor(ret)}`}>
-              {changeSign(ret)} {Math.abs(ret).toFixed(2)}%
+              {fmtChange(ret)}
             </span>
           )}
         </span>

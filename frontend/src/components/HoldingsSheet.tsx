@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getPrices } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import type { Holding } from '../lib/holdings'
-import { fmtPrice, changeColor, changeSign } from '../lib/format'
+import { fmtPrice, fmtChange, changeColor } from '../lib/format'
 
 function HoldingRow({ h, onRemove }: { h: Holding; onRemove: () => void }) {
   const { data } = useQuery({ queryKey: ['prices', h.ticker, '1m'], queryFn: () => getPrices(h.ticker, '1m') })
@@ -23,7 +23,7 @@ function HoldingRow({ h, onRemove }: { h: Holding; onRemove: () => void }) {
       <div className="text-right shrink-0">
         <div className="font-mono text-sm tnum">{fmtPrice(value, h.market)}</div>
         <div className={`font-mono text-[0.7rem] ${changeColor(pl)}`}>
-          {changeSign(pl)} {Math.abs(pct).toFixed(2)}%
+          {fmtChange(pct, pl)}
         </div>
       </div>
       <button onClick={onRemove} className="text-xs text-down px-1 shrink-0 active:opacity-70">

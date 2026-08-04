@@ -3,7 +3,7 @@ import { useQuery, useQueries } from '@tanstack/react-query'
 import { getPrices, getFx } from '../lib/api'
 import type { Holding } from '../lib/holdings'
 import type { Market } from '../data/tickers'
-import { fmtPrice, fmtNum, changeColor, changeSign } from '../lib/format'
+import { fmtPrice, fmtNum, fmtChange, changeColor } from '../lib/format'
 import { ChartFallback } from './ui'
 
 // 차트 라이브러리(lightweight-charts)는 무거워서 실제로 펼칠 때만 받는다.
@@ -93,7 +93,7 @@ export default function PortfolioSummary({
                 {fmtPrice(uniValue, 'KR')}
               </div>
               <div className={`font-mono text-sm ${changeColor(uniPL)}`}>
-                {changeSign(uniPL)} {Math.abs(uniPct).toFixed(2)}% ({fmtPrice(Math.abs(uniPL), 'KR')})
+                {fmtChange(uniPct, uniPL)} ({fmtPrice(Math.abs(uniPL), 'KR')})
               </div>
             </div>
           )}
@@ -106,7 +106,7 @@ export default function PortfolioSummary({
                   <div className="text-right">
                     <span className="font-mono tnum text-sm">{fmtPrice(r.value, r.m)}</span>
                     <span className={`font-mono text-[0.72rem] ml-2 ${changeColor(r.pl)}`}>
-                      {changeSign(r.pl)} {Math.abs(r.pct).toFixed(2)}%
+                      {fmtChange(r.pct, r.pl)}
                     </span>
                   </div>
                 </div>
@@ -120,7 +120,7 @@ export default function PortfolioSummary({
               {fx.data && (
                 <span className={changeColor(fx.data.change)}>
                   {' '}
-                  {changeSign(fx.data.change)} {Math.abs(fx.data.changePct).toFixed(2)}%
+                  {fmtChange(fx.data.changePct, fx.data.change)}
                 </span>
               )}
             </div>

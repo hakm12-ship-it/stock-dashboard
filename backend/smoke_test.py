@@ -52,8 +52,14 @@ CALLS = [
     ("/api/daily-report", {}),
     ("/api/night-price", {"ticker": "005930"}),
     ("/api/night-candles", {"ticker": "005930", "interval": "5m"}),
+    ("/api/night-gap-history", {"ticker": "005930"}),
     ("/api/related-insight", {"ticker": "000660"}),
     ("/api/ai-briefing", {"market": "KR", "ticker": "005930", "name": "삼성전자"}),
+    # 레버리지·합성추정 — 국내(0193T0)와 미국(KORU) 경로가 갈리므로 둘 다 본다
+    ("/api/leverage-decay", {"ticker": "KORU", "period": "6m"}),
+    ("/api/fx-attribution", {"ticker": "SOXL", "market": "US", "period": "3m"}),
+    ("/api/synth-price", {"ticker": "KORU"}),
+    ("/api/synth-price", {"ticker": "0193T0"}),
 ]
 
 
@@ -71,14 +77,16 @@ def shape(v):
 def collect() -> dict:
     result = {}
     for path, params in CALLS:
-        url = f"{BASE}{path}"
-        if params:
-            url += "?" + urllib.parse.urlencode(params)
+        query = urllib.parse.urlencode(params) if params else ""
+        url = f"{BASE}{path}" + (f"?{query}" if query else "")
+        # 같은 경로를 파라미터만 바꿔 여러 번 부르므로(예: synth-price의 국내/미국),
+        # 경로만 키로 쓰면 뒤엣것이 앞엣것을 덮어써 결과가 조용히 사라진다.
+        key = f"{path}?{query}" if query else path
         try:
             with urllib.request.urlopen(url, timeout=60) as r:
-                result[path] = {"status": r.status, "shape": shape(json.loads(r.read()))}
+                result[key] = {"status": r.status, "shape": shape(json.loads(r.read()))}
         except Exception as e:
-            result[path] = {"status": "ERROR", "shape": str(e)}
+            result[key] = {"status": "ERROR", "shape": str(e)}
     return result
 
 

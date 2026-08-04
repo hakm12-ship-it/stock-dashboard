@@ -41,3 +41,12 @@ export const fmtEps = (v: number | null | undefined, market: Market): string => 
 // 상승=빨강 / 하락=파랑 (KR 관례) 클래스
 export const changeColor = (v: number): string => (v >= 0 ? 'text-up' : 'text-down')
 export const changeSign = (v: number): string => (v >= 0 ? '▲' : '▼')
+
+/**
+ * 등락률을 화살표+절댓값으로 (예: "▲ 1.23%"). 부호는 화살표가 나타내므로 숫자는 절댓값.
+ * 방향과 크기를 따로 받을 수 있다 — 등락'액'으로 방향을 정하고 등락'률'을 보여주는 자리가 많아서다.
+ */
+export const fmtChange = (pct: number | null | undefined, dir?: number): string => {
+  if (pct == null) return '—'
+  return `${changeSign(dir ?? pct)} ${Math.abs(pct).toFixed(2)}%`
+}

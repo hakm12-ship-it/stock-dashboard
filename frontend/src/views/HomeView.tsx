@@ -11,7 +11,7 @@ import MarketTop from '../components/MarketTop'
 import GroupsPanel from '../components/GroupsPanel'
 import type { Holding } from '../lib/holdings'
 import { loadSignalConfig, cfgKey, cfgParams } from '../lib/signalConfig'
-import { fmtQuote, changeColor, changeSign } from '../lib/format'
+import { fmtQuote, fmtChange, changeColor } from '../lib/format'
 
 const UP = '#F23645'
 const DOWN = '#2E86FF'
@@ -152,7 +152,7 @@ function HomeCard({
           <div className="font-mono font-semibold tnum text-[0.95rem]">{fmtQuote(priceVal, t)}</div>
           {hasChange && (
             <div className={`font-mono text-[0.72rem] ${changeColor(chg)}`}>
-              {changeSign(chg)} {Math.abs(pct).toFixed(2)}%
+              {fmtChange(pct, chg)}
             </div>
           )}
           {nightEnabled && night.data?.available && (
@@ -162,8 +162,7 @@ function HomeCard({
                 ₩{Math.round(night.data.krw ?? 0).toLocaleString()}
               </span>
               <span className={`font-mono text-[0.62rem] ${changeColor(night.data.gapPct ?? 0)}`}>
-                {changeSign(night.data.gapPct ?? 0)}
-                {Math.abs(night.data.gapPct ?? 0).toFixed(2)}%
+                {fmtChange(night.data.gapPct ?? 0)}
               </span>
             </div>
           )}
@@ -174,8 +173,7 @@ function HomeCard({
                 {fmtQuote(synth.data.estimate, t)}
               </span>
               <span className={`font-mono text-[0.62rem] ${changeColor(synth.data.changePct ?? 0)}`}>
-                {changeSign(synth.data.changePct ?? 0)}
-                {Math.abs(synth.data.changePct ?? 0).toFixed(2)}%
+                {fmtChange(synth.data.changePct ?? 0)}
               </span>
             </div>
           )}

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRelatedInsight } from '../lib/api'
-import { changeColor, changeSign } from '../lib/format'
+import { fmtChange, changeColor } from '../lib/format'
 
 export default function RelatedInsightPanel({ ticker }: { ticker: string }) {
   const { data, isLoading } = useQuery({
@@ -30,7 +30,7 @@ export default function RelatedInsightPanel({ ticker }: { ticker: string }) {
               </div>
               {s.changePct != null ? (
                 <span className={`font-mono text-[0.78rem] font-semibold shrink-0 ${changeColor(s.changePct)}`}>
-                  {changeSign(s.changePct)} {Math.abs(s.changePct).toFixed(2)}%
+                  {fmtChange(s.changePct)}
                 </span>
               ) : (
                 <span className="text-[0.7rem] text-muted shrink-0">—</span>
