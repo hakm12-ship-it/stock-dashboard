@@ -99,14 +99,16 @@ def api_synth_price(ticker: str):
         return {"available": False}
     perp, leverage, und_name = entry
 
-    base = load_last_session_close(ticker)
-    if not base:
-        return {"available": False}
+    try:
+        base = load_last_session_close(ticker)
+        # 60m = Hyperliquid의 1h. 지원 키가 아닌 값을 넘기면 조용히 5분봉으로
+        # 떨어져 조회 구간이 10시간밖에 안 된다(정규장 마감이 범위 밖으로 나감).
+        candles = cached_perp_candles(perp, "60m", 72)
+    except Exception as e:
+        return {"available": False, "error": str(e)}
+    if not base or not candles:
+        return {"available": False, "error": "기준 시세 없음"}
     last_close, close_ms = base
-
-    candles = cached_perp_candles(perp, "1h", 120)
-    if not candles:
-        return {"available": False}
 
     # 정규장 마감 시각에 가장 가까운 봉을 기준으로 삼는다. 같은 perp 시장
     # 안에서 비교해야 현물과의 괴리(basis)가 상쇄된다.
