@@ -4,6 +4,7 @@ import { getPrices } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import type { Holding } from '../lib/holdings'
 import { fmtPrice, fmtChange, changeColor } from '../lib/format'
+import { Sheet } from './ui'
 
 function HoldingRow({ h, onRemove }: { h: Holding; onRemove: () => void }) {
   const { data } = useQuery({ queryKey: ['prices', h.ticker, '1m'], queryFn: () => getPrices(h.ticker, '1m') })
@@ -93,113 +94,104 @@ export default function HoldingsSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-ink flex flex-col fade-in">
-      <div className="flex items-center justify-between px-4 pt-safe pb-3 border-b border-border">
-        <span className="text-base font-bold">보유종목 · 손익</span>
-        <button onClick={onClose} className="relative z-10 text-muted text-2xl leading-none px-2 active:text-text before:absolute before:-inset-3 before:content-['']">
-          ×
+    <Sheet title="보유종목 · 손익" onClose={onClose}>
+      <div className="bg-surface border border-border rounded-xl p-3 space-y-2 card-shadow">
+        <div className="text-[0.7rem] font-semibold uppercase tracking-[0.07em] text-muted">
+          보유 추가 / 수정
+        </div>
+        <select
+          value={selKey}
+          onChange={(e) => setSelKey(e.target.value)}
+          className="w-full bg-ink border border-border rounded-lg px-3 py-2 text-sm text-text"
+        >
+          {options.map((o) => (
+            <option key={`${o.market}-${o.ticker}`} value={`${o.market}-${o.ticker}`}>
+              {o.name} ({o.ticker})
+            </option>
+          ))}
+        </select>
+        <div className="flex gap-2">
+          <input
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+            inputMode="decimal"
+            placeholder="수량(주)"
+            className="flex-1 bg-ink border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-accent"
+          />
+          <input
+            value={avg}
+            onChange={(e) => setAvg(e.target.value)}
+            inputMode="decimal"
+            placeholder="평균 매수가"
+            className="flex-1 bg-ink border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-accent"
+          />
+        </div>
+        <button
+          onClick={add}
+          className="w-full bg-accent/15 border border-accent/50 text-accent rounded-lg min-h-[44px] text-sm font-medium active:bg-accent/25"
+        >
+          추가 / 수정
         </button>
+        <p className="text-[0.6rem] text-muted">
+          같은 종목을 다시 추가하면 덮어써요. 보유하려는 종목이 목록에 없으면 홈에서 먼저 검색·추가하세요.
+        </p>
       </div>
 
-      <div className="px-4 py-3 space-y-3 overflow-y-auto flex-1 pb-10">
-        <div className="bg-surface border border-border rounded-xl p-3 space-y-2 card-shadow">
-          <div className="text-[0.7rem] font-semibold uppercase tracking-[0.07em] text-muted">
-            보유 추가 / 수정
-          </div>
-          <select
-            value={selKey}
-            onChange={(e) => setSelKey(e.target.value)}
-            className="w-full bg-ink border border-border rounded-lg px-3 py-2 text-sm text-text"
-          >
-            {options.map((o) => (
-              <option key={`${o.market}-${o.ticker}`} value={`${o.market}-${o.ticker}`}>
-                {o.name} ({o.ticker})
-              </option>
-            ))}
-          </select>
-          <div className="flex gap-2">
-            <input
-              value={qty}
-              onChange={(e) => setQty(e.target.value)}
-              inputMode="decimal"
-              placeholder="수량(주)"
-              className="flex-1 bg-ink border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-accent"
-            />
-            <input
-              value={avg}
-              onChange={(e) => setAvg(e.target.value)}
-              inputMode="decimal"
-              placeholder="평균 매수가"
-              className="flex-1 bg-ink border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-accent"
-            />
-          </div>
-          <button
-            onClick={add}
-            className="w-full bg-accent/15 border border-accent/50 text-accent rounded-lg min-h-[44px] text-sm font-medium active:bg-accent/25"
-          >
-            추가 / 수정
-          </button>
-          <p className="text-[0.6rem] text-muted">
-            같은 종목을 다시 추가하면 덮어써요. 보유하려는 종목이 목록에 없으면 홈에서 먼저 검색·추가하세요.
-          </p>
+      {holdings.length === 0 ? (
+        <div className="text-muted text-sm text-center py-6">아직 보유종목이 없어요</div>
+      ) : (
+        <div className="bg-surface border border-border rounded-xl px-3 card-shadow">
+          {holdings.map((h) => (
+            <HoldingRow key={`${h.market}-${h.ticker}`} h={h} onRemove={() => onRemove(h)} />
+          ))}
         </div>
+      )}
 
-        {holdings.length === 0 ? (
-          <div className="text-muted text-sm text-center py-6">아직 보유종목이 없어요</div>
-        ) : (
-          <div className="bg-surface border border-border rounded-xl px-3 card-shadow">
-            {holdings.map((h) => (
-              <HoldingRow key={`${h.market}-${h.ticker}`} h={h} onRemove={() => onRemove(h)} />
-            ))}
+      {/* 백업 · 복원 */}
+      <div className="bg-surface border border-border rounded-xl p-3 space-y-2 card-shadow">
+        <div className="text-[0.7rem] font-semibold uppercase tracking-[0.07em] text-muted">
+          백업 · 복원
+        </div>
+        <p className="text-[0.62rem] text-muted leading-relaxed">
+          데이터는 이 기기에만 저장돼요. 폰을 바꾸거나 브라우저 데이터를 지우면 사라지니, 가끔
+          내보내기로 백업해두세요.
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={doExport}
+            className="flex-1 border border-border rounded-lg min-h-[44px] text-sm text-text active:bg-surface-2"
+          >
+            내보내기 (복사)
+          </button>
+          <button
+            onClick={() => {
+              setImportOpen((v) => !v)
+              setBackupMsg('')
+            }}
+            className="flex-1 border border-border rounded-lg min-h-[44px] text-sm text-text active:bg-surface-2"
+          >
+            가져오기
+          </button>
+        </div>
+        {importOpen && (
+          <div className="space-y-2">
+            <textarea
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+              rows={4}
+              placeholder="내보내기로 복사한 내용을 붙여넣으세요"
+              className="w-full bg-ink border border-border rounded-lg px-3 py-2 text-[0.7rem] font-mono outline-none focus:border-accent"
+            />
+            <button
+              onClick={doImport}
+              className="w-full bg-accent/15 border border-accent/50 text-accent rounded-lg min-h-[44px] text-sm font-medium active:bg-accent/25"
+            >
+              적용 (기존 목록 교체)
+            </button>
           </div>
         )}
-
-        {/* 백업 · 복원 */}
-        <div className="bg-surface border border-border rounded-xl p-3 space-y-2 card-shadow">
-          <div className="text-[0.7rem] font-semibold uppercase tracking-[0.07em] text-muted">
-            백업 · 복원
-          </div>
-          <p className="text-[0.62rem] text-muted leading-relaxed">
-            데이터는 이 기기에만 저장돼요. 폰을 바꾸거나 브라우저 데이터를 지우면 사라지니, 가끔
-            내보내기로 백업해두세요.
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={doExport}
-              className="flex-1 border border-border rounded-lg min-h-[44px] text-sm text-text active:bg-surface-2"
-            >
-              내보내기 (복사)
-            </button>
-            <button
-              onClick={() => {
-                setImportOpen((v) => !v)
-                setBackupMsg('')
-              }}
-              className="flex-1 border border-border rounded-lg min-h-[44px] text-sm text-text active:bg-surface-2"
-            >
-              가져오기
-            </button>
-          </div>
-          {importOpen && (
-            <div className="space-y-2">
-              <textarea
-                value={importText}
-                onChange={(e) => setImportText(e.target.value)}
-                rows={4}
-                placeholder="내보내기로 복사한 내용을 붙여넣으세요"
-                className="w-full bg-ink border border-border rounded-lg px-3 py-2 text-[0.7rem] font-mono outline-none focus:border-accent"
-              />
-              <button
-                onClick={doImport}
-                className="w-full bg-accent/15 border border-accent/50 text-accent rounded-lg min-h-[44px] text-sm font-medium active:bg-accent/25"
-              >
-                적용 (기존 목록 교체)
-              </button>
-            </div>
-          )}
-          {backupMsg && <p className="text-[0.66rem] text-accent">{backupMsg}</p>}
-        </div>
+        {backupMsg && <p className="text-[0.66rem] text-accent">{backupMsg}</p>}
       </div>
-    </div>
+    </Sheet>
   )
 }

@@ -9,6 +9,22 @@ from deps import cached_deal_trend, cached_peers, cached_profile, load, market_n
 
 router = APIRouter()
 
+_EMPTY_PROFILE = {"name": None, "description": None, "logo": None, "researches": []}
+
+
+def _kr_only(market: str, fetch, ticker: str, fallback):
+    """네이버 기반 국내 전용 조회 — 해외 종목이거나 조회가 실패하면 기본값.
+
+    이 계열은 없으면 그냥 안 보여주는 부가 정보라, 실패를 500으로 올리지 않고
+    빈 값으로 떨어뜨려 화면이 깨지지 않게 한다.
+    """
+    if market.upper() == "KR":
+        try:
+            return fetch(ticker)
+        except Exception:
+            pass
+    return fallback
+
 
 @router.get("/api/valuation")
 def api_valuation(market: str, ticker: str):
@@ -61,29 +77,14 @@ def api_leverage_decay(ticker: str, period: str = "6m"):
 
 @router.get("/api/peers")
 def api_peers(market: str, ticker: str):
-    if market.upper() == "KR":
-        try:
-            return cached_peers(ticker)
-        except Exception:
-            pass
-    return []
+    return _kr_only(market, cached_peers, ticker, [])
 
 
 @router.get("/api/deal-trend")
 def api_deal_trend(market: str, ticker: str):
-    if market.upper() == "KR":
-        try:
-            return cached_deal_trend(ticker)
-        except Exception:
-            pass
-    return []
+    return _kr_only(market, cached_deal_trend, ticker, [])
 
 
 @router.get("/api/profile")
 def api_profile(market: str, ticker: str):
-    if market.upper() == "KR":
-        try:
-            return cached_profile(ticker)
-        except Exception:
-            pass
-    return {"name": None, "description": None, "logo": None, "researches": []}
+    return _kr_only(market, cached_profile, ticker, dict(_EMPTY_PROFILE))

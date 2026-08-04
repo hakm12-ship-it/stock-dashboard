@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getPrices, getValuation, getSignal, type Period, type Candle } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import { fmtQuote, fmtNum, changeColor } from '../lib/format'
-import { ChartFallback } from './ui'
+import { ChartFallback, Sheet } from './ui'
 
 // 차트 라이브러리가 무거워서 비교 시트를 열 때만 받는다.
 const CompareChart = lazy(() => import('./CompareChart'))
@@ -91,96 +91,87 @@ export default function ComparisonSheet({
   const rb = retVal(db)
 
   return (
-    <div className="fixed inset-0 z-50 bg-ink flex flex-col fade-in">
-      <div className="flex items-center justify-between px-4 pt-safe pb-3 border-b border-border">
-        <span className="text-base font-bold">종목 비교</span>
-        <button onClick={onClose} className="relative z-10 text-muted text-2xl leading-none px-2 active:text-text before:absolute before:-inset-3 before:content-['']">
-          ×
-        </button>
+    <Sheet title="종목 비교" onClose={onClose}>
+      {/* 종목 선택 */}
+      <div className="flex items-center gap-2">
+        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: CA }} />
+        <Select value={aKey} onChange={setAKey} />
+        <span className="text-muted text-xs">vs</span>
+        <Select value={bKey} onChange={setBKey} />
+        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: CB }} />
       </div>
 
-      <div className="px-4 py-3 space-y-3 overflow-y-auto flex-1 pb-10">
-        {/* 종목 선택 */}
-        <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: CA }} />
-          <Select value={aKey} onChange={setAKey} />
-          <span className="text-muted text-xs">vs</span>
-          <Select value={bKey} onChange={setBKey} />
-          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: CB }} />
-        </div>
-
-        {/* 기간 */}
-        <div className="flex gap-1 bg-surface border border-border rounded-lg p-1">
-          {PERIODS.map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={`flex-1 min-h-[44px] rounded-md text-xs font-medium ${
-                p === period ? 'bg-accent/20 text-text' : 'text-muted'
-              }`}
-            >
-              {LABEL[p]}
-            </button>
-          ))}
-        </div>
-
-        {/* 수익률 차트 */}
-        <div className="bg-surface border border-border rounded-xl p-3 card-shadow">
-          <div className="text-[0.66rem] text-muted mb-1">기간 수익률 비교 (시작점 0%)</div>
-          <Suspense fallback={<ChartFallback height={200} />}>
-            <CompareChart series={series} light={light} />
-          </Suspense>
-        </div>
-
-        {/* 지표 표 */}
-        <div className="bg-surface border border-border rounded-xl px-4 py-2 card-shadow">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-[0.66rem] text-muted uppercase tracking-wide">
-                <th className="text-left font-medium py-2">지표</th>
-                <th className="text-right font-medium" style={{ color: CA }}>
-                  {a?.short}
-                </th>
-                <th className="text-right font-medium" style={{ color: CB }}>
-                  {b?.short}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-t border-border">
-                <td className="text-muted py-2">현재가</td>
-                <Cell>{priceStr(da, a)}</Cell>
-                <Cell>{priceStr(db, b)}</Cell>
-              </tr>
-              <tr className="border-t border-border">
-                <td className="text-muted py-2">기간 수익률</td>
-                <td className={`text-right py-2 font-mono tnum ${ra != null ? changeColor(ra) : ''}`}>{retStr(ra)}</td>
-                <td className={`text-right py-2 font-mono tnum ${rb != null ? changeColor(rb) : ''}`}>{retStr(rb)}</td>
-              </tr>
-              <tr className="border-t border-border">
-                <td className="text-muted py-2">신호</td>
-                <Cell>{da.sig.data?.verdict ?? '—'}</Cell>
-                <Cell>{db.sig.data?.verdict ?? '—'}</Cell>
-              </tr>
-              <tr className="border-t border-border">
-                <td className="text-muted py-2">PER</td>
-                <Cell>{fmtNum(da.val.data?.PER, 1)}</Cell>
-                <Cell>{fmtNum(db.val.data?.PER, 1)}</Cell>
-              </tr>
-              <tr className="border-t border-border">
-                <td className="text-muted py-2">PBR</td>
-                <Cell>{fmtNum(da.val.data?.PBR, 2)}</Cell>
-                <Cell>{fmtNum(db.val.data?.PBR, 2)}</Cell>
-              </tr>
-              <tr className="border-t border-border">
-                <td className="text-muted py-2">ROE</td>
-                <Cell>{da.val.data?.ROE != null ? `${(da.val.data.ROE * 100).toFixed(1)}%` : '—'}</Cell>
-                <Cell>{db.val.data?.ROE != null ? `${(db.val.data.ROE * 100).toFixed(1)}%` : '—'}</Cell>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      {/* 기간 */}
+      <div className="flex gap-1 bg-surface border border-border rounded-lg p-1">
+        {PERIODS.map((p) => (
+          <button
+            key={p}
+            onClick={() => setPeriod(p)}
+            className={`flex-1 min-h-[44px] rounded-md text-xs font-medium ${
+              p === period ? 'bg-accent/20 text-text' : 'text-muted'
+            }`}
+          >
+            {LABEL[p]}
+          </button>
+        ))}
       </div>
-    </div>
+
+      {/* 수익률 차트 */}
+      <div className="bg-surface border border-border rounded-xl p-3 card-shadow">
+        <div className="text-[0.66rem] text-muted mb-1">기간 수익률 비교 (시작점 0%)</div>
+        <Suspense fallback={<ChartFallback height={200} />}>
+          <CompareChart series={series} light={light} />
+        </Suspense>
+      </div>
+
+      {/* 지표 표 */}
+      <div className="bg-surface border border-border rounded-xl px-4 py-2 card-shadow">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-[0.66rem] text-muted uppercase tracking-wide">
+              <th className="text-left font-medium py-2">지표</th>
+              <th className="text-right font-medium" style={{ color: CA }}>
+                {a?.short}
+              </th>
+              <th className="text-right font-medium" style={{ color: CB }}>
+                {b?.short}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-t border-border">
+              <td className="text-muted py-2">현재가</td>
+              <Cell>{priceStr(da, a)}</Cell>
+              <Cell>{priceStr(db, b)}</Cell>
+            </tr>
+            <tr className="border-t border-border">
+              <td className="text-muted py-2">기간 수익률</td>
+              <td className={`text-right py-2 font-mono tnum ${ra != null ? changeColor(ra) : ''}`}>{retStr(ra)}</td>
+              <td className={`text-right py-2 font-mono tnum ${rb != null ? changeColor(rb) : ''}`}>{retStr(rb)}</td>
+            </tr>
+            <tr className="border-t border-border">
+              <td className="text-muted py-2">신호</td>
+              <Cell>{da.sig.data?.verdict ?? '—'}</Cell>
+              <Cell>{db.sig.data?.verdict ?? '—'}</Cell>
+            </tr>
+            <tr className="border-t border-border">
+              <td className="text-muted py-2">PER</td>
+              <Cell>{fmtNum(da.val.data?.PER, 1)}</Cell>
+              <Cell>{fmtNum(db.val.data?.PER, 1)}</Cell>
+            </tr>
+            <tr className="border-t border-border">
+              <td className="text-muted py-2">PBR</td>
+              <Cell>{fmtNum(da.val.data?.PBR, 2)}</Cell>
+              <Cell>{fmtNum(db.val.data?.PBR, 2)}</Cell>
+            </tr>
+            <tr className="border-t border-border">
+              <td className="text-muted py-2">ROE</td>
+              <Cell>{da.val.data?.ROE != null ? `${(da.val.data.ROE * 100).toFixed(1)}%` : '—'}</Cell>
+              <Cell>{db.val.data?.ROE != null ? `${(db.val.data.ROE * 100).toFixed(1)}%` : '—'}</Cell>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </Sheet>
   )
 }

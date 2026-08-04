@@ -25,6 +25,37 @@ export function Panel({
   )
 }
 
+/**
+ * 전체화면 시트의 공통 껍데기 — 제목 줄 + 닫기 버튼 + 스크롤 본문.
+ * 닫기 버튼의 탭 영역 확장(before:-inset-3)이 네 시트에 복붙돼 있어서
+ * 한 곳만 고치면 어긋나던 걸 여기로 모았다.
+ */
+export function Sheet({
+  title,
+  onClose,
+  children,
+}: {
+  title: string
+  onClose: () => void
+  children: ReactNode
+}) {
+  return (
+    <div className="fixed inset-0 z-50 bg-ink flex flex-col fade-in">
+      <div className="flex items-center justify-between px-4 pt-safe pb-3 border-b border-border">
+        <span className="text-base font-bold">{title}</span>
+        <button
+          onClick={onClose}
+          aria-label="닫기"
+          className="relative z-10 text-muted text-2xl leading-none px-2 active:text-text before:absolute before:-inset-3 before:content-['']"
+        >
+          ×
+        </button>
+      </div>
+      <div className="px-4 py-3 space-y-3 overflow-y-auto flex-1 pb-10">{children}</div>
+    </div>
+  )
+}
+
 export function Metric({
   label,
   value,
