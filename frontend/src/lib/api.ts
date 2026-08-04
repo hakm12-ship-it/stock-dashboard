@@ -206,6 +206,20 @@ export interface NightCandles {
 export const getNightCandles = (ticker: string, interval: NightInterval) =>
   get<NightCandles>('/api/night-candles', { ticker, interval })
 
+/** 미국 정규장 밖에서 기초자산 perp로 합성한 레버리지 ETF 추정가 */
+export interface SynthPrice {
+  available: boolean
+  estimate?: number
+  lastClose?: number
+  lastCloseAt?: number
+  changePct?: number
+  underlyingName?: string
+  underlyingPct?: number
+  leverage?: number
+  asOf?: number
+}
+export const getSynthPrice = (ticker: string) => get<SynthPrice>('/api/synth-price', { ticker })
+
 export interface RelatedStock {
   ticker: string
   name: string

@@ -1,11 +1,11 @@
 import { lazy, Suspense, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getPrices, getIndex, getProfile, getNightPrice, type Period } from '../lib/api'
+import { getPrices, getIndex, getProfile, getNightPrice, getSynthPrice, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import { fmtQuote, changeColor, changeSign } from '../lib/format'
 import { marketStatus } from '../lib/market'
 import { ChartFallback } from './ui'
-import { hasNightPrice, nightLabel } from '../lib/night'
+import { hasNightPrice, nightLabel, showSynthPrice } from '../lib/night'
 
 // 차트 라이브러리가 무거워서 '차트 보기'를 누를 때만 받는다.
 const NightCandleChart = lazy(() => import('./NightCandleChart'))
@@ -34,6 +34,15 @@ export default function StockHeader({ t, period, light = false }: { t: FocusTick
     queryFn: () => getNightPrice(t.ticker),
     enabled: nightEnabled,
     refetchInterval: nightEnabled ? 30_000 : false,
+  })
+
+  // 미국 정규장 밖에서만: 기초자산 perp로 합성한 추정가
+  const synthEnabled = showSynthPrice(t)
+  const synth = useQuery({
+    queryKey: ['synth-price', t.ticker],
+    queryFn: () => getSynthPrice(t.ticker),
+    enabled: synthEnabled,
+    refetchInterval: synthEnabled ? 60_000 : false,
   })
 
   const last = prices.data?.[prices.data.length - 1]
@@ -151,6 +160,30 @@ export default function StockHeader({ t, period, light = false }: { t: FocusTick
           >
             {showNightChart ? '차트 닫기' : '차트 보기'}
           </button>
+        </div>
+      )}
+      {synthEnabled && synth.data?.available && (
+        <div className="mt-1.5 rounded-lg border border-accent/30 bg-accent/5 px-2.5 py-2">
+          <div className="flex items-baseline gap-2">
+            <span className="text-[0.58rem] text-accent border border-accent/40 rounded px-1 py-0.5 shrink-0">
+              추정
+            </span>
+            <span className="font-mono text-lg font-semibold tnum">
+              ${(synth.data.estimate ?? 0).toFixed(2)}
+            </span>
+            <span className={`font-mono text-[0.72rem] ${changeColor(synth.data.changePct ?? 0)}`}>
+              {changeSign(synth.data.changePct ?? 0)}{' '}
+              {Math.abs(synth.data.changePct ?? 0).toFixed(2)}%
+            </span>
+          </div>
+          <div className="text-[0.6rem] text-muted mt-1 leading-relaxed">
+            {synth.data.underlyingName} {(synth.data.underlyingPct ?? 0) >= 0 ? '+' : ''}
+            {(synth.data.underlyingPct ?? 0).toFixed(2)}% × {synth.data.leverage}배로 계산 · 기준
+            정규장 종가 ${(synth.data.lastClose ?? 0).toFixed(2)}
+          </div>
+          <div className="text-[0.58rem] text-muted/70 mt-0.5">
+            실제 체결가가 아니라 추정치예요 · 기초자산 흔들림이 {synth.data.leverage}배로 커져요
+          </div>
         </div>
       )}
       {nightEnabled && showNightChart && (

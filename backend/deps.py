@@ -90,11 +90,50 @@ def adjust_splits(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+@ttl_cache(60 * 10)
+def _hourly_closes(ticker: str) -> dict:
+    """{장 날짜: 종가} — 미국 일봉의 종가가 늦게 채워지는 구간을 메우는 데 쓴다."""
+    import yfinance as yf
+
+    h = yf.Ticker(ticker).history(period="7d", interval="1h")["Close"].dropna()
+    if h.empty:
+        return {}
+    h.index = h.index.tz_convert("America/New_York")
+    return {d: float(v.iloc[-1]) for d, v in h.groupby(h.index.date)}
+
+
+def _fill_missing_close(df: pd.DataFrame, ticker: str) -> pd.DataFrame:
+    """마지막 세션의 Close가 NaN이면 시간봉 종가로 메운다.
+
+    FDR은 미국 종목의 당일 행을 시가·고가·저가까지만 채우고 종가는 한참 뒤에
+    넣어준다. 그대로 dropna하면 이미 끝난 세션이 통째로 사라져서, 화요일 오후에
+    금요일 종가를 보여주는 일이 생긴다(실측: KORU 5.9% 차이).
+    """
+    if "Close" not in df.columns or df.empty:
+        return df
+    missing = df.index[df["Close"].isna()]
+    if len(missing) == 0:
+        return df
+    try:
+        closes = _hourly_closes(ticker)
+    except Exception:
+        return df
+    if not closes:
+        return df
+    df = df.copy()
+    for idx in missing:
+        px = closes.get(idx.date())
+        if px is not None:
+            df.loc[idx, "Close"] = px
+    return df
+
+
 @ttl_cache(60)
 def load(ticker: str, period: str) -> pd.DataFrame:
     start = date.today() - timedelta(days=PERIOD_DAYS.get(period, 90))
     df = fdr.DataReader(ticker, start)
-    # 장중 미확정 행 등 Close가 NaN인 행 제거 (JSON 직렬화·지표 계산 오류 방지)
+    df = _fill_missing_close(df, ticker)
+    # 메우지 못한 미확정 행은 제거 (JSON 직렬화·지표 계산 오류 방지)
     return adjust_splits(df.dropna(subset=["Close"]))
 
 
@@ -117,6 +156,17 @@ def load_fx_hist(period: str) -> pd.DataFrame:
 @ttl_cache(60 * 30)
 def load_wti() -> pd.DataFrame:
     return fdr.DataReader("CL=F", date.today() - timedelta(days=30))
+
+
+@ttl_cache(60 * 5)
+def load_last_session_close(ticker: str) -> tuple[float, int] | None:
+    """(마지막 정규장 종가, 그 시각 ms). 일봉은 하루 늦게 집계되므로 시간봉을 쓴다."""
+    import yfinance as yf
+
+    h = yf.Ticker(ticker).history(period="5d", interval="1h")["Close"].dropna()
+    if h.empty:
+        return None
+    return float(h.iloc[-1]), int(h.index[-1].timestamp() * 1000)
 
 
 def series(s: pd.Series):
