@@ -188,3 +188,38 @@ def naver_profile(code: str) -> dict:
         "logo": logo,
         "researches": researches,
     }
+
+
+# 네이버는 미국 종목을 로이터 코드(.O 나스닥 / .K AMEX·ARCA / .N NYSE)로 식별한다.
+# 어느 접미사인지 미리 알 수 없어 순서대로 시도하고 결과를 기억한다.
+_US_SUFFIXES = (".O", ".K", ".N")
+_us_suffix_cache: dict[str, str] = {}
+
+
+def naver_us_quote(ticker: str) -> dict:
+    """미국 종목의 최근 정규장 종가.
+
+    Render에서 yfinance가 야후에 차단(429)되므로 미국 시세도 네이버로 받는다.
+    반환: {close, tradedAt(ISO), changePct, marketOpen}
+    """
+    suffixes = (_us_suffix_cache[ticker],) if ticker in _us_suffix_cache else _US_SUFFIXES
+    last_err = None
+    for sfx in suffixes:
+        try:
+            req = urllib.request.Request(
+                f"https://api.stock.naver.com/stock/{ticker}{sfx}/basic",
+                headers={"User-Agent": "Mozilla/5.0", "Referer": "https://m.stock.naver.com/"},
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                d = json.loads(resp.read())
+        except Exception as e:  # 404/409 = 다른 거래소, 다음 접미사로
+            last_err = e
+            continue
+        _us_suffix_cache[ticker] = sfx
+        return {
+            "close": _num(d["closePrice"]),
+            "tradedAt": d.get("localTradedAt"),
+            "changePct": _num(d.get("fluctuationsRatio") or 0),
+            "marketOpen": d.get("marketStatus") == "OPEN",
+        }
+    raise RuntimeError(f"네이버에서 {ticker} 시세를 찾지 못함: {last_err}")
