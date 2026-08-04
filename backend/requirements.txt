@@ -1,7 +1,13 @@
-fastapi>=0.110
-uvicorn[standard]>=0.29
-finance-datareader>=0.9.90
-yfinance>=0.2
-pandas>=2.2
-numpy>=1.26
-python-dotenv>=1.0
+# 상한선은 메이저 폭탄 방지용이다. 이 앱은 push마다 Render가 재빌드하면서
+# 그때의 최신 버전을 새로 받으므로, 상한이 없으면 코드를 건드리지 않아도
+# 업스트림 릴리스만으로 배포가 깨질 수 있다 (특히 데이터 소스인
+# finance-datareader·yfinance는 파괴적 변경이 잦다).
+fastapi>=0.110,<1.0
+uvicorn[standard]>=0.29,<1.0
+finance-datareader>=0.9.90,<1.0
+yfinance>=0.2,<2.0
+pandas>=2.2,<3.0
+numpy>=1.26,<3.0
+python-dotenv>=1.0,<2.0
+# data/hyperliquid.py가 직접 쓴다. yfinance 등에 딸려오길 기대하지 말 것.
+requests>=2.31,<3.0
