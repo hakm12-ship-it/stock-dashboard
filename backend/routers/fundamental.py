@@ -3,7 +3,9 @@
 from fastapi import APIRouter
 
 from analysis.fundamental import analyst_target, forward_pe, revenue_trend, valuation
-from deps import cached_deal_trend, cached_peers, cached_profile, market_name, series
+from analysis.leverage import decay_analysis
+from data.leveraged import LEVERAGED
+from deps import cached_deal_trend, cached_peers, cached_profile, load, market_name, series
 
 router = APIRouter()
 
@@ -32,6 +34,29 @@ def api_forward_pe(market: str, ticker: str):
 @router.get("/api/target")
 def api_target(market: str, ticker: str):
     return analyst_target(market_name(market), ticker)
+
+
+@router.get("/api/leverage-decay")
+def api_leverage_decay(ticker: str, period: str = "6m"):
+    entry = LEVERAGED.get(ticker)
+    if not entry:
+        return {"available": False}
+    und_ticker, und_name, lev = entry
+    try:
+        etf = load(ticker, period)["Close"].dropna()
+        und = load(und_ticker, period)["Close"].dropna()
+    except Exception:
+        return {"available": False}
+
+    result = decay_analysis(etf, und, lev)
+    if result is None:
+        return {"available": False}
+    return {
+        "available": True,
+        "underlyingTicker": und_ticker,
+        "underlyingName": und_name,
+        **result,
+    }
 
 
 @router.get("/api/peers")

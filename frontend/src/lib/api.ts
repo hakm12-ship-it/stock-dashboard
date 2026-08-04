@@ -222,6 +222,24 @@ export interface RelatedInsight {
 export const getRelatedInsight = (ticker: string) =>
   get<RelatedInsight>('/api/related-insight', { ticker })
 
+export interface LeverageDecay {
+  available: boolean
+  underlyingTicker?: string
+  underlyingName?: string
+  leverage?: number
+  days?: number
+  underlyingReturn?: number
+  naiveExpected?: number
+  theoretical?: number
+  actualReturn?: number
+  totalDecay?: number
+  compoundingDrag?: number
+  costDrag?: number
+  underlyingVol?: number
+}
+export const getLeverageDecay = (ticker: string, period: Period) =>
+  get<LeverageDecay>('/api/leverage-decay', { ticker, period })
+
 export interface MarketTopItem {
   ticker: string
   name: string
