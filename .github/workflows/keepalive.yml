@@ -1,14 +1,14 @@
 # Render 무료 플랜은 15분 미사용 시 잠들어 첫 접속이 ~30초 느려짐.
-# 10분마다 핑을 보내 깨어있게 유지한다.
-# 단, Render 무료 한도(월 750 인스턴스 시간)를 아끼기 위해
-# 한국시간 07:00~01:00(18시간)에만 핑 → 새벽엔 재움 (~558h/월).
-name: Keep Render awake
+#
+# 주 방어선은 외부 핑 서비스(cron-job.org 등)다 — GitHub Actions의 scheduled
+# workflow는 활동이 적은 저장소에서 수 시간씩 밀리는 게 관찰됐다(2026-08-04,
+# 10분 간격 설정인데 실제로는 2.5~4시간 공백). 여기는 그게 놓쳤을 때의 백업이라
+# 시간대 제한 없이 24시간 돈다 — 퍼블릭 저장소라 Actions 분당 비용은 없다.
+name: Keep Render awake (backup)
 
 on:
   schedule:
-    # KST 07:00–01:00 = UTC 22:00–16:00
-    - cron: '*/10 22-23 * * *'
-    - cron: '*/10 0-15 * * *'
+    - cron: '*/10 * * * *'
   workflow_dispatch: {}
 
 jobs:
