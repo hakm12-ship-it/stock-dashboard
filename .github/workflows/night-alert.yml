@@ -13,7 +13,12 @@ on:
     # KST 16:00–08:30 = UTC 07:00–23:30 → 30분마다
     - cron: '0,30 7-23 * * *'
     - cron: '0 0 * * *'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force:
+        description: '중복방지 무시하고 강제 전송 (텔레그램 연동 테스트용)'
+        type: boolean
+        default: false
 
 # 동시에 겹쳐 돌면 상태 파일이 꼬인다
 concurrency:
@@ -46,5 +51,6 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           ALERT_THRESHOLD: '3.0'
           ALERT_STEP: '1.5'
+          ALERT_FORCE: ${{ inputs.force && 'true' || '' }}
         working-directory: backend
         run: python alert_night_gap.py

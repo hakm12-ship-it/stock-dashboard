@@ -81,6 +81,7 @@ def main() -> None:
     today = datetime.now(KST).strftime("%Y-%m-%d")
     state = load_state()
     lines = []
+    force = os.environ.get("ALERT_FORCE") == "true"
 
     for ticker, name in WATCH:
         try:
@@ -92,7 +93,7 @@ def main() -> None:
             continue
         gap = d["gapPct"]
         print(f"{name}: 야간 갭 {gap:+.2f}% (임계 ±{THRESHOLD}%)")
-        if should_alert(gap, state.get(ticker), today):
+        if force or should_alert(gap, state.get(ticker), today):
             arrow = "▲" if gap > 0 else "▼"
             lines.append(
                 f"{arrow} {name} 야간 {gap:+.2f}%\n"
