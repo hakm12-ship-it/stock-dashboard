@@ -169,7 +169,7 @@ export default function StockHeader({ t, period, light = false }: { t: FocusTick
               추정
             </span>
             <span className="font-mono text-lg font-semibold tnum">
-              ${(synth.data.estimate ?? 0).toFixed(2)}
+              {fmtQuote(synth.data.estimate, t)}
             </span>
             <span className={`font-mono text-[0.72rem] ${changeColor(synth.data.changePct ?? 0)}`}>
               {changeSign(synth.data.changePct ?? 0)}{' '}
@@ -179,7 +179,7 @@ export default function StockHeader({ t, period, light = false }: { t: FocusTick
           <div className="text-[0.6rem] text-muted mt-1 leading-relaxed">
             {synth.data.underlyingName} {(synth.data.underlyingPct ?? 0) >= 0 ? '+' : ''}
             {(synth.data.underlyingPct ?? 0).toFixed(2)}% × {synth.data.leverage}배로 계산 · 기준
-            정규장 종가 ${(synth.data.lastClose ?? 0).toFixed(2)}
+            정규장 종가 {fmtQuote(synth.data.lastClose, t)}
           </div>
           <div className="text-[0.58rem] text-muted/70 mt-0.5">
             실제 체결가가 아니라 추정치예요 · 기초자산 흔들림이 {synth.data.leverage}배로 커져요

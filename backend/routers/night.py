@@ -15,6 +15,7 @@ from deps import (
     change_of,
     load,
     load_fx,
+    load_last_krx_close,
     load_last_session_close,
 )
 
@@ -93,17 +94,18 @@ def api_night_gap_history(ticker: str):
 
 @router.get("/api/synth-price")
 def api_synth_price(ticker: str):
-    """미국 정규장 밖에서 레버리지 ETF의 추정가 (기초자산 perp × 배수)."""
+    """정규장 밖에서 레버리지 ETF의 추정가 (기초자산 perp × 배수)."""
     entry = SYNTHETIC.get(ticker)
     if not entry:
         return {"available": False}
-    perp, leverage, und_name = entry
+    perp, leverage, und_name, market = entry
 
     try:
-        base = load_last_session_close(ticker)
+        base = load_last_session_close(ticker) if market == "US" else load_last_krx_close(ticker)
         # 60m = Hyperliquid의 1h. 지원 키가 아닌 값을 넘기면 조용히 5분봉으로
         # 떨어져 조회 구간이 10시간밖에 안 된다(정규장 마감이 범위 밖으로 나감).
-        candles = cached_perp_candles(perp, "60m", 72)
+        # 96시간(4일)로 여유를 둔다 — 금요일 마감~월요일 개장 공백이 최대 ~65시간.
+        candles = cached_perp_candles(perp, "60m", 96)
     except Exception as e:
         return {"available": False, "error": str(e)}
     if not base or not candles:

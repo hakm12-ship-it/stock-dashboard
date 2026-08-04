@@ -4,7 +4,10 @@
 외부 API 호출은 한 번으로 흡수된다.
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime
+from datetime import time as dt_time
+from datetime import timedelta
+from zoneinfo import ZoneInfo
 
 import FinanceDataReader as fdr
 import pandas as pd
@@ -154,6 +157,20 @@ def load_last_session_close(ticker: str) -> tuple[float, int] | None:
     if not q.get("tradedAt"):
         return None
     return q["close"], int(pd.to_datetime(q["tradedAt"]).timestamp() * 1000)
+
+
+_KST = ZoneInfo("Asia/Seoul")
+
+
+def load_last_krx_close(ticker: str) -> tuple[float, int] | None:
+    """(마지막 KRX 정규장 종가, 그 마감 시각 ms=해당일 15:30 KST). 국내 레버리지 ETF 합성추정용."""
+    df = load(ticker, "1m")
+    close = df["Close"].dropna()
+    if close.empty:
+        return None
+    last_day = close.index[-1].date()
+    close_at = datetime.combine(last_day, dt_time(15, 30), tzinfo=_KST)
+    return float(close.iloc[-1]), int(close_at.timestamp() * 1000)
 
 
 def series(s: pd.Series):

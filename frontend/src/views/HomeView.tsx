@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
-import { getPrices, getSignal, getIndex, getProfile, getNightPrice, type Period } from '../lib/api'
+import { getPrices, getSignal, getIndex, getProfile, getNightPrice, getSynthPrice, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
-import { hasNightPrice, nightLabel } from '../lib/night'
+import { hasNightPrice, nightLabel, showSynthPrice } from '../lib/night'
 import DailyReportCard from '../components/DailyReportCard'
 import IndexStrip from '../components/IndexStrip'
 import MacroStrip from '../components/MacroStrip'
@@ -77,6 +77,15 @@ function HomeCard({
     queryFn: () => getNightPrice(t.ticker),
     enabled: nightEnabled,
     refetchInterval: nightEnabled ? 60_000 : false,
+  })
+
+  // KORU 등 합성추정가 종목 — 상세 화면과 같은 queryKey라 캐시 공유(중복 요청 없음)
+  const synthEnabled = showSynthPrice(t)
+  const synth = useQuery({
+    queryKey: ['synth-price', t.ticker],
+    queryFn: () => getSynthPrice(t.ticker),
+    enabled: synthEnabled,
+    refetchInterval: synthEnabled ? 60_000 : false,
   })
 
   const series = prices.data?.map((c) => c.close) ?? []
@@ -155,6 +164,18 @@ function HomeCard({
               <span className={`font-mono text-[0.62rem] ${changeColor(night.data.gapPct ?? 0)}`}>
                 {changeSign(night.data.gapPct ?? 0)}
                 {Math.abs(night.data.gapPct ?? 0).toFixed(2)}%
+              </span>
+            </div>
+          )}
+          {synthEnabled && synth.data?.available && (
+            <div className="flex items-center justify-end gap-1 mt-0.5">
+              <span className="text-[0.55rem] text-accent border border-accent/40 rounded px-1">추정</span>
+              <span className="font-mono text-[0.62rem] tnum text-muted">
+                {fmtQuote(synth.data.estimate, t)}
+              </span>
+              <span className={`font-mono text-[0.62rem] ${changeColor(synth.data.changePct ?? 0)}`}>
+                {changeSign(synth.data.changePct ?? 0)}
+                {Math.abs(synth.data.changePct ?? 0).toFixed(2)}%
               </span>
             </div>
           )}
