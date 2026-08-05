@@ -27,6 +27,14 @@ _MEMO_URL = "https://kapi.kakao.com/v2/api/talk/memo/default/send"
 # 발급받은 액세스 토큰을 메모리에 들고 있는다. (값, 만료시각)
 _access: tuple[str, float] | None = None
 
+# 마지막 전송 실패 사유. 카카오만 조용히 실패하면 로그를 못 보는 환경에서는
+# 원인을 알 길이 없어서, 호출부가 응답에 실어 보낼 수 있게 남겨 둔다.
+_last_error: str | None = None
+
+
+def last_error() -> str | None:
+    return _last_error
+
 
 def _env(name: str) -> str:
     """환경변수를 공백 없이 읽는다.
@@ -129,7 +137,9 @@ def refresh_token_days_left() -> int | None:
 
 def send_kakao(text: str, link_url: str | None = None) -> bool:
     """나에게 보내기. 설정이 없으면 조용히 False (텔레그램만 쓰는 상태)."""
+    global _last_error
     if not is_configured():
+        _last_error = "KAKAO_REST_API_KEY / KAKAO_REFRESH_TOKEN 미설정"
         return False
     try:
         token = _get_access_token()
@@ -143,7 +153,10 @@ def send_kakao(text: str, link_url: str | None = None) -> bool:
             {"template_object": json.dumps(template, ensure_ascii=False)},
             {"Authorization": f"Bearer {token}"},
         )
-        return d.get("result_code") == 0
+        ok = d.get("result_code") == 0
+        _last_error = None if ok else f"응답: {d}"
+        return ok
     except Exception as e:  # noqa: BLE001
+        _last_error = str(e)
         print(f"[카카오] 전송 실패: {e}")
         return False

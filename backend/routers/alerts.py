@@ -26,8 +26,9 @@ from analysis.market_alerts import (
 from data.naver_index import realtime_index, realtime_quote
 from data.kakao import REDIRECT_PATH, authorize_url, exchange_code
 from data.kakao import is_configured as kakao_configured
-from data.kakao import refresh_token_days_left
-from data.notify import notify
+from data.kakao import last_error as kakao_last_error
+from data.kakao import refresh_token_days_left, send_kakao
+from data.notify import APP_URL, notify
 
 router = APIRouter()
 
@@ -106,27 +107,29 @@ def api_market_alert_check(force: bool = False, test: bool = False):
     except Exception as e:
         seen["코스피"] = f"조회실패: {e}"
 
-    sent = False
+    result: dict = {}
     if lines:
         text = "📈 장중 알림\n\n" + "\n\n".join(lines) + "\n\n참고용이고 투자 권유가 아니에요."
-        sent = any(notify(text).values())
+        result = notify(text)
     elif test:
         # 연동이 실제로 되는지 확인용. 조건과 무관하게 현재 시세를 한 번 보낸다.
         quote_lines = "\n".join(
             f"  {k} {v:+.2f}%" if isinstance(v, (int, float)) else f"  {k} {v}"
             for k, v in seen.items()
         )
-        sent = any(notify(
+        result = notify(
             "🔔 장중 알림 연동 테스트\n\n현재 시세\n" + quote_lines
             + "\n\n실제 알림은 5% 단위 돌파·사이드카·서킷 조건에서만 옵니다."
-        ).values())
+        )
 
     return {
         "checked": True,
         "at": now.strftime("%H:%M"),
         "quotes": seen,
         "alerts": len(lines),
-        "sent": sent,
+        # 한 채널만 성공해도 sent=true라 어느 쪽이 갔는지는 channels로 봐야 한다.
+        "sent": bool(result.get("telegram") or result.get("kakao")),
+        "channels": result,
     }
 
 
@@ -183,6 +186,20 @@ def api_kakao_token_status():
         "refreshTokenDaysLeft": days,
         "needsAction": days is not None and days <= 14,
     }
+
+
+@router.get("/api/kakao-test")
+def api_kakao_test(key: str = ""):
+    """카카오만 한 번 보내 본다.
+
+    장중 알림 테스트는 텔레그램 그룹에도 같이 나가서 확인용으로 쓰기 부담스럽다.
+    여기는 카카오만 건드리고, 실패하면 사유를 그대로 돌려준다.
+    """
+    admin = os.environ.get("ADMIN_KEY", "")
+    if not admin or key != admin:
+        return {"error": "관리자 전용"}
+    ok = send_kakao("🔔 카카오 알림 연동 테스트입니다.", link_url=APP_URL)
+    return {"sent": ok, "error": None if ok else kakao_last_error()}
 
 
 @router.get("/api/alert-invite")

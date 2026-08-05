@@ -7,6 +7,7 @@
 """
 
 from data.kakao import is_configured as kakao_configured
+from data.kakao import last_error as kakao_last_error
 from data.kakao import send_kakao
 from data.telegram import send_telegram
 
@@ -21,4 +22,8 @@ def notify(text: str) -> dict:
     """
     telegram = send_telegram(text)
     kakao = send_kakao(text, link_url=APP_URL) if kakao_configured() else False
-    return {"telegram": telegram, "kakao": kakao}
+    out = {"telegram": telegram, "kakao": kakao}
+    if not kakao:
+        # 한쪽만 실패하면 전체는 성공으로 보여서 놓치기 쉽다. 사유를 같이 돌려준다.
+        out["kakaoError"] = kakao_last_error() or "카카오 미설정"
+    return out
