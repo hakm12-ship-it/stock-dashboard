@@ -28,8 +28,17 @@ _MEMO_URL = "https://kapi.kakao.com/v2/api/talk/memo/default/send"
 _access: tuple[str, float] | None = None
 
 
+def _env(name: str) -> str:
+    """환경변수를 공백 없이 읽는다.
+
+    Render 입력창에 붙여넣을 때 앞뒤 공백이나 줄바꿈이 섞이기 쉬운데,
+    그러면 카카오가 KOE010(Bad client credentials)으로 거절한다.
+    """
+    return os.environ.get(name, "").strip()
+
+
 def is_configured() -> bool:
-    return bool(os.environ.get("KAKAO_REST_API_KEY") and os.environ.get("KAKAO_REFRESH_TOKEN"))
+    return bool(_env("KAKAO_REST_API_KEY") and _env("KAKAO_REFRESH_TOKEN"))
 
 
 REDIRECT_PATH = "/api/kakao-callback"
@@ -39,7 +48,7 @@ _AUTHORIZE_URL = "https://kauth.kakao.com/oauth/authorize"
 def authorize_url(redirect_uri: str) -> str:
     """동의 화면 주소. talk_message 권한만 요청한다."""
     params = {
-        "client_id": os.environ.get("KAKAO_REST_API_KEY", ""),
+        "client_id": _env("KAKAO_REST_API_KEY"),
         "redirect_uri": redirect_uri,
         "response_type": "code",
         "scope": "talk_message",
@@ -51,11 +60,11 @@ def exchange_code(code: str, redirect_uri: str) -> dict:
     """동의 후 받은 code를 토큰으로 교환. 리프레시 토큰을 사람이 저장해야 한다."""
     params = {
         "grant_type": "authorization_code",
-        "client_id": os.environ.get("KAKAO_REST_API_KEY", ""),
+        "client_id": _env("KAKAO_REST_API_KEY"),
         "redirect_uri": redirect_uri,
         "code": code,
     }
-    secret = os.environ.get("KAKAO_CLIENT_SECRET")
+    secret = _env("KAKAO_CLIENT_SECRET")
     if secret:
         params["client_secret"] = secret
     return _post(_TOKEN_URL, params)
@@ -83,13 +92,13 @@ def _get_access_token() -> str:
     if _access and time.time() < _access[1]:
         return _access[0]
 
-    key = os.environ.get("KAKAO_REST_API_KEY")
-    refresh = os.environ.get("KAKAO_REFRESH_TOKEN")
+    key = _env("KAKAO_REST_API_KEY")
+    refresh = _env("KAKAO_REFRESH_TOKEN")
     if not key or not refresh:
         raise RuntimeError("KAKAO_REST_API_KEY / KAKAO_REFRESH_TOKEN 미설정")
 
     params = {"grant_type": "refresh_token", "client_id": key, "refresh_token": refresh}
-    secret = os.environ.get("KAKAO_CLIENT_SECRET")
+    secret = _env("KAKAO_CLIENT_SECRET")
     if secret:
         params["client_secret"] = secret
 
@@ -102,12 +111,12 @@ def _get_access_token() -> str:
 
 def refresh_token_days_left() -> int | None:
     """리프레시 토큰 잔여일. 갱신 응답에 포함될 때만 알 수 있어 보통 None."""
-    key = os.environ.get("KAKAO_REST_API_KEY")
-    refresh = os.environ.get("KAKAO_REFRESH_TOKEN")
+    key = _env("KAKAO_REST_API_KEY")
+    refresh = _env("KAKAO_REFRESH_TOKEN")
     if not key or not refresh:
         return None
     params = {"grant_type": "refresh_token", "client_id": key, "refresh_token": refresh}
-    secret = os.environ.get("KAKAO_CLIENT_SECRET")
+    secret = _env("KAKAO_CLIENT_SECRET")
     if secret:
         params["client_secret"] = secret
     try:

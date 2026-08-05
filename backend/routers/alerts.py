@@ -149,7 +149,8 @@ def api_kakao_redirect_uri(request: Request):
     KOE006(앱 관리자 설정 오류)은 이 값이 카카오에 등록된 것과 한 글자라도
     다를 때 난다. 눈으로 대조할 수 있게 그대로 보여준다 (비밀값 아님).
     """
-    key = os.environ.get("KAKAO_REST_API_KEY", "")
+    key = os.environ.get("KAKAO_REST_API_KEY", "").strip()
+    secret = os.environ.get("KAKAO_CLIENT_SECRET", "")
     return {
         "redirectUri": _redirect_uri(request),
         "appBaseUrlSet": bool(os.environ.get("APP_BASE_URL")),
@@ -158,7 +159,10 @@ def api_kakao_redirect_uri(request: Request):
         "restApiKeyPrefix": (key[:6] + "…") if key else None,
         "restApiKeyLength": len(key),
         # 앱에서 Client Secret을 켜뒀는데 여기에 없으면 토큰 교환이 401로 떨어진다.
-        "clientSecretSet": bool(os.environ.get("KAKAO_CLIENT_SECRET")),
+        # 길이가 32가 아니면 잘려 들어간 것, strip 전후가 다르면 공백이 섞인 것이다.
+        "clientSecretSet": bool(secret.strip()),
+        "clientSecretLength": len(secret.strip()),
+        "clientSecretHasWhitespace": secret != secret.strip(),
         "authorizeUrl": authorize_url(_redirect_uri(request)) if key else None,
         "hint": "이 값을 카카오 개발자 > 카카오 로그인 > Redirect URI 에 그대로 등록하세요",
     }
