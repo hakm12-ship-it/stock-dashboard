@@ -130,6 +130,29 @@ def load(ticker: str, period: str) -> pd.DataFrame:
     return adjust_splits(df.dropna(subset=["Close"]))
 
 
+# 60일 이동평균을 화면 첫날부터 그리려면 그 앞 60거래일이 더 있어야 한다.
+# 휴일을 감안해 달력일로 넉넉히 잡는다 (60거래일 ≈ 90달력일, 여유 130).
+_WARMUP_DAYS = 130
+
+
+@ttl_cache(60)
+def load_with_warmup(ticker: str, period: str) -> tuple[pd.DataFrame, int]:
+    """(워밍업 포함 데이터, 화면에 보일 시작 인덱스).
+
+    지표를 화면 기간만큼만 계산하면 MA60은 앞 59칸이 비어 3개월 차트에서
+    거의 안 보인다. 앞쪽을 더 불러 계산한 뒤 화면 구간만 잘라 쓴다.
+    """
+    want = PERIOD_DAYS.get(period, 90)
+    start = date.today() - timedelta(days=want + _WARMUP_DAYS)
+    df = fdr.DataReader(ticker, start)
+    df = _fill_missing_close(df, ticker)
+    df = adjust_splits(df.dropna(subset=["Close"]))
+
+    cutoff = date.today() - timedelta(days=want)
+    visible = [i for i, d in enumerate(df.index) if d.date() >= cutoff]
+    return df, visible[0] if visible else 0
+
+
 @ttl_cache(60)
 def load_index(code: str) -> pd.DataFrame:
     return fdr.DataReader(code, date.today() - timedelta(days=120))
