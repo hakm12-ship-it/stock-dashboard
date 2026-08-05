@@ -142,6 +142,20 @@ def api_market_alert_config():
     }
 
 
+@router.get("/api/kakao-redirect-uri")
+def api_kakao_redirect_uri(request: Request):
+    """서버가 카카오에 보내는 redirect_uri.
+
+    KOE006(앱 관리자 설정 오류)은 이 값이 카카오에 등록된 것과 한 글자라도
+    다를 때 난다. 눈으로 대조할 수 있게 그대로 보여준다 (비밀값 아님).
+    """
+    return {
+        "redirectUri": _redirect_uri(request),
+        "appBaseUrlSet": bool(os.environ.get("APP_BASE_URL")),
+        "hint": "이 값을 카카오 개발자 > 카카오 로그인 > Redirect URI 에 그대로 등록하세요",
+    }
+
+
 @router.get("/api/kakao-token-status")
 def api_kakao_token_status():
     """리프레시 토큰 잔여일. 60일마다 사람이 갱신해야 해서 확인 수단을 둔다.
