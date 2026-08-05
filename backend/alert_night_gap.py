@@ -20,7 +20,7 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
-from data.telegram import send_telegram
+from data.notify import notify
 
 KST = timezone(timedelta(hours=9))
 
@@ -97,7 +97,7 @@ def main() -> None:
             "🌙 야간 시세 알림\n\n" + "\n\n".join(lines)
             + "\n\nperp 기준 참고 정보이고 투자 권유가 아니에요."
         )
-        print("전송:", send_telegram(text))
+        print("전송:", notify(text))
         save_state(state)
     else:
         print("알릴 것 없음")

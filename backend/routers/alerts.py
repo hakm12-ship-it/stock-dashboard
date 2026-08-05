@@ -23,7 +23,9 @@ from analysis.market_alerts import (
     stock_step,
 )
 from data.naver_index import realtime_index, realtime_quote
-from data.telegram import send_telegram
+from data.kakao import is_configured as kakao_configured
+from data.kakao import refresh_token_days_left
+from data.notify import notify
 
 router = APIRouter()
 
@@ -105,17 +107,17 @@ def api_market_alert_check(force: bool = False, test: bool = False):
     sent = False
     if lines:
         text = "📈 장중 알림\n\n" + "\n\n".join(lines) + "\n\n참고용이고 투자 권유가 아니에요."
-        sent = send_telegram(text)
+        sent = any(notify(text).values())
     elif test:
         # 연동이 실제로 되는지 확인용. 조건과 무관하게 현재 시세를 한 번 보낸다.
         quote_lines = "\n".join(
             f"  {k} {v:+.2f}%" if isinstance(v, (int, float)) else f"  {k} {v}"
             for k, v in seen.items()
         )
-        sent = send_telegram(
+        sent = any(notify(
             "🔔 장중 알림 연동 테스트\n\n현재 시세\n" + quote_lines
             + "\n\n실제 알림은 5% 단위 돌파·사이드카·서킷 조건에서만 옵니다."
-        )
+        ).values())
 
     return {
         "checked": True,
@@ -133,7 +135,25 @@ def api_market_alert_config():
     return {
         "telegramReady": bool(os.environ.get("TELEGRAM_BOT_TOKEN")) and bool(chats),
         "recipients": len(chats),
+        "kakaoReady": kakao_configured(),
         "sentToday": {k: v for k, v in _sent.items() if k != "date"},
+    }
+
+
+@router.get("/api/kakao-token-status")
+def api_kakao_token_status():
+    """리프레시 토큰 잔여일. 60일마다 사람이 갱신해야 해서 확인 수단을 둔다.
+
+    잔여일은 카카오가 만료 1개월 미만일 때만 알려주므로, 그 전에는 null이다
+    (= 아직 여유 있음).
+    """
+    if not kakao_configured():
+        return {"configured": False}
+    days = refresh_token_days_left()
+    return {
+        "configured": True,
+        "refreshTokenDaysLeft": days,
+        "needsAction": days is not None and days <= 14,
     }
 
 
