@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 # 라우터가 임포트되기 전에 .env를 읽어야 API 키가 잡힌다.
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
-from routers import ai, fundamental, market, night, prices, signal  # noqa: E402
+from routers import ai, alerts, fundamental, market, night, prices, signal  # noqa: E402
 
 app = FastAPI(title="스톡 인사이트 API")
 app.add_middleware(
@@ -29,7 +29,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for _router in (prices, fundamental, signal, market, night, ai):
+for _router in (prices, fundamental, signal, market, night, ai, alerts):
     app.include_router(_router.router)
 
 

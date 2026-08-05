@@ -29,3 +29,24 @@ def realtime_index(code: str) -> dict:
         "change": sign * abs(_num(d["compareToPreviousClosePrice"])),
         "changePct": sign * abs(_num(d["fluctuationsRatio"])),
     }
+
+
+def realtime_quote(code: str) -> dict:
+    """국내 개별 종목 실시간 시세.
+
+    반환: {last, changePct, marketOpen}. 장중 급변 알림에 쓴다 —
+    지수/선물은 realtime_index, 개별 종목은 이쪽.
+    """
+    req = urllib.request.Request(
+        f"https://polling.finance.naver.com/api/realtime/domestic/stock/{code}",
+        headers={"User-Agent": "Mozilla/5.0", "Referer": "https://m.stock.naver.com/"},
+    )
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        data = json.loads(resp.read())
+    d = data["datas"][0]
+    sign = 1 if d["compareToPreviousPrice"]["code"] in _UP_CODES else -1
+    return {
+        "last": _num(d["closePrice"]),
+        "changePct": sign * abs(_num(d["fluctuationsRatio"])),
+        "marketOpen": d.get("marketStatus") == "OPEN",
+    }

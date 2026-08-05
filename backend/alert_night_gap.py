@@ -20,6 +20,8 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
+from data.telegram import send_telegram
+
 KST = timezone(timedelta(hours=9))
 
 API_BASE = os.environ.get("API_BASE", "https://stock-insight-zws6.onrender.com")
@@ -47,37 +49,6 @@ def load_state() -> dict:
 def save_state(state: dict) -> None:
     with open(STATE_PATH, "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=1)
-
-
-def send(text: str) -> bool:
-    """등록된 모든 수신자에게 보낸다. 한 명이 실패해도 나머지는 계속 보낸다.
-
-    TELEGRAM_CHAT_ID는 쉼표로 여러 명을 넣을 수 있다 (예: "123,456").
-    각자 봇에게 먼저 말을 걸어둬야 텔레그램이 전송을 허용한다.
-    """
-    token = os.environ.get("TELEGRAM_BOT_TOKEN")
-    chats = [c.strip() for c in os.environ.get("TELEGRAM_CHAT_ID", "").split(",") if c.strip()]
-    if not token or not chats:
-        print("[드라이런] 전송 안 함 (토큰 없음). 보낼 내용:")
-        print(text)
-        return False
-
-    sent = 0
-    for chat in chats:
-        body = urllib.parse.urlencode({
-            "chat_id": chat, "text": text, "disable_web_page_preview": "true",
-        }).encode()
-        req = urllib.request.Request(
-            f"https://api.telegram.org/bot{token}/sendMessage", data=body, method="POST")
-        try:
-            with urllib.request.urlopen(req, timeout=30) as r:
-                ok = json.loads(r.read()).get("ok", False)
-            print(f"  → {chat}: {'성공' if ok else '실패'}")
-            sent += ok
-        except Exception as e:
-            # 친구가 봇을 차단했거나 chat_id가 틀려도 내 알림은 계속 가야 한다
-            print(f"  → {chat}: 실패 ({e})")
-    return sent > 0
 
 
 def should_alert(gap: float, prev: dict | None, today: str) -> bool:
@@ -126,7 +97,7 @@ def main() -> None:
             "🌙 야간 시세 알림\n\n" + "\n\n".join(lines)
             + "\n\nperp 기준 참고 정보이고 투자 권유가 아니에요."
         )
-        print("전송:", send(text))
+        print("전송:", send_telegram(text))
         save_state(state)
     else:
         print("알릴 것 없음")
