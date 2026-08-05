@@ -17,6 +17,7 @@
 import json
 import os
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -67,8 +68,13 @@ def _post(url: str, params: dict, headers: dict | None = None) -> dict:
         headers={"Content-Type": "application/x-www-form-urlencoded", **(headers or {})},
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=20) as r:
-        return json.loads(r.read())
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        # 카카오는 실패 사유를 본문에 담아 준다("Client Secret이 일치하지 않음" 등).
+        # 그냥 두면 urllib이 "HTTP Error 401"만 남겨서 원인 추적이 불가능하다.
+        raise RuntimeError(f"{e.code} {e.read().decode('utf-8', 'replace')[:400]}") from None
 
 
 def _get_access_token() -> str:

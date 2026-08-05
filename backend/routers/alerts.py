@@ -157,6 +157,8 @@ def api_kakao_redirect_uri(request: Request):
         # 보여 카카오 개발자 화면의 REST API 키와 대조할 수 있게 한다.
         "restApiKeyPrefix": (key[:6] + "…") if key else None,
         "restApiKeyLength": len(key),
+        # 앱에서 Client Secret을 켜뒀는데 여기에 없으면 토큰 교환이 401로 떨어진다.
+        "clientSecretSet": bool(os.environ.get("KAKAO_CLIENT_SECRET")),
         "authorizeUrl": authorize_url(_redirect_uri(request)) if key else None,
         "hint": "이 값을 카카오 개발자 > 카카오 로그인 > Redirect URI 에 그대로 등록하세요",
     }
