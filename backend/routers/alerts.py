@@ -149,9 +149,15 @@ def api_kakao_redirect_uri(request: Request):
     KOE006(앱 관리자 설정 오류)은 이 값이 카카오에 등록된 것과 한 글자라도
     다를 때 난다. 눈으로 대조할 수 있게 그대로 보여준다 (비밀값 아님).
     """
+    key = os.environ.get("KAKAO_REST_API_KEY", "")
     return {
         "redirectUri": _redirect_uri(request),
         "appBaseUrlSet": bool(os.environ.get("APP_BASE_URL")),
+        # 앱이 여러 개일 때 엉뚱한 앱의 키를 넣어도 KOE006이 난다. 앞 6자리만
+        # 보여 카카오 개발자 화면의 REST API 키와 대조할 수 있게 한다.
+        "restApiKeyPrefix": (key[:6] + "…") if key else None,
+        "restApiKeyLength": len(key),
+        "authorizeUrl": authorize_url(_redirect_uri(request)) if key else None,
         "hint": "이 값을 카카오 개발자 > 카카오 로그인 > Redirect URI 에 그대로 등록하세요",
     }
 
