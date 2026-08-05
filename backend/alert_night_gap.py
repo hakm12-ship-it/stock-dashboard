@@ -3,7 +3,8 @@
 배포된 API를 호출하므로 별도 계산이 없고, 겸사겸사 Render 인스턴스를 깨워둔다.
 
 환경변수:
-    TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID  — 없으면 전송 없이 출력만(드라이런)
+    TELEGRAM_BOT_TOKEN  봇 토큰. 없으면 전송 없이 출력만(드라이런)
+    TELEGRAM_CHAT_ID    수신자. 쉼표로 여러 명 가능 (예: "123456,789012")
     ALERT_THRESHOLD  기본 3.0  — |갭|이 이 값을 넘으면 알림
     ALERT_STEP       기본 1.5  — 이미 알린 뒤 추가로 이만큼 더 벌어져야 재알림
     ALERT_STATE      기본 alert_state.json  — 중복 알림 방지용 상태 파일
@@ -49,19 +50,34 @@ def save_state(state: dict) -> None:
 
 
 def send(text: str) -> bool:
+    """등록된 모든 수신자에게 보낸다. 한 명이 실패해도 나머지는 계속 보낸다.
+
+    TELEGRAM_CHAT_ID는 쉼표로 여러 명을 넣을 수 있다 (예: "123,456").
+    각자 봇에게 먼저 말을 걸어둬야 텔레그램이 전송을 허용한다.
+    """
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
-    chat = os.environ.get("TELEGRAM_CHAT_ID")
-    if not token or not chat:
+    chats = [c.strip() for c in os.environ.get("TELEGRAM_CHAT_ID", "").split(",") if c.strip()]
+    if not token or not chats:
         print("[드라이런] 전송 안 함 (토큰 없음). 보낼 내용:")
         print(text)
         return False
-    body = urllib.parse.urlencode({
-        "chat_id": chat, "text": text, "disable_web_page_preview": "true",
-    }).encode()
-    req = urllib.request.Request(
-        f"https://api.telegram.org/bot{token}/sendMessage", data=body, method="POST")
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read()).get("ok", False)
+
+    sent = 0
+    for chat in chats:
+        body = urllib.parse.urlencode({
+            "chat_id": chat, "text": text, "disable_web_page_preview": "true",
+        }).encode()
+        req = urllib.request.Request(
+            f"https://api.telegram.org/bot{token}/sendMessage", data=body, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                ok = json.loads(r.read()).get("ok", False)
+            print(f"  → {chat}: {'성공' if ok else '실패'}")
+            sent += ok
+        except Exception as e:
+            # 친구가 봇을 차단했거나 chat_id가 틀려도 내 알림은 계속 가야 한다
+            print(f"  → {chat}: 실패 ({e})")
+    return sent > 0
 
 
 def should_alert(gap: float, prev: dict | None, today: str) -> bool:
