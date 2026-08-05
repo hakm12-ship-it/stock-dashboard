@@ -33,7 +33,9 @@ def api_night_price(ticker: str):
     fx_last, _, _ = change_of(load_fx()["Close"].dropna())
     krw = usd * fx_last
 
-    krx_close = float(load(ticker, "5d")["Close"].dropna().iloc[-1])
+    # "1m"으로 맞춘다 — PERIOD_DAYS에 없는 키를 넘기면 조용히 90일로 떨어지고,
+    # load_last_krx_close("1m")와 캐시가 갈려 같은 데이터를 두 번 받는다.
+    krx_close = float(load(ticker, "1m")["Close"].dropna().iloc[-1])
     gap_pct = (krw - krx_close) / krx_close * 100 if krx_close else 0
 
     return {

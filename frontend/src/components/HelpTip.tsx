@@ -1,7 +1,8 @@
 import { useState } from 'react'
 
-// 초보자용 용어 설명 사전
-export const HELP: Record<string, { title: string; text: string }> = {
+// 초보자용 용어 설명 사전. 이 파일 밖에서는 쓰지 않는다 — 내보내면 이 모듈이
+// 컴포넌트 외의 것도 내보내게 되어 fast refresh가 깨진다.
+const HELP: Record<string, { title: string; text: string }> = {
   verdict: {
     title: '종합 신호',
     text: '여러 기술적 지표를 정해진 규칙으로 합쳐 지금 분위기를 매수 우위·중립·매도 우위로 요약한 참고 신호예요.\n미래를 맞히는 예측이 아니라, 과거·현재 지표의 요약이에요.',

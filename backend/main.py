@@ -10,6 +10,7 @@ deps.py에 모여 있다.
 """
 
 import threading
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -23,20 +24,8 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 from deps import cached_symbols  # noqa: E402
 from routers import ai, alerts, fundamental, market, night, prices, signal  # noqa: E402
 
-app = FastAPI(title="스톡 인사이트 API")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # 개발용. 배포 시 프런트 도메인으로 좁힐 것.
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-for _router in (prices, fundamental, signal, market, night, ai, alerts):
-    app.include_router(_router.router)
-
-
-@app.on_event("startup")
-def _warm_symbol_lists() -> None:
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
     """종목 목록을 백그라운드로 미리 받아둔다.
 
     미국 목록은 NASDAQ+NYSE 6,700종목을 훑느라 첫 조회에 13초가 걸린다.
@@ -53,6 +42,19 @@ def _warm_symbol_lists() -> None:
                 print(f"[warmup] {market_name_ko} 종목목록 실패: {e}")
 
     threading.Thread(target=warm, daemon=True).start()
+    yield
+
+
+app = FastAPI(title="스톡 인사이트 API", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 개발용. 배포 시 프런트 도메인으로 좁힐 것.
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+for _router in (prices, fundamental, signal, market, night, ai, alerts):
+    app.include_router(_router.router)
 
 
 # ---- 프로덕션: 빌드된 프론트엔드 정적 서빙 (단일 서비스 배포용) ----

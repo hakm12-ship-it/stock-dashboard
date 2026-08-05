@@ -144,7 +144,7 @@ def api_related_insight(ticker: str):
 
     def pct_of(tk: str):
         try:
-            _, _, pct = change_of(load(tk, "5d")["Close"].dropna())
+            _, _, pct = change_of(load(tk, "1m")["Close"].dropna())
             # 반올림해서 담는다: 이 값이 캐시 키가 되므로 원본 실수를 쓰면
             # 10개 중 하나만 움직여도 캐시가 무효화된다. 표시도 소수 2자리.
             return round(pct, 2)

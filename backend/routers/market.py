@@ -62,11 +62,11 @@ def api_index(name: str):
     code = INDEX_TICKERS.get(name.upper())
     if not code:
         return None
-    df = load_index(code)
-    close = df["Close"].dropna()
-    last, prev = float(close.iloc[-1]), float(close.iloc[-2])
-    change = last - prev
-    pct = (change / prev * 100) if prev else 0
+    close = load_index(code)["Close"].dropna()
+    if close.empty:
+        return None
+    # change_of는 데이터가 하루치뿐인 경우도 처리한다 (iloc[-2] 직접 접근은 터진다).
+    last, change, pct = change_of(close)
     # 국내 지수는 네이버 실시간으로 현재값 덮어쓰기 (FDR 지수 갱신 지연 보완)
     if name.upper() in ("KOSPI", "KOSDAQ"):
         try:
