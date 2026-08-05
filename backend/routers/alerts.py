@@ -135,3 +135,14 @@ def api_market_alert_config():
         "recipients": len(chats),
         "sentToday": {k: v for k, v in _sent.items() if k != "date"},
     }
+
+
+@router.get("/api/alert-invite")
+def api_alert_invite():
+    """알림 그룹 초대 링크.
+
+    링크를 아는 사람은 누구나 그룹에 들어올 수 있으니 저장소에 두지 않고
+    TELEGRAM_INVITE_URL 환경변수로만 받는다. 안 설정하면 프런트가 버튼을 숨긴다.
+    """
+    url = os.environ.get("TELEGRAM_INVITE_URL", "").strip()
+    return {"available": bool(url), "url": url or None}

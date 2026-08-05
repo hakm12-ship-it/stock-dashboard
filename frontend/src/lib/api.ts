@@ -162,6 +162,12 @@ export interface Macro {
 }
 export const getMacro = () => get<Macro>('/api/macro', {})
 
+export interface AlertInvite {
+  available: boolean
+  url: string | null
+}
+export const getAlertInvite = () => get<AlertInvite>('/api/alert-invite', {})
+
 export interface DailyReport {
   date: string
   summary: string

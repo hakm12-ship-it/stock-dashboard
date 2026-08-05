@@ -10,6 +10,7 @@ import MacroStrip from '../components/MacroStrip'
 import PortfolioSummary from '../components/PortfolioSummary'
 import MarketTop from '../components/MarketTop'
 import GroupsPanel from '../components/GroupsPanel'
+import AlertInviteCard from '../components/AlertInviteCard'
 import type { Holding } from '../lib/holdings'
 import { loadSignalConfig, cfgKey, cfgParams } from '../lib/signalConfig'
 import { fmtQuote, fmtChange, changeColor } from '../lib/format'
@@ -358,6 +359,8 @@ export default function HomeView({
           if (f) onSelect(f)
         }}
       />
+
+      <AlertInviteCard />
     </div>
   )
 }
