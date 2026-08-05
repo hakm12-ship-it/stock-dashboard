@@ -31,6 +31,35 @@ def is_configured() -> bool:
     return bool(os.environ.get("KAKAO_REST_API_KEY") and os.environ.get("KAKAO_REFRESH_TOKEN"))
 
 
+REDIRECT_PATH = "/api/kakao-callback"
+_AUTHORIZE_URL = "https://kauth.kakao.com/oauth/authorize"
+
+
+def authorize_url(redirect_uri: str) -> str:
+    """동의 화면 주소. talk_message 권한만 요청한다."""
+    params = {
+        "client_id": os.environ.get("KAKAO_REST_API_KEY", ""),
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "talk_message",
+    }
+    return f"{_AUTHORIZE_URL}?{urllib.parse.urlencode(params)}"
+
+
+def exchange_code(code: str, redirect_uri: str) -> dict:
+    """동의 후 받은 code를 토큰으로 교환. 리프레시 토큰을 사람이 저장해야 한다."""
+    params = {
+        "grant_type": "authorization_code",
+        "client_id": os.environ.get("KAKAO_REST_API_KEY", ""),
+        "redirect_uri": redirect_uri,
+        "code": code,
+    }
+    secret = os.environ.get("KAKAO_CLIENT_SECRET")
+    if secret:
+        params["client_secret"] = secret
+    return _post(_TOKEN_URL, params)
+
+
 def _post(url: str, params: dict, headers: dict | None = None) -> dict:
     req = urllib.request.Request(
         url,

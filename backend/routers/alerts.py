@@ -12,7 +12,8 @@ GitHub Actions의 schedule은 이 저장소에서 수 시간씩 밀리는 게 �
 import os
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
+from fastapi.responses import HTMLResponse
 
 from analysis.market_alerts import (
     circuit_message,
@@ -23,6 +24,7 @@ from analysis.market_alerts import (
     stock_step,
 )
 from data.naver_index import realtime_index, realtime_quote
+from data.kakao import REDIRECT_PATH, authorize_url, exchange_code
 from data.kakao import is_configured as kakao_configured
 from data.kakao import refresh_token_days_left
 from data.notify import notify
@@ -166,3 +168,64 @@ def api_alert_invite():
     """
     url = os.environ.get("TELEGRAM_INVITE_URL", "").strip()
     return {"available": bool(url), "url": url or None}
+
+
+def _redirect_uri(request: Request) -> str:
+    """카카오에 등록한 것과 정확히 같아야 한다. 배포 도메인 기준으로 만든다."""
+    base = os.environ.get("APP_BASE_URL", str(request.base_url)).rstrip("/")
+    return base + REDIRECT_PATH
+
+
+def _page(title: str, body: str) -> HTMLResponse:
+    return HTMLResponse(
+        "<!doctype html><meta charset=utf-8>"
+        "<meta name=viewport content='width=device-width,initial-scale=1'>"
+        f"<title>{title}</title>"
+        "<style>body{background:#0A0C10;color:#E8EBF0;font-family:system-ui,sans-serif;"
+        "margin:0;padding:24px;line-height:1.6}a{color:#E0A63C}"
+        "code{display:block;background:#12151C;border:1px solid #232833;border-radius:8px;"
+        "padding:12px;margin:12px 0;word-break:break-all;font-size:13px}"
+        "h1{font-size:19px;margin:0 0 12px}.btn{display:inline-block;background:#12151C;"
+        "border:1px solid #E0A63C;color:#E0A63C;border-radius:8px;padding:12px 18px;"
+        "text-decoration:none;margin-top:8px}.muted{color:#8B94A3;font-size:13px}</style>"
+        f"<h1>{title}</h1>{body}"
+    )
+
+
+@router.get("/api/kakao-auth", response_class=HTMLResponse)
+def api_kakao_auth(request: Request, key: str = ""):
+    """카카오 재인증 시작. 토큰이 노출되는 화면이라 관리자 키로 막는다."""
+    admin = os.environ.get("ADMIN_KEY", "")
+    if not admin or key != admin:
+        return _page("접근 불가", "<p class=muted>관리자 전용 페이지입니다.</p>")
+    if not os.environ.get("KAKAO_REST_API_KEY"):
+        return _page("설정 필요", "<p class=muted>KAKAO_REST_API_KEY를 먼저 등록하세요.</p>")
+    return _page(
+        "카카오 알림 연결",
+        "<p>아래 버튼을 눌러 카카오에 로그인하고 <b>카카오톡 메시지 전송</b>에 동의하세요.</p>"
+        f"<a class=btn href='{authorize_url(_redirect_uri(request))}'>카카오 로그인하고 동의하기</a>"
+        "<p class=muted>동의하면 다음 화면에 리프레시 토큰이 나옵니다. "
+        "그 값을 Render 환경변수 KAKAO_REFRESH_TOKEN에 넣으면 연결이 끝나요.</p>",
+    )
+
+
+@router.get("/api/kakao-callback", response_class=HTMLResponse)
+def api_kakao_callback(request: Request, code: str = "", error: str = ""):
+    """동의 후 돌아오는 곳. 받은 리프레시 토큰을 복사할 수 있게 보여준다."""
+    if error or not code:
+        return _page("연결 취소됨", f"<p class=muted>{error or 'code가 없습니다.'}</p>")
+    try:
+        tok = exchange_code(code, _redirect_uri(request))
+    except Exception as e:  # noqa: BLE001
+        return _page("토큰 발급 실패", f"<p class=muted>{e}</p>")
+
+    refresh = tok.get("refresh_token")
+    if not refresh:
+        return _page("토큰 발급 실패", f"<p class=muted>{tok}</p>")
+    days = int(tok.get("refresh_token_expires_in", 0)) // 86400
+    return _page(
+        "연결 완료",
+        "<p>아래 값을 Render 환경변수 <b>KAKAO_REFRESH_TOKEN</b>에 붙여넣으세요.</p>"
+        f"<code>{refresh}</code>"
+        f"<p class=muted>이 토큰은 약 {days}일 뒤 만료돼요. 그때 이 페이지에서 다시 받으면 됩니다.</p>",
+    )
