@@ -49,13 +49,17 @@ def _krx_open(now: datetime) -> bool:
 
 
 @router.get("/api/market-alert-check")
-def api_market_alert_check(force: bool = False):
-    """급변 조건을 확인하고 넘으면 텔레그램 발송. 외부 스케줄러 전용."""
+def api_market_alert_check(force: bool = False, test: bool = False):
+    """급변 조건을 확인하고 넘으면 텔레그램 발송. 외부 스케줄러 전용.
+
+    force=true  장 시간이 아니어도 조건을 확인한다
+    test=true   조건에 안 걸려도 현재 시세를 한 번 보낸다 (연동 확인용)
+    """
     now = datetime.now(KST)
     today = now.strftime("%Y-%m-%d")
     _reset_if_new_day(today)
 
-    if not force and not _krx_open(now):
+    if not (force or test) and not _krx_open(now):
         return {"checked": False, "reason": "정규장 시간 아님", "at": now.strftime("%H:%M")}
 
     lines: list[str] = []
@@ -102,6 +106,16 @@ def api_market_alert_check(force: bool = False):
     if lines:
         text = "📈 장중 알림\n\n" + "\n\n".join(lines) + "\n\n참고용이고 투자 권유가 아니에요."
         sent = send_telegram(text)
+    elif test:
+        # 연동이 실제로 되는지 확인용. 조건과 무관하게 현재 시세를 한 번 보낸다.
+        quote_lines = "\n".join(
+            f"  {k} {v:+.2f}%" if isinstance(v, (int, float)) else f"  {k} {v}"
+            for k, v in seen.items()
+        )
+        sent = send_telegram(
+            "🔔 장중 알림 연동 테스트\n\n현재 시세\n" + quote_lines
+            + "\n\n실제 알림은 5% 단위 돌파·사이드카·서킷 조건에서만 옵니다."
+        )
 
     return {
         "checked": True,
