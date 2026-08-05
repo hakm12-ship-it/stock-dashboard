@@ -218,11 +218,23 @@ export interface PortfolioReview {
   /** LLM 코멘트. 할당량 초과 등으로 없을 수 있고, 그때는 observations만 보여준다. */
   comment?: { headline: string; summary: string; watchPoints: string[] } | null
 }
-/** 보유종목은 브라우저에만 있어서 조회가 아니라 POST로 올려보낸다. */
+/**
+ * 보유종목은 브라우저에만 있어서 조회가 아니라 POST로 올려보낸다.
+ *
+ * withComment=false면 LLM을 건너뛰고 수치만 즉시 받는다. 화면은 이걸로 먼저
+ * 그리고, 코멘트는 별도 호출로 뒤늦게 채운다.
+ */
 export const postPortfolioReview = (
   holdings: { ticker: string; name: string; market: Market; qty: number; avg: number }[],
   trades: { ticker: string; date: string; side: string }[],
-) => api.post<PortfolioReview>('/api/portfolio-review', { holdings, trades }).then((r) => r.data)
+  withComment = true,
+) =>
+  api
+    .post<PortfolioReview>(`/api/portfolio-review?comment=${withComment ? 1 : 0}`, {
+      holdings,
+      trades,
+    })
+    .then((r) => r.data)
 
 export interface NightPrice {
   available: boolean

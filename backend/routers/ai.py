@@ -13,7 +13,6 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 import analysis.portfolio as pf
-from analysis.fundamental import valuation
 from analysis.signal import technical_signals
 from cache import ttl_cache
 from data.ai_briefing import (
@@ -25,6 +24,7 @@ from data.related_stocks import RELATED_STOCKS
 from deps import (
     cached_market_rank,
     cached_naver_index,
+    cached_valuation,
     change_of,
     load,
     load_fx,
@@ -122,7 +122,7 @@ def api_ai_briefing(market: str, ticker: str, name: str = ""):
     df = load(ticker, "3m")
     _, _, pct = change_of(df["Close"].dropna())
     _, _, verdict, _ = technical_signals(df)
-    val = valuation(market_name(market), ticker)
+    val = cached_valuation(market_name(market), ticker)
     try:
         # 캐시 키가 되므로 반드시 반올림해서 넘긴다.
         result = _ai_briefing(
@@ -211,11 +211,15 @@ _last_review: dict = {}
 
 
 @router.post("/api/portfolio-review")
-def api_portfolio_review(body: _PortfolioBody):
+def api_portfolio_review(body: _PortfolioBody, comment: bool = True):
     """보유 포트폴리오 진단.
 
     보유종목은 브라우저(localStorage)에만 있어서 서버가 가진 게 없다. 그래서
     조회가 아니라 POST로 받는다.
+
+    comment=false면 LLM을 건너뛰고 수치만 즉시 돌려준다. 프런트는 이걸 먼저
+    받아 카드를 그리고, 코멘트는 뒤이어 채운다 — LLM을 기다리는 2초 동안
+    카드가 통째로 비어 있던 게 느리게 느껴지는 주된 이유였다.
 
     수치와 관찰은 규칙기반이라 항상 나오고, LLM 코멘트만 실패할 수 있다.
     그때는 comment=None으로 내려보내고 프런트가 관찰만 보여준다.
@@ -224,23 +228,29 @@ def api_portfolio_review(body: _PortfolioBody):
     if not holdings:
         return {"available": False, "reason": "보유종목 없음"}
 
-    prices: dict[str, float] = {}
-    closes: dict = {}
-    for h in holdings:
+    def _load_close(ticker: str):
         try:
-            s = load(h["ticker"], "6m")["Close"].dropna()
-            if not s.empty:
-                closes[h["ticker"]] = s
-                prices[h["ticker"]] = float(s.iloc[-1])
-        except Exception:  # noqa: BLE001, S112
-            continue  # 시세를 못 구한 종목은 평단가로 대체된다
-
-    fx_rate = None
-    if any(h["market"] == "US" for h in holdings):
-        try:
-            fx_rate, _, _ = change_of(load_fx()["Close"].dropna())
+            s = load(ticker, "6m")["Close"].dropna()
+            return (ticker, s) if not s.empty else None
         except Exception:  # noqa: BLE001
-            return {"available": False, "reason": "환율 조회 실패"}
+            return None  # 시세를 못 구한 종목은 평단가로 대체된다
+
+    needs_fx = any(h["market"] == "US" for h in holdings)
+
+    # 종목 수만큼 순차로 받으면 그대로 더해진다. 전부 네트워크 대기라 겹쳐 받고,
+    # 환율도 같은 배치에 넣는다 — 뒤에 따로 받으면 그 시간이 그대로 붙는다.
+    with ThreadPoolExecutor(max_workers=len(holdings) + 1) as pool:
+        fx_future = pool.submit(lambda: change_of(load_fx()["Close"].dropna())[0]) if needs_fx else None
+        fetched = list(pool.map(_load_close, [h["ticker"] for h in holdings]))
+        fx_rate = None
+        if fx_future:
+            try:
+                fx_rate = fx_future.result()
+            except Exception:  # noqa: BLE001
+                return {"available": False, "reason": "환율 조회 실패"}
+
+    closes = {tk: s for r in fetched if r for tk, s in [r]}
+    prices = {tk: float(s.iloc[-1]) for tk, s in closes.items()}
 
     a = pf.analyze(
         holdings, prices, closes, fx_rate,
@@ -251,21 +261,15 @@ def api_portfolio_review(body: _PortfolioBody):
         return {"available": False, "reason": "평가액을 계산할 수 없어요"}
 
     obs = pf.observations(a)
-    context = pf.context_for_llm(a)
+    out = {"available": True, "analysis": a, "observations": obs, "comment": None, "stale": False}
+    if not comment:
+        return out
 
-    comment, stale = None, False
-    key = json.dumps(context, ensure_ascii=False, sort_keys=True)
+    key = json.dumps(pf.context_for_llm(a), ensure_ascii=False, sort_keys=True)
     try:
-        comment = _portfolio_review(key, tuple(obs))
-        _last_review[key] = comment
+        out["comment"] = _portfolio_review(key, tuple(obs))
+        _last_review[key] = out["comment"]
     except Exception:  # noqa: BLE001
-        comment = _last_review.get(key)
-        stale = comment is not None
-
-    return {
-        "available": True,
-        "analysis": a,
-        "observations": obs,
-        "comment": comment,
-        "stale": stale,
-    }
+        out["comment"] = _last_review.get(key)
+        out["stale"] = out["comment"] is not None
+    return out

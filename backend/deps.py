@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 import FinanceDataReader as fdr
 import pandas as pd
 
+from analysis.fundamental import valuation
 from cache import ttl_cache
 from data.crypto import upbit_top
 from data.hyperliquid import fetch_perp_candles, fetch_perp_prices
@@ -46,6 +47,9 @@ cached_group_stocks = ttl_cache(60 * 5)(naver_group_stocks)
 cached_perp_prices = ttl_cache(30)(fetch_perp_prices)
 cached_perp_candles = ttl_cache(60)(fetch_perp_candles)
 cached_us_quote = ttl_cache(60)(naver_us_quote)
+# 재무 지표는 분 단위로 바뀌지 않는데 매 호출마다 네이버를 새로 불렀다.
+# /api/valuation과 /api/ai-briefing 양쪽에서 쓰여 호출이 두 배로 났다.
+cached_valuation = ttl_cache(60 * 10)(valuation)
 
 
 def market_name(code: str) -> str:

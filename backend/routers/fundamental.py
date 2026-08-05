@@ -2,10 +2,18 @@
 
 from fastapi import APIRouter
 
-from analysis.fundamental import analyst_target, forward_pe, revenue_trend, valuation
+from analysis.fundamental import analyst_target, forward_pe, revenue_trend
 from analysis.leverage import decay_analysis
 from data.leveraged import LEVERAGED
-from deps import cached_deal_trend, cached_peers, cached_profile, load, market_name, series
+from deps import (
+    cached_deal_trend,
+    cached_peers,
+    cached_profile,
+    cached_valuation,
+    load,
+    market_name,
+    series,
+)
 
 router = APIRouter()
 
@@ -28,7 +36,7 @@ def _kr_only(market: str, fetch, ticker: str, fallback):
 
 @router.get("/api/valuation")
 def api_valuation(market: str, ticker: str):
-    return valuation(market_name(market), ticker)
+    return cached_valuation(market_name(market), ticker)
 
 
 @router.get("/api/trend")
