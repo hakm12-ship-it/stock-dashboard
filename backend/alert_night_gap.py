@@ -98,6 +98,10 @@ def main() -> None:
     state = load_state()
     lines = []
     force = os.environ.get("ALERT_FORCE") == "true"
+    # 값 자체는 시크릿이라 로그에서 ***로 가려진다. 몇 명에게 갈지만 찍어
+    # 쉼표 구분이 제대로 먹었는지 확인할 수 있게 한다.
+    n_chats = len([c for c in os.environ.get("TELEGRAM_CHAT_ID", "").split(",") if c.strip()])
+    print(f"수신자 {n_chats}명")
 
     for ticker, name in WATCH:
         try:
