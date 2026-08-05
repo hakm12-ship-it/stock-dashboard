@@ -119,7 +119,11 @@ _last_insight: dict[str, str] = {}
 
 @router.get("/api/ai-briefing")
 def api_ai_briefing(market: str, ticker: str, name: str = ""):
-    df = load(ticker, "3m")
+    # 종합신호 패널(/api/signal)과 같은 6개월을 쓴다. 두 가지가 걸려 있다:
+    # 3개월은 62거래일뿐이라 60일선이 겨우 3점만 유효한 채로 '이평 배열'을
+    # 판정하고, 같은 화면의 두 패널이 서로 다른 근거를 쓰게 된다. 게다가
+    # 기간이 다르면 캐시도 갈려 같은 종목을 두 번 받는다.
+    df = load(ticker, "6m")
     _, _, pct = change_of(df["Close"].dropna())
     _, _, verdict, _ = technical_signals(df)
     val = cached_valuation(market_name(market), ticker)
