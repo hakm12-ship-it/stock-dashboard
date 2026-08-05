@@ -12,6 +12,8 @@ import MarketTop from '../components/MarketTop'
 import GroupsPanel from '../components/GroupsPanel'
 import AlertInviteCard from '../components/AlertInviteCard'
 import type { Holding } from '../lib/holdings'
+import type { Trade } from '../lib/trades'
+import PortfolioReviewCard from '../components/PortfolioReviewCard'
 import { loadSignalConfig, cfgKey, cfgParams } from '../lib/signalConfig'
 import { fmtQuote, fmtChange, changeColor } from '../lib/format'
 
@@ -182,6 +184,7 @@ function HomeCard({
 export default function HomeView({
   tickers,
   holdings,
+  trades,
   light,
   onSelect,
   onAddClick,
@@ -193,6 +196,7 @@ export default function HomeView({
 }: {
   tickers: FocusTicker[]
   holdings: Holding[]
+  trades: Trade[]
   light: boolean
   onSelect: (t: FocusTicker) => void
   onAddClick: () => void
@@ -243,6 +247,7 @@ export default function HomeView({
         onManage={onManageHoldings}
         onJournal={onOpenJournal}
       />
+      <PortfolioReviewCard holdings={holdings} trades={trades} />
       <DailyReportCard />
       <MacroStrip />
       <IndexStrip />

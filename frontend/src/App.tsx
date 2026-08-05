@@ -216,6 +216,7 @@ export default function App() {
             <HomeView
               tickers={all}
               holdings={holdings}
+              trades={trades}
               light={theme === 'light'}
               onSelect={(tk) => {
                 setT(tk)

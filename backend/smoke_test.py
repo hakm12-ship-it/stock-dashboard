@@ -71,6 +71,17 @@ CALLS = [
     ("/api/kakao-auth", {}),
 ]
 
+# POST 엔드포인트 — (경로, 본문). 보유종목은 브라우저에만 있어 서버가 못 만든다.
+POSTS = [
+    ("/api/portfolio-review", {
+        "holdings": [
+            {"ticker": "005930", "name": "삼성전자", "market": "KR", "qty": 10, "avg": 200000},
+            {"ticker": "SOXL", "name": "SOXL", "market": "US", "qty": 5, "avg": 40},
+        ],
+        "trades": [{"ticker": "005930", "date": "2026-05-02", "side": "buy"}],
+    }),
+]
+
 
 def shape(v):
     """값 대신 구조만 남긴다 (리스트는 비었는지 여부와 첫 원소 구조)."""
@@ -83,25 +94,40 @@ def shape(v):
     return type(v).__name__
 
 
+def _record(result: dict, key: str, req) -> None:
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            body = r.read()
+            # 카카오 인증 화면만 HTML이다. 본문은 매번 같지 않을 수 있으니
+            # 구조 비교에는 타입만 남긴다.
+            if "json" in r.headers.get("Content-Type", ""):
+                result[key] = {"status": r.status, "shape": shape(json.loads(body))}
+            else:
+                result[key] = {"status": r.status, "shape": "<html>"}
+    except Exception as e:
+        result[key] = {"status": "ERROR", "shape": str(e)}
+
+
 def collect() -> dict:
     result = {}
+    for path, body in POSTS:
+        _record(
+            result,
+            f"POST {path}",
+            urllib.request.Request(
+                f"{BASE}{path}",
+                data=json.dumps(body).encode(),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            ),
+        )
     for path, params in CALLS:
         query = urllib.parse.urlencode(params) if params else ""
         url = f"{BASE}{path}" + (f"?{query}" if query else "")
         # 같은 경로를 파라미터만 바꿔 여러 번 부르므로(예: synth-price의 국내/미국),
         # 경로만 키로 쓰면 뒤엣것이 앞엣것을 덮어써 결과가 조용히 사라진다.
         key = f"{path}?{query}" if query else path
-        try:
-            with urllib.request.urlopen(url, timeout=60) as r:
-                body = r.read()
-                # 카카오 인증 화면만 HTML이다. 본문은 매번 같지 않을 수 있으니
-                # 구조 비교에는 타입만 남긴다.
-                if "json" in r.headers.get("Content-Type", ""):
-                    result[key] = {"status": r.status, "shape": shape(json.loads(body))}
-                else:
-                    result[key] = {"status": r.status, "shape": "<html>"}
-        except Exception as e:
-            result[key] = {"status": "ERROR", "shape": str(e)}
+        _record(result, key, url)
     return result
 
 
@@ -111,7 +137,7 @@ def main():
     ap.add_argument("--check", metavar="FILE", help="기준선과 구조가 같은지 비교")
     args = ap.parse_args()
 
-    print(f"{len(CALLS)}개 엔드포인트 확인 중... ({BASE})")
+    print(f"{len(CALLS) + len(POSTS)}개 엔드포인트 확인 중... ({BASE})")
     result = collect()
 
     failed = [p for p, v in result.items() if v["status"] != 200]

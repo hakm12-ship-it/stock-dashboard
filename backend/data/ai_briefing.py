@@ -56,6 +56,42 @@ def generate_briefing(name: str, ticker: str, context: dict) -> dict:
     }
 
 
+def generate_portfolio_review(context: dict, observations: list[str]) -> dict:
+    """보유 포트폴리오 진단 코멘트.
+
+    수치와 관찰은 이미 규칙기반으로 나와 있고(analysis/portfolio.py), LLM은
+    그걸 애널리스트 문체로 옮기는 일만 한다. 새로운 사실을 만들어내지 않게
+    "주어진 데이터 밖의 내용을 쓰지 말 것"을 명시한다.
+
+    매수·매도 권유는 금지한다 — 이 앱은 참고용 도구지 투자자문이 아니다.
+    """
+    prompt = f"""당신은 개인 투자자의 포트폴리오 구성을 설명해 주는 애널리스트입니다.
+아래는 한 투자자의 보유 현황을 계산한 결과입니다.
+
+수치: {json.dumps(context, ensure_ascii=False)}
+
+이미 도출된 관찰:
+{chr(10).join("- " + o for o in observations)}
+
+이 데이터를 근거로 포트폴리오의 **구성상 특징**을 설명하는 코멘트를 JSON으로만 작성하세요.
+
+규칙:
+- 특정 종목을 사라/팔라/줄여라/늘려라 같은 권유는 절대 쓰지 마세요. 구성이 어떤 성격인지 서술만 하세요.
+- 주어진 수치 밖의 사실(뉴스, 전망, 목표가 등)을 지어내지 마세요.
+- 좋다/나쁘다로 평가하지 말고, 어떤 성격의 포트폴리오인지, 무엇에 민감한 구조인지를 설명하세요.
+- 한국어, 과장 없이, 담백하게.
+
+출력 형식(JSON만, 다른 텍스트 없이):
+{{"headline": "이 포트폴리오의 성격을 한 문장으로", "summary": "2~3문장 설명", "watchPoints": ["이 구성에서 값이 크게 움직일 수 있는 지점 1", "지점 2", "지점 3"]}}"""
+
+    parsed = json.loads(_ask(prompt, as_json=True))
+    return {
+        "headline": parsed.get("headline", ""),
+        "summary": parsed.get("summary", ""),
+        "watchPoints": parsed.get("watchPoints", []),
+    }
+
+
 def generate_market_insight(name: str, stocks: list[dict]) -> str:
     """stocks: [{name, role, changePct}] — 관련종목 등락으로 한 줄 시사점 생성."""
     prompt = f"""당신은 반도체 밸류체인을 분석하는 애널리스트입니다.

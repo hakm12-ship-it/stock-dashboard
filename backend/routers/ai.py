@@ -5,15 +5,22 @@ LLM 호출은 비용이 있으므로 모두 TTL 캐시를 거친다. 캐시 키�
 키가 바뀌어 캐시가 사실상 무효화된다.
 """
 
+import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 
 from fastapi import APIRouter
+from pydantic import BaseModel
 
+import analysis.portfolio as pf
 from analysis.fundamental import valuation
 from analysis.signal import technical_signals
 from cache import ttl_cache
-from data.ai_briefing import generate_briefing, generate_market_insight
+from data.ai_briefing import (
+    generate_briefing,
+    generate_market_insight,
+    generate_portfolio_review,
+)
 from data.related_stocks import RELATED_STOCKS
 from deps import (
     cached_market_rank,
@@ -172,3 +179,93 @@ def api_related_insight(ticker: str):
         stale = insight is not None
 
     return {"available": True, "insight": insight, "stale": stale, "stocks": stocks}
+
+
+class _Holding(BaseModel):
+    ticker: str
+    name: str
+    market: str
+    qty: float
+    avg: float
+
+
+class _Trade(BaseModel):
+    ticker: str
+    date: str
+    side: str
+
+
+class _PortfolioBody(BaseModel):
+    holdings: list[_Holding]
+    # 매수 시기는 '일지'에 기록했을 때만 있다. 없으면 보유기간은 생략된다.
+    trades: list[_Trade] = []
+
+
+@ttl_cache(60 * 60 * 2)  # LLM 호출 비용 절감 — 구성이 그대로면 2시간 재사용
+def _portfolio_review(context_json: str, observations: tuple):
+    return generate_portfolio_review(json.loads(context_json), list(observations))
+
+
+# 마지막 성공 코멘트. 429 등으로 LLM이 실패해도 카드가 비지 않게 한다.
+_last_review: dict = {}
+
+
+@router.post("/api/portfolio-review")
+def api_portfolio_review(body: _PortfolioBody):
+    """보유 포트폴리오 진단.
+
+    보유종목은 브라우저(localStorage)에만 있어서 서버가 가진 게 없다. 그래서
+    조회가 아니라 POST로 받는다.
+
+    수치와 관찰은 규칙기반이라 항상 나오고, LLM 코멘트만 실패할 수 있다.
+    그때는 comment=None으로 내려보내고 프런트가 관찰만 보여준다.
+    """
+    holdings = [h.model_dump() for h in body.holdings]
+    if not holdings:
+        return {"available": False, "reason": "보유종목 없음"}
+
+    prices: dict[str, float] = {}
+    closes: dict = {}
+    for h in holdings:
+        try:
+            s = load(h["ticker"], "6m")["Close"].dropna()
+            if not s.empty:
+                closes[h["ticker"]] = s
+                prices[h["ticker"]] = float(s.iloc[-1])
+        except Exception:  # noqa: BLE001, S112
+            continue  # 시세를 못 구한 종목은 평단가로 대체된다
+
+    fx_rate = None
+    if any(h["market"] == "US" for h in holdings):
+        try:
+            fx_rate, _, _ = change_of(load_fx()["Close"].dropna())
+        except Exception:  # noqa: BLE001
+            return {"available": False, "reason": "환율 조회 실패"}
+
+    a = pf.analyze(
+        holdings, prices, closes, fx_rate,
+        trades=[t.model_dump() for t in body.trades],
+        today=date.today().isoformat(),
+    )
+    if a is None:
+        return {"available": False, "reason": "평가액을 계산할 수 없어요"}
+
+    obs = pf.observations(a)
+    context = pf.context_for_llm(a)
+
+    comment, stale = None, False
+    key = json.dumps(context, ensure_ascii=False, sort_keys=True)
+    try:
+        comment = _portfolio_review(key, tuple(obs))
+        _last_review[key] = comment
+    except Exception:  # noqa: BLE001
+        comment = _last_review.get(key)
+        stale = comment is not None
+
+    return {
+        "available": True,
+        "analysis": a,
+        "observations": obs,
+        "comment": comment,
+        "stale": stale,
+    }

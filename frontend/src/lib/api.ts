@@ -187,6 +187,43 @@ export interface AiBriefing {
 export const getAiBriefing = (market: Market, ticker: string, name: string) =>
   get<AiBriefing>('/api/ai-briefing', { market, ticker, name })
 
+export interface PortfolioPosition {
+  ticker: string
+  name: string
+  market: Market
+  weight: number
+  valueKrw: number
+  plKrw: number
+  plPct: number
+  leverage: number
+  theme: string
+}
+export interface PortfolioReview {
+  available: boolean
+  reason?: string
+  /** LLM 실패로 직전 코멘트를 대신 내려준 경우 true */
+  stale?: boolean
+  analysis?: {
+    totals: { valueKrw: number; costKrw: number; plKrw: number; plPct: number }
+    positions: PortfolioPosition[]
+    concentration: { top1: number; top1Name: string; effectiveN: number; count: number }
+    themes: { theme: string; weight: number }[]
+    leverage: { effective: number; weight: number }
+    usWeight: number
+    dailyVolPct: number | null
+    volDays: number | null
+    holdingDays: number | null
+  }
+  observations?: string[]
+  /** LLM 코멘트. 할당량 초과 등으로 없을 수 있고, 그때는 observations만 보여준다. */
+  comment?: { headline: string; summary: string; watchPoints: string[] } | null
+}
+/** 보유종목은 브라우저에만 있어서 조회가 아니라 POST로 올려보낸다. */
+export const postPortfolioReview = (
+  holdings: { ticker: string; name: string; market: Market; qty: number; avg: number }[],
+  trades: { ticker: string; date: string; side: string }[],
+) => api.post<PortfolioReview>('/api/portfolio-review', { holdings, trades }).then((r) => r.data)
+
 export interface NightPrice {
   available: boolean
   usd?: number
