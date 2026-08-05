@@ -247,8 +247,13 @@ export default function FundamentalView({
           <Metric label="PBR" help="pbr" value={fmtNum(v.PBR, 2)} />
           <Metric label="EPS" help="eps" value={fmtEps(v.EPS, t.market)} />
           <Metric label="ROE" help="roe" value={v.ROE != null ? `${(v.ROE * 100).toFixed(1)}%` : '—'} />
-          <Metric label="배당수익률" value={v.배당수익률 != null ? `${v.배당수익률.toFixed(2)}%` : '—'} />
-          <Metric label="주당배당금" value={v.주당배당금 != null ? fmtPrice(v.주당배당금, t.market) : '—'} />
+          {/* 주당배당금은 배당수익률과 같이 읽는 값이라 아래에 붙인다.
+              따로 카드를 두면 7개가 되어 3열 그리드 마지막 줄에 하나만 남는다. */}
+          <Metric
+            label="배당수익률"
+            value={v.배당수익률 != null ? `${v.배당수익률.toFixed(2)}%` : '—'}
+            sub={v.주당배당금 != null ? `주당 ${fmtPrice(v.주당배당금, t.market)}` : undefined}
+          />
           <Metric label="시가총액" value={fmtCap(v.시가총액, t.market)} />
         </div>
       )}
