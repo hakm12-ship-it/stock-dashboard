@@ -1,8 +1,11 @@
-"""장중 급변 알림 — 외부 스케줄러(cron-job.org)가 1분마다 호출한다.
+"""급변 알림 — 외부 스케줄러(cron-job.org)가 주기적으로 호출한다.
 
-GitHub Actions의 schedule은 이 저장소에서 수 시간씩 밀리는 게 관측돼(2026-08),
-장중 급변 알림에는 못 쓴다. 그래서 알림 판정을 서버 엔드포인트로 옮기고
-분 단위로 정확한 외부 스케줄러가 두드리게 했다.
+    /api/market-alert-check  장중: 삼성·하이닉스 5% 계단, 사이드카, 서킷
+    /api/night-alert-check   야간: perp 갭이 ±3% 넘게 벌어졌을 때
+
+GitHub Actions의 schedule은 이 저장소에서 2~9시간씩 밀리는 게 관측돼(2026-08)
+알림에는 못 쓴다. 그래서 판정을 서버 엔드포인트로 옮기고 분 단위로 정확한
+외부 스케줄러가 두드리게 했다 — 야간 알림도 같은 이유로 여기로 옮겨왔다.
 
 상태(어디까지 알렸는지)는 프로세스 메모리에 둔다. Render가 재시작하면
 초기화되는데, 그때는 한 번 더 알림이 갈 뿐이라 감수한다 — 파일/DB를 쓰면
@@ -29,6 +32,7 @@ from data.kakao import is_configured as kakao_configured
 from data.kakao import last_error as kakao_last_error
 from data.kakao import refresh_token_days_left, send_kakao
 from data.notify import APP_URL, notify
+from routers.night import api_night_price
 
 router = APIRouter()
 
@@ -133,6 +137,107 @@ def api_market_alert_check(force: bool = False, test: bool = False):
     }
 
 
+# 야간 갭 — 어느 종목을 어느 갭에서 알렸는지. {"session": "2026-08-06", "005930": 3.4}
+_night: dict = {}
+
+_NIGHT_THRESHOLD = float(os.environ.get("ALERT_THRESHOLD", "3.0"))
+_NIGHT_STEP = float(os.environ.get("ALERT_STEP", "1.5"))
+
+
+def _night_session(now: datetime) -> str:
+    """야간 세션의 이름. 자정이 아니라 개장(09:00)을 기준으로 하루를 나눈다.
+
+    16:00~다음날 08:30은 하나의 밤인데 자정 기준으로 날짜를 붙이면 00:00에
+    '새 날'이 되어, 갭이 그대로여도 알림이 한 번 더 간다. 30분 간격일 때는
+    티가 안 났지만 1분 간격에서는 그대로 중복 알림이 된다.
+    """
+    ref = now if now.hour >= 9 else now - timedelta(days=1)
+    return ref.strftime("%Y-%m-%d")
+
+
+def _night_open(now: datetime) -> bool:
+    """KRX 정규장 밖 — 야간 perp 가격이 의미를 갖는 시간대(16:00~08:30)."""
+    minutes = now.hour * 60 + now.minute
+    return minutes >= 16 * 60 or minutes <= 8 * 60 + 30
+
+
+def _night_should_alert(gap: float, last: float | None) -> bool:
+    if abs(gap) < _NIGHT_THRESHOLD:
+        return False
+    if last is None:
+        return True  # 이 밤의 첫 알림
+    if (gap > 0) != (last > 0):
+        return True  # 방향이 뒤집혔다 — 되돌림이 아니라 급반전이라 알린다
+    # 같은 방향이면 더 벌어졌을 때만 (조금 되돌아오는 건 알리지 않는다)
+    return abs(gap) - abs(last) >= _NIGHT_STEP
+
+
+@router.get("/api/night-alert-check")
+def api_night_alert_check(force: bool = False, test: bool = False):
+    """야간 갭이 크게 벌어졌으면 알림. 외부 스케줄러 전용.
+
+    force=true  시간대를 무시하고 확인한다
+    test=true   조건에 안 걸려도 현재 갭을 한 번 보낸다 (연동 확인용)
+    """
+    now = datetime.now(KST)
+    session = _night_session(now)
+    if _night.get("session") != session:
+        _night.clear()
+        _night["session"] = session
+
+    if not (force or test) and not _night_open(now):
+        return {"checked": False, "reason": "야간 시간대 아님", "at": now.strftime("%H:%M")}
+
+    lines: list[str] = []
+    seen: dict = {}
+    for code, name in WATCH:
+        try:
+            # 갭 계산은 /api/night-price가 이미 하고 있다. 여기서 다시 짜면
+            # 화면에 보이는 값과 알림 값이 갈라진다.
+            d = api_night_price(code)
+        except Exception as e:  # noqa: BLE001
+            seen[name] = f"조회실패: {e}"
+            continue
+        if not d.get("available"):
+            seen[name] = "야간 시세 없음"
+            continue
+        gap = d["gapPct"]
+        seen[name] = gap
+        if force or _night_should_alert(gap, _night.get(code)):
+            arrow = "▲" if gap > 0 else "▼"
+            lines.append(
+                f"{arrow} {name} 야간 {gap:+.2f}%\n"
+                f"   KRX종가 {d['krxClose']:,.0f}원 → 야간 {d['krw']:,.0f}원"
+            )
+            _night[code] = gap
+
+    result: dict = {}
+    if lines:
+        result = notify(
+            "🌙 야간 시세 알림\n\n" + "\n\n".join(lines)
+            + "\n\nperp 기준 참고 정보이고 투자 권유가 아니에요."
+        )
+    elif test:
+        quote_lines = "\n".join(
+            f"  {k} {v:+.2f}%" if isinstance(v, (int, float)) else f"  {k} {v}"
+            for k, v in seen.items()
+        )
+        result = notify(
+            "🌙 야간 알림 연동 테스트\n\n현재 야간 갭\n" + quote_lines
+            + f"\n\n실제 알림은 ±{_NIGHT_THRESHOLD}% 돌파 시에만 옵니다."
+        )
+
+    return {
+        "checked": True,
+        "at": now.strftime("%H:%M"),
+        "session": session,
+        "gaps": seen,
+        "alerts": len(lines),
+        "sent": bool(result.get("telegram") or result.get("kakao")),
+        "channels": result,
+    }
+
+
 @router.get("/api/market-alert-config")
 def api_market_alert_config():
     """알림이 켜져 있는지 확인용 (토큰 값은 노출하지 않는다)."""
@@ -142,6 +247,7 @@ def api_market_alert_config():
         "recipients": len(chats),
         "kakaoReady": kakao_configured(),
         "sentToday": {k: v for k, v in _sent.items() if k != "date"},
+        "nightSent": {k: v for k, v in _night.items() if k != "session"},
     }
 
 

@@ -60,8 +60,9 @@ CALLS = [
     ("/api/fx-attribution", {"ticker": "SOXL", "market": "US", "period": "3m"}),
     ("/api/synth-price", {"ticker": "KORU"}),
     ("/api/synth-price", {"ticker": "0193T0"}),
-    # 알림 계열 — 실제 발송(/api/market-alert-check, /api/kakao-test)은 넣지 않는다.
-    # 스모크 테스트를 돌릴 때마다 텔레그램 그룹에 메시지가 가면 안 된다.
+    # 알림 계열 — 실제 발송이 일어나는 것(/api/market-alert-check,
+    # /api/night-alert-check, /api/kakao-test)은 넣지 않는다. 스모크 테스트를
+    # 돌릴 때마다 텔레그램 그룹에 메시지가 가면 안 된다.
     ("/api/market-alert-config", {}),
     ("/api/alert-invite", {}),
     ("/api/kakao-redirect-uri", {}),
