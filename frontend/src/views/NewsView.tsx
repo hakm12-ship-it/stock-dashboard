@@ -22,7 +22,9 @@ function relTime(d: Date): string {
   return d.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
 }
 
-const DAY = 24 * 60 * 60 * 1000
+// 뉴스는 최신순이라 24시간 기준이면 거의 전부에 NEW가 붙어 신호 역할을 못 했다.
+// 정말 방금 들어온 것만 표시한다.
+const FRESH_MS = 3 * 60 * 60 * 1000
 
 interface Entry {
   n: NewsItem
@@ -79,7 +81,7 @@ export default function NewsView({ t, tickers }: { t: FocusTicker; tickers: Focu
             key={m}
             onClick={() => setMode(m)}
             className={`flex-1 min-h-[44px] rounded-md text-xs font-medium transition-colors ${
-              m === mode ? 'bg-accent/20 text-text' : 'text-muted'
+              m === mode ? 'bg-surface-2 text-text' : 'text-muted'
             }`}
           >
             {label}
@@ -95,12 +97,12 @@ export default function NewsView({ t, tickers }: { t: FocusTicker; tickers: Focu
         <Empty label="관련 뉴스를 찾지 못했어요" />
       ) : (
         <>
-          <p className="text-[0.66rem] text-muted">
+          <p className="text-label text-muted">
             {mode === 'one' ? `'${t.name}' 관련 최신 뉴스` : '관심종목 전체 뉴스'} · 출처 Google News ·
             최신순
           </p>
           {entries.map(({ n, d, tag }, i) => {
-            const fresh = d != null && Date.now() - d.getTime() < DAY
+            const fresh = d != null && Date.now() - d.getTime() < FRESH_MS
             return (
               <a
                 key={i}
@@ -111,15 +113,15 @@ export default function NewsView({ t, tickers }: { t: FocusTicker; tickers: Focu
               >
                 <div className="text-sm font-medium leading-snug">
                   {fresh && (
-                    <span className="font-mono text-[0.55rem] text-accent border border-accent/40 rounded px-1 py-0.5 mr-1.5 align-middle">
+                    <span className="font-mono text-label text-accent border border-accent/40 rounded px-1 py-0.5 mr-1.5 align-middle">
                       NEW
                     </span>
                   )}
                   {n.title}
                 </div>
-                <div className="text-[0.66rem] text-muted mt-1.5 font-mono flex items-center gap-1.5 flex-wrap">
+                <div className="text-label text-muted mt-1.5 font-mono flex items-center gap-1.5 flex-wrap">
                   {tag && (
-                    <span className="border border-border rounded px-1 py-0.5 text-[0.6rem]">{tag}</span>
+                    <span className="border border-border rounded px-1 py-0.5 text-label">{tag}</span>
                   )}
                   <span>{[n.source, d ? relTime(d) : n.published].filter(Boolean).join(' · ')}</span>
                 </div>

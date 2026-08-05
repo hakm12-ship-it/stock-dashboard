@@ -166,15 +166,15 @@ export default function TechnicalCharts({
       <div className="relative">
         <div
           ref={legendRef}
-          className="absolute top-1 left-1 z-10 font-mono text-[0.62rem] text-muted tnum pointer-events-none"
+          className="absolute top-1 left-1 z-10 font-mono text-label text-muted tnum pointer-events-none"
         />
         <div ref={priceRef} className="w-full h-[280px]" />
       </div>
       {!simple && (
         <>
-          <div className="text-[0.62rem] uppercase tracking-[0.06em] text-muted pt-2">RSI (14)</div>
+          <div className="text-label uppercase tracking-[0.06em] text-muted pt-2">RSI (14)</div>
           <div ref={rsiRef} className="w-full h-24" />
-          <div className="text-[0.62rem] uppercase tracking-[0.06em] text-muted pt-1">MACD (12·26·9)</div>
+          <div className="text-label uppercase tracking-[0.06em] text-muted pt-1">MACD (12·26·9)</div>
           <div ref={macdRef} className="w-full h-24" />
         </>
       )}

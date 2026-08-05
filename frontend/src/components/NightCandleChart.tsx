@@ -46,8 +46,8 @@ export default function NightCandleChart({ ticker, light }: { ticker: string; li
           <button
             key={iv}
             onClick={() => setTf(iv)}
-            className={`font-mono text-[0.7rem] min-w-[44px] min-h-[44px] px-3 rounded-lg transition-colors ${
-              tf === iv ? 'bg-accent/15 text-accent font-semibold' : 'text-muted/70 active:bg-surface-2'
+            className={`font-mono text-label min-w-[44px] min-h-[44px] px-3 rounded-lg transition-colors ${
+              tf === iv ? 'bg-surface-2 text-text font-semibold' : 'text-muted/70 active:bg-surface-2'
             }`}
           >
             {label}
@@ -59,7 +59,7 @@ export default function NightCandleChart({ ticker, light }: { ticker: string; li
       ) : (
         <div className="h-[220px] rounded bg-surface-2 animate-pulse" />
       )}
-      <p className="text-[0.6rem] text-muted mt-1">출처 · Hyperliquid HIP-3(xyz dex) · KRW 환산 캔들</p>
+      <p className="text-label text-muted mt-1">출처 · Hyperliquid HIP-3(xyz dex) · KRW 환산 캔들</p>
     </div>
   )
 }

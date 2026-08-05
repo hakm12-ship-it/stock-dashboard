@@ -30,17 +30,17 @@ export default function FxAttributionPanel({
 
   const Row = ({ label, value, sub }: { label: string; value: number; sub?: string }) => (
     <div className="flex items-baseline justify-between py-1">
-      <span className="text-[0.72rem]">
+      <span className="text-label">
         {label}
-        {sub && <span className="text-muted text-[0.6rem] ml-1">{sub}</span>}
+        {sub && <span className="text-muted text-label ml-1">{sub}</span>}
       </span>
-      <span className={`font-mono text-[0.78rem] ${changeColor(value)}`}>{sign(value)}</span>
+      <span className={`font-mono text-caption ${changeColor(value)}`}>{sign(value)}</span>
     </div>
   )
 
   return (
     <Panel label="💱 원화 수익, 얼마가 환율이었나">
-      <p className="text-[0.7rem] text-muted leading-relaxed mb-2">
+      <p className="text-label text-muted leading-relaxed mb-2">
         미국 자산이라 원화 수익엔 주가와 환율이 섞여 있어요. 최근 {data.days}거래일 · 환율{' '}
         {Math.round(data.fxStart ?? 0).toLocaleString()}원 →{' '}
         {Math.round(data.fxEnd ?? 0).toLocaleString()}원
@@ -53,17 +53,17 @@ export default function FxAttributionPanel({
       </div>
 
       <div className="flex items-baseline justify-between pt-2 mt-1 border-t border-border">
-        <span className="text-[0.75rem] font-semibold">원화 기준 합계</span>
+        <span className="text-caption font-semibold">원화 기준 합계</span>
         <span className={`font-mono text-base font-semibold ${changeColor(krw)}`}>{sign(krw)}</span>
       </div>
 
       {fxHurt && (
-        <p className="text-[0.68rem] leading-relaxed mt-3 bg-surface-2 border border-border rounded-lg px-2.5 py-2">
+        <p className="text-label leading-relaxed mt-3 bg-surface-2 border border-border rounded-lg px-2.5 py-2">
           달러로는 {sign(price)}인데 원화로는 {sign(krw)}예요 — 환율이 결과를 뒤집었습니다.
         </p>
       )}
 
-      <p className="text-[0.6rem] text-muted mt-2">기간 수익률 기준 · 내 매수 시점과는 달라요</p>
+      <p className="text-label text-muted mt-2">기간 수익률 기준 · 내 매수 시점과는 달라요</p>
     </Panel>
   )
 }

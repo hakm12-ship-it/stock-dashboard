@@ -108,7 +108,7 @@ export default function ComparisonSheet({
             key={p}
             onClick={() => setPeriod(p)}
             className={`flex-1 min-h-[44px] rounded-md text-xs font-medium ${
-              p === period ? 'bg-accent/20 text-text' : 'text-muted'
+              p === period ? 'bg-surface-2 text-text' : 'text-muted'
             }`}
           >
             {LABEL[p]}
@@ -118,7 +118,7 @@ export default function ComparisonSheet({
 
       {/* 수익률 차트 */}
       <div className="bg-surface border border-border rounded-xl p-3 card-shadow">
-        <div className="text-[0.66rem] text-muted mb-1">기간 수익률 비교 (시작점 0%)</div>
+        <div className="text-label text-muted mb-1">기간 수익률 비교 (시작점 0%)</div>
         <Suspense fallback={<ChartFallback height={200} />}>
           <CompareChart series={series} light={light} />
         </Suspense>
@@ -128,7 +128,7 @@ export default function ComparisonSheet({
       <div className="bg-surface border border-border rounded-xl px-4 py-2 card-shadow">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-[0.66rem] text-muted uppercase tracking-wide">
+            <tr className="text-label text-muted uppercase tracking-wide">
               <th className="text-left font-medium py-2">지표</th>
               <th className="text-right font-medium" style={{ color: CA }}>
                 {a?.short}

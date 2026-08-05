@@ -50,7 +50,7 @@ export default function Onboarding() {
           ))}
         </div>
 
-        <p className="text-[0.62rem] text-muted leading-relaxed mb-4">
+        <p className="text-label text-muted leading-relaxed mb-4">
           ⚠️ 시세는 실시간이 아닌 지연 데이터이며, 모든 신호·추정치는 참고용 정보입니다. 투자 조언이
           아니고 판단·책임은 본인에게 있어요.
         </p>

@@ -18,7 +18,7 @@ export default function Week52Bar({ t }: { t: FocusTicker }) {
 
   return (
     <div className="pt-2">
-      <div className="flex justify-between text-[0.62rem] text-muted mb-1.5 font-mono">
+      <div className="flex justify-between text-label text-muted mb-1.5 font-mono">
         <span>52주 최저 {fmtQuote(low, t)}</span>
         <span>52주 최고 {fmtQuote(high, t)}</span>
       </div>
@@ -28,7 +28,7 @@ export default function Week52Bar({ t }: { t: FocusTicker }) {
           style={{ left: `calc(${clamped}% - 6px)` }}
         />
       </div>
-      <div className="text-center text-[0.6rem] text-muted mt-1.5">
+      <div className="text-center text-label text-muted mt-1.5">
         1년 범위의 {clamped.toFixed(0)}% 지점
       </div>
     </div>

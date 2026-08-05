@@ -45,9 +45,9 @@ function PeersPanel({
               <button onClick={() => added && onOpen(added)} className="min-w-0 flex-1 self-stretch text-left">
                 <div className="text-sm font-medium truncate">
                   {p.name}
-                  {added && <span className="text-accent text-[0.6rem] ml-1">›</span>}
+                  {added && <span className="text-muted text-label ml-1">›</span>}
                 </div>
-                <div className="font-mono text-[0.62rem] text-muted">
+                <div className="font-mono text-label text-muted">
                   시총 {fmtCap(p.marketCap, 'KR')}
                 </div>
               </button>
@@ -55,7 +55,7 @@ function PeersPanel({
                 <div className="font-mono text-sm tnum">
                   {p.price != null ? `${Math.round(p.price).toLocaleString()}원` : '—'}
                 </div>
-                <div className={`font-mono text-[0.7rem] ${p.changePct != null ? changeColor(p.changePct) : 'text-muted'}`}>
+                <div className={`font-mono text-label ${p.changePct != null ? changeColor(p.changePct) : 'text-muted'}`}>
                   {p.changePct != null ? fmtChange(p.changePct) : '—'}
                 </div>
               </div>
@@ -64,8 +64,8 @@ function PeersPanel({
                 onClick={() =>
                   onAddTicker({ ticker: p.ticker, name: p.name, short: p.name, market: 'KR', kind: 'stock' })
                 }
-                className={`shrink-0 text-[0.66rem] px-2 min-w-[44px] min-h-[44px] rounded-md border ${
-                  added ? 'text-muted border-border' : 'text-accent border-accent/50 active:bg-accent/10'
+                className={`shrink-0 text-label px-2 min-w-[44px] min-h-[44px] rounded-md border ${
+                  added ? 'text-muted border-border' : 'text-text border-border active:border-accent'
                 }`}
               >
                 {added ? '추가됨' : '+담기'}
@@ -100,7 +100,7 @@ function DealTrendPanel({ t }: { t: FocusTicker }) {
       <div className="overflow-x-auto no-scrollbar">
         <table className="w-full text-xs font-mono tnum">
           <thead>
-            <tr className="text-muted text-[0.64rem]">
+            <tr className="text-muted text-label">
               <th className="text-left font-medium py-1">날짜</th>
               <th className="text-right font-medium">외국인</th>
               <th className="text-right font-medium">기관</th>
@@ -125,7 +125,7 @@ function DealTrendPanel({ t }: { t: FocusTicker }) {
         </table>
       </div>
       {holdRatio != null && (
-        <p className="text-[0.62rem] text-muted mt-2 font-mono">외국인 보유율 {holdRatio}%</p>
+        <p className="text-label text-muted mt-2 font-mono">외국인 보유율 {holdRatio}%</p>
       )}
     </Panel>
   )
@@ -160,14 +160,14 @@ function RevenueBars({
       </div>
       <div className="flex gap-2 mt-1">
         {years.map((yr) => (
-          <div key={yr} className="flex-1 text-center text-[0.62rem] text-muted font-mono">
+          <div key={yr} className="flex-1 text-center text-label text-muted font-mono">
             {yr}
           </div>
         ))}
       </div>
       <div className="flex gap-3 justify-center mt-2">
         {series.map((s) => (
-          <span key={s.label} className="flex items-center gap-1 text-[0.66rem] text-muted">
+          <span key={s.label} className="flex items-center gap-1 text-label text-muted">
             <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: s.color }} />
             {s.label}
           </span>
@@ -272,7 +272,7 @@ export default function FundamentalView({
               />
               <Metric label="투자의견" value={recLabel} sub={rec != null ? `${rec.toFixed(2)} / 5` : undefined} />
             </div>
-            <p className="text-[0.62rem] text-muted mt-2">
+            <p className="text-label text-muted mt-2">
               증권사 컨센서스 평균 · 현재가 {fmtPrice(cur, t.market)} 기준 · 투자조언 아님
             </p>
           </Panel>
@@ -294,7 +294,7 @@ export default function FundamentalView({
               />
             ))}
           </div>
-          <p className="text-[0.62rem] text-muted mt-2">
+          <p className="text-label text-muted mt-2">
             현재가 ÷ 예상EPS. 컨센서스는 전망 변경에 따라 바뀝니다 · 투자조언 아님.
           </p>
         </Panel>
@@ -311,7 +311,7 @@ export default function FundamentalView({
               { label: '순이익', color: '#8B94A3', values: (yearsData['순이익'] as (number | null)[]) ?? [] },
             ]}
           />
-          <p className="text-[0.62rem] text-muted mt-3 text-center font-mono">
+          <p className="text-label text-muted mt-3 text-center font-mono">
             {yearsData.years.at(-1)} · 매출 {fmtCap(yearsData['매출']?.at(-1) ?? null, t.market)} · 영업{' '}
             {fmtCap(yearsData['영업이익']?.at(-1) ?? null, t.market)} · 순익{' '}
             {fmtCap(yearsData['순이익']?.at(-1) ?? null, t.market)}
@@ -332,7 +332,7 @@ export default function FundamentalView({
             {profile.data.researches.map((r, i) => (
               <div key={i} className="border-b border-border last:border-0 pb-2.5 last:pb-0">
                 <div className="text-sm font-medium leading-snug">{r.title}</div>
-                <div className="font-mono text-[0.66rem] text-muted mt-0.5">
+                <div className="font-mono text-label text-muted mt-0.5">
                   {r.brokerage} · {r.date}
                 </div>
               </div>
@@ -342,7 +342,7 @@ export default function FundamentalView({
             href={`https://m.stock.naver.com/domestic/stock/${t.ticker}/research`}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center justify-center min-h-[44px] text-[0.7rem] text-accent mt-1 active:opacity-70"
+            className="flex items-center justify-center min-h-[44px] text-label text-muted mt-1 active:opacity-70"
           >
             네이버 증권에서 리포트 더보기 →
           </a>

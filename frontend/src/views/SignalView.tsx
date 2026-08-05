@@ -63,11 +63,11 @@ function ConfigSheet({
           <span className="text-base font-bold">신호 규칙 설정</span>
           <button onClick={onClose} className="text-muted text-2xl leading-none px-1">×</button>
         </div>
-        <p className="text-[0.66rem] text-muted mb-4">
+        <p className="text-label text-muted mb-4">
           종합신호·과거성과(백테스트)에 함께 적용돼요. 판정 문턱은 최대점수의 40%로 자동 조정.
         </p>
 
-        <div className="text-[0.7rem] font-semibold uppercase tracking-[0.07em] text-muted mb-2">
+        <div className="text-label font-semibold uppercase tracking-[0.07em] text-muted mb-2">
           지표 가중치
         </div>
         <div className="space-y-2 mb-4">
@@ -81,7 +81,7 @@ function ConfigSheet({
                     onClick={() => setW(k, v)}
                     className={`font-mono text-xs px-3 py-1.5 rounded-md border transition-colors ${
                       draft.w[k] === v
-                        ? 'bg-accent/15 border-accent text-accent'
+                        ? 'bg-surface-2 border-border text-text'
                         : 'border-border text-muted'
                     }`}
                   >
@@ -93,7 +93,7 @@ function ConfigSheet({
           ))}
         </div>
 
-        <div className="text-[0.7rem] font-semibold uppercase tracking-[0.07em] text-muted mb-2">
+        <div className="text-label font-semibold uppercase tracking-[0.07em] text-muted mb-2">
           RSI 기준값
         </div>
         <div className="flex gap-3 mb-5">
@@ -157,7 +157,7 @@ function PerfBox({
   if (!perf) {
     return (
       <div className="bg-surface-2/60 border border-border rounded-lg p-3">
-        <div className="text-[0.66rem] font-semibold uppercase tracking-[0.06em] text-muted">{label}</div>
+        <div className="text-label font-semibold uppercase tracking-[0.06em] text-muted">{label}</div>
         <div className="text-xs text-muted mt-2">신호 없음</div>
       </div>
     )
@@ -165,12 +165,12 @@ function PerfBox({
   const r = perf.avgReturn
   return (
     <div className="bg-surface-2/60 border border-border rounded-lg p-3">
-      <div className="text-[0.66rem] font-semibold uppercase tracking-[0.06em] text-muted">{label}</div>
+      <div className="text-label font-semibold uppercase tracking-[0.06em] text-muted">{label}</div>
       <div className={`font-mono text-lg font-semibold tnum mt-1 ${r >= 0 ? 'text-up' : 'text-down'}`}>
         {r >= 0 ? '+' : ''}
         {r.toFixed(2)}%
       </div>
-      <div className="font-mono text-[0.66rem] text-muted mt-0.5">
+      <div className="font-mono text-label text-muted mt-0.5">
         {horizon}일 평균 · {perf.count}회 · 적중 {perf.winRate.toFixed(0)}%
       </div>
     </div>
@@ -206,14 +206,14 @@ export default function SignalView({ t }: { t: FocusTicker }) {
 
   return (
     <div className="space-y-3">
-      <p className="text-[0.7rem] text-muted leading-relaxed">
+      <p className="text-label text-muted leading-relaxed">
         ⚠️ 과거 가격·지표를 규칙으로 요약한 참고용 정보입니다. 예측·투자조언이 아니며 판단·책임은 본인에게 있습니다.
       </p>
 
       {/* 판정 */}
       <div className={`rounded-xl border px-4 py-3.5 card-shadow ${VERDICT_STYLE[s.verdict] ?? VERDICT_STYLE['중립']}`}>
         <div className="flex items-center justify-between">
-          <span className="text-[0.66rem] uppercase tracking-[0.09em] opacity-70">
+          <span className="text-label uppercase tracking-[0.09em] opacity-70">
             기술적 신호 종합{!isDefaultConfig(cfg) && ' · 내 규칙'}
           </span>
           <button onClick={() => setCfgOpen(true)} aria-label="신호 규칙 설정" className="relative z-10 opacity-70 active:opacity-100 text-sm leading-none before:absolute before:-inset-4 before:content-['']">
@@ -260,11 +260,11 @@ export default function SignalView({ t }: { t: FocusTicker }) {
             />
             <div className="absolute top-0 bottom-0 w-0.5 bg-accent" style={{ left: `${pos}%` }} />
           </div>
-          <div className="flex justify-between mt-1.5 font-mono text-[0.62rem] text-muted">
+          <div className="flex justify-between mt-1.5 font-mono text-label text-muted">
             <span>{fmtQuote(b.lower_outer, t)}</span>
             <span>{fmtQuote(b.upper_outer, t)}</span>
           </div>
-          <p className="text-[0.62rem] text-muted mt-2">
+          <p className="text-label text-muted mt-2">
             변동성 {fc.data ? (fc.data.sigma * 100).toFixed(1) : '—'}% 기준 · 진한띠 ≈68% · 방향 예측 아님
           </p>
         </Panel>
@@ -292,7 +292,7 @@ export default function SignalView({ t }: { t: FocusTicker }) {
             <PerfBox label="매수 우위 후" perf={hist.data.buy} horizon={hist.data.horizon} />
             <PerfBox label="매도 우위 후" perf={hist.data.sell} horizon={hist.data.horizon} />
           </div>
-          <p className="text-[0.62rem] text-muted mt-2">
+          <p className="text-label text-muted mt-2">
             같은 규칙을 지난 1년에 적용한 결과 · 신호일로부터 {hist.data.horizon}거래일 뒤 기준 · 과거
             성과가 미래를 보장하지 않아요
           </p>
@@ -303,22 +303,22 @@ export default function SignalView({ t }: { t: FocusTicker }) {
       <Panel label="참고 가격대" help="sr">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <div className="text-[0.66rem] text-down font-semibold mb-1.5">지지 (매수 관심)</div>
+            <div className="text-label text-down font-semibold mb-1.5">지지 (매수 관심)</div>
             {s.support.length ? s.support.map((x) => (
               <div key={x.label} className="flex justify-between text-xs py-0.5">
                 <span className="font-mono tnum">{fmtQuote(x.value, t)}</span>
                 <span className="text-muted">{x.label}</span>
               </div>
-            )) : <div className="text-[0.7rem] text-muted">없음</div>}
+            )) : <div className="text-label text-muted">없음</div>}
           </div>
           <div>
-            <div className="text-[0.66rem] text-up font-semibold mb-1.5">저항 (매도 관심)</div>
+            <div className="text-label text-up font-semibold mb-1.5">저항 (매도 관심)</div>
             {s.resistance.length ? s.resistance.map((x) => (
               <div key={x.label} className="flex justify-between text-xs py-0.5">
                 <span className="font-mono tnum">{fmtQuote(x.value, t)}</span>
                 <span className="text-muted">{x.label}</span>
               </div>
-            )) : <div className="text-[0.7rem] text-muted">없음</div>}
+            )) : <div className="text-label text-muted">없음</div>}
           </div>
         </div>
       </Panel>

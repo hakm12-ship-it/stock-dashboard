@@ -77,7 +77,7 @@ export default function HelpTip({ term }: { term: keyof typeof HELP | string }) 
         }}
         // before:-inset-4 = 보이는 원(16px)은 그대로 두고 탭 영역만 사방 16px 넓혀
         // 48px를 만든다(44 기준에 여유). 절대배치라 레이아웃은 전혀 밀리지 않는다.
-        className="relative inline-flex items-center justify-center h-4 w-4 rounded-full border border-border text-muted text-[0.6rem] leading-none align-middle ml-1 before:absolute before:-inset-4 before:content-['']"
+        className="relative inline-flex items-center justify-center h-4 w-4 rounded-full border border-border text-muted text-label leading-none align-middle ml-1 before:absolute before:-inset-4 before:content-['']"
         aria-label={`${info.title} 설명`}
       >
         ?
@@ -98,7 +98,7 @@ export default function HelpTip({ term }: { term: keyof typeof HELP | string }) 
               </button>
             </div>
             <p className="text-sm text-muted leading-relaxed whitespace-pre-line">{info.text}</p>
-            <p className="text-[0.6rem] text-muted/70 mt-3">참고용 설명 · 투자 조언이 아니에요</p>
+            <p className="text-label text-muted/70 mt-3">참고용 설명 · 투자 조언이 아니에요</p>
           </div>
         </div>
       )}

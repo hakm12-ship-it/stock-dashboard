@@ -17,13 +17,13 @@ function HoldingRow({ h, onRemove }: { h: Holding; onRemove: () => void }) {
     <div className="flex items-center justify-between gap-2 py-2.5 border-b border-border last:border-0">
       <div className="min-w-0">
         <div className="text-sm font-medium truncate">{h.name}</div>
-        <div className="font-mono text-[0.66rem] text-muted">
+        <div className="font-mono text-label text-muted">
           {h.qty}주 · 평균 {fmtPrice(h.avg, h.market)}
         </div>
       </div>
       <div className="text-right shrink-0">
         <div className="font-mono text-sm tnum">{fmtPrice(value, h.market)}</div>
-        <div className={`font-mono text-[0.7rem] ${changeColor(pl)}`}>
+        <div className={`font-mono text-label ${changeColor(pl)}`}>
           {fmtChange(pct, pl)}
         </div>
       </div>
@@ -96,7 +96,7 @@ export default function HoldingsSheet({
   return (
     <Sheet title="보유종목 · 손익" onClose={onClose}>
       <div className="bg-surface border border-border rounded-xl p-3 space-y-2 card-shadow">
-        <div className="text-[0.7rem] font-semibold uppercase tracking-[0.07em] text-muted">
+        <div className="text-label font-semibold uppercase tracking-[0.07em] text-muted">
           보유 추가 / 수정
         </div>
         <select
@@ -132,7 +132,7 @@ export default function HoldingsSheet({
         >
           추가 / 수정
         </button>
-        <p className="text-[0.6rem] text-muted">
+        <p className="text-label text-muted">
           같은 종목을 다시 추가하면 덮어써요. 보유하려는 종목이 목록에 없으면 홈에서 먼저 검색·추가하세요.
         </p>
       </div>
@@ -149,10 +149,10 @@ export default function HoldingsSheet({
 
       {/* 백업 · 복원 */}
       <div className="bg-surface border border-border rounded-xl p-3 space-y-2 card-shadow">
-        <div className="text-[0.7rem] font-semibold uppercase tracking-[0.07em] text-muted">
+        <div className="text-label font-semibold uppercase tracking-[0.07em] text-muted">
           백업 · 복원
         </div>
-        <p className="text-[0.62rem] text-muted leading-relaxed">
+        <p className="text-label text-muted leading-relaxed">
           데이터는 이 기기에만 저장돼요. 폰을 바꾸거나 브라우저 데이터를 지우면 사라지니, 가끔
           내보내기로 백업해두세요.
         </p>
@@ -180,7 +180,7 @@ export default function HoldingsSheet({
               onChange={(e) => setImportText(e.target.value)}
               rows={4}
               placeholder="내보내기로 복사한 내용을 붙여넣으세요"
-              className="w-full bg-ink border border-border rounded-lg px-3 py-2 text-[0.7rem] font-mono outline-none focus:border-accent"
+              className="w-full bg-ink border border-border rounded-lg px-3 py-2 text-label font-mono outline-none focus:border-accent"
             />
             <button
               onClick={doImport}
@@ -190,7 +190,7 @@ export default function HoldingsSheet({
             </button>
           </div>
         )}
-        {backupMsg && <p className="text-[0.66rem] text-accent">{backupMsg}</p>}
+        {backupMsg && <p className="text-label text-accent">{backupMsg}</p>}
       </div>
     </Sheet>
   )

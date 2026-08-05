@@ -23,21 +23,21 @@ export default function AiBriefingPanel({ t }: { t: FocusTicker }) {
   return (
     <div className={`rounded-xl border px-4 py-3.5 card-shadow ${STANCE_STYLE[data.stance ?? '중립']}`}>
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[0.66rem] uppercase tracking-[0.09em] opacity-70">✨ AI 브리핑</span>
-        {data.stance && <span className="text-[0.68rem] font-semibold px-2 py-0.5 rounded bg-current/10">{data.stance}</span>}
+        <span className="text-label uppercase tracking-[0.09em] opacity-70">✨ AI 브리핑</span>
+        {data.stance && <span className="text-label font-semibold px-2 py-0.5 rounded bg-current/10">{data.stance}</span>}
       </div>
-      <p className="text-[0.82rem] leading-relaxed font-medium">{data.summary}</p>
+      <p className="text-caption leading-relaxed font-medium">{data.summary}</p>
       {data.bullets && data.bullets.length > 0 && (
         <ul className="mt-2 space-y-1">
           {data.bullets.map((b, i) => (
-            <li key={i} className="text-[0.72rem] opacity-80 flex gap-1.5">
+            <li key={i} className="text-label opacity-80 flex gap-1.5">
               <span>·</span>
               <span>{b}</span>
             </li>
           ))}
         </ul>
       )}
-      <p className="text-[0.6rem] opacity-50 mt-2">
+      <p className="text-label opacity-50 mt-2">
         AI 생성 분석 — 참고용, 투자 권유 아님
         {data.stale && ' · 새 분석을 못 받아 직전 분석을 보여주고 있어요'}
       </p>

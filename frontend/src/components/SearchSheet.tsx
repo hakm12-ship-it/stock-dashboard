@@ -43,7 +43,7 @@ export default function SearchSheet({
             key={m}
             onClick={() => setMarket(m)}
             className={`flex-1 min-h-[44px] rounded-md text-sm font-medium transition-colors ${
-              m === market ? 'bg-accent/20 text-text' : 'text-muted'
+              m === market ? 'bg-surface-2 text-text' : 'text-muted'
             }`}
           >
             {m === 'KR' ? '한국' : '미국'}
@@ -70,13 +70,13 @@ export default function SearchSheet({
           >
             <div className="min-w-0">
               <div className="text-sm font-medium truncate">{r.name}</div>
-              <div className="font-mono text-[0.66rem] text-muted">{r.ticker}</div>
+              <div className="font-mono text-label text-muted">{r.ticker}</div>
             </div>
             <button
               disabled={added}
               onClick={() => onAdd({ ticker: r.ticker, name: r.name, short: r.name, market, kind: 'stock' })}
               className={`shrink-0 text-xs font-medium px-3 py-1.5 rounded-md border ${
-                added ? 'text-muted border-border' : 'text-accent border-accent/50 active:bg-accent/10'
+                added ? 'text-muted border-border' : 'text-text border-border active:border-accent'
               }`}
             >
               {added ? '추가됨' : '추가'}
@@ -91,7 +91,7 @@ export default function SearchSheet({
 
       {custom.length > 0 && (
         <div className="pt-3">
-          <div className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted mb-2">
+          <div className="text-label font-semibold uppercase tracking-[0.08em] text-muted mb-2">
             내가 추가한 종목
           </div>
           {custom.map((t) => (

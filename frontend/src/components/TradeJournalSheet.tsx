@@ -56,7 +56,7 @@ export default function TradeJournalSheet({
       {/* 실현손익 */}
       {(pnl.KR !== 0 || pnl.US !== 0) && (
         <div className="bg-surface border border-border rounded-xl p-3.5 card-shadow">
-          <div className="text-[0.7rem] font-semibold uppercase tracking-[0.07em] text-muted mb-1.5">
+          <div className="text-label font-semibold uppercase tracking-[0.07em] text-muted mb-1.5">
             실현손익 (평균단가법)
           </div>
           <div className="flex gap-4">
@@ -76,7 +76,7 @@ export default function TradeJournalSheet({
 
       {/* 기록 추가 */}
       <div className="bg-surface border border-border rounded-xl p-3 space-y-2 card-shadow">
-        <div className="text-[0.7rem] font-semibold uppercase tracking-[0.07em] text-muted">
+        <div className="text-label font-semibold uppercase tracking-[0.07em] text-muted">
           기록 추가
         </div>
         <div className="flex gap-2">
@@ -155,7 +155,7 @@ export default function TradeJournalSheet({
             <div key={t.id} className="py-2.5 border-b border-border last:border-0">
               <div className="flex items-center gap-2">
                 <span
-                  className={`font-mono text-[0.6rem] px-1.5 py-0.5 rounded border shrink-0 ${
+                  className={`font-mono text-label px-1.5 py-0.5 rounded border shrink-0 ${
                     t.side === 'buy' ? 'text-up border-up/40' : 'text-down border-down/40'
                   }`}
                 >
@@ -169,7 +169,7 @@ export default function TradeJournalSheet({
                   ×
                 </button>
               </div>
-              <div className="font-mono text-[0.62rem] text-muted mt-0.5 pl-0.5">
+              <div className="font-mono text-label text-muted mt-0.5 pl-0.5">
                 {t.date}
                 {t.memo && <span className="text-muted/90 font-sans"> — {t.memo}</span>}
               </div>
@@ -178,7 +178,7 @@ export default function TradeJournalSheet({
         </div>
       )}
 
-      <p className="text-[0.6rem] text-muted">
+      <p className="text-label text-muted">
         이 기록은 내 폰에만 저장돼요. 실현손익은 기록 기준 평균단가법 계산 — 참고용이에요.
       </p>
     </Sheet>

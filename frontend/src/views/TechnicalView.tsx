@@ -68,7 +68,7 @@ export default function TechnicalView({
               key={p}
               onClick={() => setPeriod(p)}
               className={`flex-1 min-h-[44px] rounded-md text-xs font-medium transition-colors ${
-                p === period ? 'bg-accent/20 text-text' : 'text-muted'
+                p === period ? 'bg-surface-2 text-text' : 'text-muted'
               }`}
             >
               {LABEL[p]}
@@ -81,7 +81,7 @@ export default function TechnicalView({
               key={iv}
               onClick={() => setTf(iv)}
               className={`px-3 min-h-[44px] rounded-md text-xs font-medium transition-colors ${
-                iv === tf ? 'bg-accent/20 text-text' : 'text-muted'
+                iv === tf ? 'bg-surface-2 text-text' : 'text-muted'
               }`}
             >
               {iv === 'D' ? '일봉' : '주봉'}
@@ -135,7 +135,7 @@ export default function TechnicalView({
             />
           </Suspense>
           {weekly && (
-            <p className="text-[0.62rem] text-muted">주봉은 가격·거래량만 표시돼요 (지표는 일봉 기준)</p>
+            <p className="text-label text-muted">주봉은 가격·거래량만 표시돼요 (지표는 일봉 기준)</p>
           )}
         </>
       ) : (
@@ -150,7 +150,7 @@ function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; labe
     <button
       onClick={onClick}
       className={`px-3 min-h-[44px] rounded-full border font-medium transition-colors ${
-        on ? 'bg-accent/15 border-accent text-text' : 'bg-surface border-border text-muted'
+        on ? 'bg-surface-2 border-border text-text' : 'bg-surface border-border text-muted'
       }`}
     >
       {label}

@@ -15,7 +15,7 @@ export function Panel({
   return (
     <section className={`bg-surface border border-border rounded-xl p-4 card-shadow ${className}`}>
       {label && (
-        <div className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted mb-3">
+        <div className="text-label font-semibold uppercase tracking-[0.08em] text-muted mb-3">
           {label}
           {help && <HelpTip term={help} />}
         </div>
@@ -71,7 +71,7 @@ export function Metric({
 }) {
   return (
     <div className="bg-surface border border-border rounded-xl px-3.5 py-3 card-shadow">
-      <div className="text-[0.66rem] font-semibold uppercase tracking-[0.07em] text-muted">
+      <div className="text-label font-semibold uppercase tracking-[0.07em] text-muted">
         {label}
         {help && <HelpTip term={help} />}
       </div>

@@ -114,7 +114,7 @@ export default function PortfolioChart({ holdings, light }: { holdings: Holding[
   return (
     <div className="pt-3 mt-3 border-t border-border">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[0.62rem] text-muted">
+        <span className="text-label text-muted">
           자산 추이
           {ret != null && (
             <span className={`font-mono ml-2 ${changeColor(ret)}`}>
@@ -127,8 +127,8 @@ export default function PortfolioChart({ holdings, light }: { holdings: Holding[
             <button
               key={p}
               onClick={() => setPeriod(p)}
-              className={`font-mono text-[0.6rem] px-1.5 py-0.5 rounded ${
-                p === period ? 'bg-accent/15 text-accent' : 'text-muted/70'
+              className={`font-mono text-label px-1.5 py-0.5 rounded ${
+                p === period ? 'bg-surface-2 text-text' : 'text-muted/70'
               }`}
             >
               {LABEL[p]}
@@ -141,7 +141,7 @@ export default function PortfolioChart({ holdings, light }: { holdings: Holding[
       ) : (
         <div className="h-36 rounded-lg shimmer" />
       )}
-      <p className="text-[0.58rem] text-muted mt-1.5">
+      <p className="text-label text-muted mt-1.5">
         현재 보유 수량으로 과거를 환산한 곡선이에요 — 실제 매수 시점·현금흐름은 반영되지 않아요.
       </p>
     </div>
