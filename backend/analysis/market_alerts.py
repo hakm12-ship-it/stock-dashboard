@@ -43,20 +43,22 @@ def stock_message(name: str, price: float, pct: float, step: int) -> str:
     return f"{arrow} {name} {pct:+.2f}%  {price:,.0f}원  ({abs(step) * STOCK_STEP:.0f}% 돌파)"
 
 
-def sidecar_message(direction: int, futures_pct: float) -> str:
+def sidecar_message(direction: int, futures_pct: float, held_sec: int) -> str:
     kind = "매수" if direction > 0 else "매도"
     return (
-        f"⚡ 사이드카 조건 도달 — 코스피200 선물 {futures_pct:+.2f}%\n"
-        f"   선물 {kind}호가 효력정지 조건(±{SIDECAR_PCT:.0f}%)입니다.\n"
-        f"   1분간 지속돼야 실제 발동돼요."
+        f"⚡ 사이드카 조건 지속 — 코스피200 선물 {futures_pct:+.2f}%\n"
+        f"   선물 {kind}호가 효력정지 조건(±{SIDECAR_PCT:.0f}%)을 "
+        f"{held_sec}초째 유지 중입니다.\n"
+        f"   발동 요건인 1분을 넘겼어요 (거래소 발표는 별도)."
     )
 
 
-def circuit_message(step: int, index_pct: float) -> str:
+def circuit_message(step: int, index_pct: float, held_sec: int) -> str:
     threshold = CIRCUIT_STEPS[step - 1]
     tail = "당일 장 종료" if step == 3 else "20분간 매매 중단"
     return (
-        f"🚨 서킷브레이커 {step}단계 조건 도달 — 코스피 {index_pct:+.2f}%\n"
-        f"   {threshold:.0f}% 하락 조건이며, 발동 시 {tail}입니다.\n"
-        f"   1분간 지속돼야 실제 발동돼요."
+        f"🚨 서킷브레이커 {step}단계 조건 지속 — 코스피 {index_pct:+.2f}%\n"
+        f"   {threshold:.0f}% 하락 조건을 {held_sec}초째 유지 중이며, "
+        f"발동 시 {tail}입니다.\n"
+        f"   발동 요건인 1분을 넘겼어요 (거래소 발표는 별도)."
     )

@@ -44,10 +44,37 @@ WATCH = [("005930", "삼성전자"), ("000660", "SK하이닉스")]
 _sent: dict = {}
 
 
+# 조건이 언제부터 이어지고 있는지. {"sidecar": (방향, 처음 본 시각), "circuit": (단계, ...)}
+_holding: dict = {}
+
+# 사이드카·서킷은 조건이 **1분간 지속**돼야 발동한다. 스케줄러가 1분마다
+# 두드리므로, 연속 두 번 같은 조건이면 그 사이 내내 유지됐다고 본다.
+# 정확히 60초로 두면 크론이 조금만 일찍 와도(58초 등) 한 주기를 더 기다리게
+# 되어 알림이 1분 늦는다. 5초 여유를 준다.
+_HOLD_SEC = 55
+
+
 def _reset_if_new_day(today: str) -> None:
     if _sent.get("date") != today:
         _sent.clear()
+        _holding.clear()
         _sent["date"] = today
+
+
+def _held(key: str, level: int, now: datetime) -> int | None:
+    """조건이 이어진 초. 아직 1분을 못 채웠거나 조건이 끊겼으면 None.
+
+    level이 바뀌면(방향 반전, 서킷 단계 상승) 그 시점부터 새로 센다.
+    """
+    if level == 0:
+        _holding.pop(key, None)
+        return None
+    prev = _holding.get(key)
+    if not prev or prev[0] != level:
+        _holding[key] = (level, now)
+        return None
+    held = int((now - prev[1]).total_seconds())
+    return held if held >= _HOLD_SEC else None
 
 
 def _krx_open(now: datetime) -> bool:
@@ -119,6 +146,11 @@ def api_market_alert_check(force: bool = False, test: bool = False):
             # 선물이 -5% 안쪽으로 돌아와 있으면 아무것도 기록되지 않아,
             # 다시 -5%가 될 때 또 알린다 — 2026-08-06에 10:06과 11:30
             # 두 번 간 게 이 경우였다(11:30이 배포 시각).
+            #
+            # 한계: 고가·저가는 '닿았다'만 알려주고 '1분 지속됐다'까지는 모른다.
+            # 그래서 스치기만 하고 발동은 없었던 날 재시작하면, 이후 진짜로
+            # 지속되는 사이드카를 놓칠 수 있다. 중복으로 여러 번 오는 쪽보다
+            # 드물게 한 번 놓치는 쪽을 택했다.
             reached = max(
                 (sidecar_hit(p) for p in (fut.get("highPct"), fut.get("lowPct"), fut["changePct"])
                  if p is not None),
@@ -126,9 +158,13 @@ def api_market_alert_check(force: bool = False, test: bool = False):
             )
             if reached:
                 _sent["sidecar"] = reached
-        elif (hit := sidecar_hit(fut["changePct"])) != 0 and _sent.get("sidecar") != hit:
-            lines.append(sidecar_message(hit, fut["changePct"]))
-            _sent["sidecar"] = hit
+        else:
+            hit = sidecar_hit(fut["changePct"])
+            held = _held("sidecar", hit, now)
+            # 1분을 채운 뒤에야 알린다 — 스치듯 닿았다 빠지는 건 발동이 아니다.
+            if held is not None and _sent.get("sidecar") != hit:
+                lines.append(sidecar_message(hit, fut["changePct"], held))
+                _sent["sidecar"] = hit
     except Exception as e:
         seen["선물"] = f"조회실패: {e}"
 
@@ -142,8 +178,9 @@ def api_market_alert_check(force: bool = False, test: bool = False):
             _sent["circuit"] = circuit_step(low if low is not None else kospi["changePct"])
         else:
             step = circuit_step(kospi["changePct"])
-            if step > _sent.get("circuit", 0):
-                lines.append(circuit_message(step, kospi["changePct"]))
+            held = _held("circuit", step, now)
+            if held is not None and step > _sent.get("circuit", 0):
+                lines.append(circuit_message(step, kospi["changePct"], held))
                 _sent["circuit"] = step
     except Exception as e:
         seen["코스피"] = f"조회실패: {e}"
@@ -310,6 +347,9 @@ def api_market_alert_config():
         "kakaoReady": kakao_configured(),
         "sentToday": {k: v for k, v in _sent.items() if k not in ("date", "primed")},
         "nightSent": {k: v for k, v in _night.items() if k not in ("session", "primed")},
+        # 지금 1분 지속 요건을 채우는 중인 조건 (사이드카·서킷)
+        "holding": {k: {"level": lv, "since": ts.strftime("%H:%M:%S")}
+                    for k, (lv, ts) in _holding.items()},
     }
 
 

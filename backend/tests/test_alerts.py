@@ -8,7 +8,7 @@
 """
 
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import routers.alerts as A
 
@@ -30,6 +30,7 @@ class _Base(unittest.TestCase):
         """프로세스 재시작 = 메모리 상태 소멸."""
         A._night.clear()
         A._sent.clear()
+        A._holding.clear()
 
     def _at(self, now):
         real = A.datetime
@@ -56,8 +57,14 @@ class _Base(unittest.TestCase):
             A.datetime = real
 
     def day(self, pct, now=DAY, high=None, low=None, fut=0.5,
-            fut_high=None, fut_low=None, kospi=0.5, kospi_low=None):
-        """high/low = 당일 고가·저가의 등락률. 재시작 후 상태 복원에 쓰인다."""
+            fut_high=None, fut_low=None, kospi=0.5, kospi_low=None, after=None):
+        """high/low = 당일 고가·저가의 등락률. 재시작 후 상태 복원에 쓰인다.
+
+        after = 기준 시각으로부터 흐른 초. 사이드카·서킷의 1분 지속 요건을
+        시험하려면 호출마다 시간을 흘려보내야 한다.
+        """
+        if after is not None:
+            now = DAY + timedelta(seconds=after)
         A.realtime_quote = lambda code: {
             "changePct": pct, "last": 1_668_000,
             "highPct": pct if high is None else high,
@@ -149,46 +156,64 @@ class 야간세션경계(unittest.TestCase):
 
 
 class 사이드카(_Base):
-    """매도·매수 각각 하루 한 번뿐이다. 두 번 오면 잘못된 것."""
+    """조건이 1분 지속돼야 발동한다. 매도·매수 각각 하루 한 번뿐이다."""
+
+    def test_스치듯_닿았다_빠지면_알리지_않는다(self):
+        self.day(0, fut=0.5)                   # 프라이밍
+        self.day(0, fut=-5.18, after=0)        # 도달 — 아직 1분 안 됨
+        self.assertEqual(self.sent, [])
+        self.day(0, fut=-4.0, after=60)        # 1분 뒤엔 이미 빠져나감
+        self.assertEqual(self.sent, [])
+
+    def test_1분_지속되면_알린다(self):
+        self.day(0, fut=0.5)
+        self.day(0, fut=-5.18, after=0)
+        self.assertEqual(self.sent, [])
+        self.day(0, fut=-5.20, after=60)       # 1분 내내 유지
+        self.assertEqual(len(self.sent), 1)
+        self.assertIn("지속", self.sent[0])
 
     def test_같은_방향은_하루에_한_번만(self):
-        self.day(0, fut=0.5)          # 프라이밍 (조건 미달)
-        self.day(0, fut=-5.18)        # 첫 도달 -> 알림
+        self.day(0, fut=0.5)
+        self.day(0, fut=-5.18, after=0)
+        self.day(0, fut=-5.20, after=60)       # 알림 1
         self.assertEqual(len(self.sent), 1)
-        self.day(0, fut=-4.0)         # 조건에서 벗어남
-        self.day(0, fut=-5.14)        # 다시 도달 -> 알리면 안 된다
+        self.day(0, fut=-4.0, after=120)       # 조건 이탈
+        self.day(0, fut=-5.14, after=180)      # 다시 도달
+        self.day(0, fut=-5.14, after=240)      # 또 1분 지속 — 그래도 조용
         self.assertEqual(len(self.sent), 1)
 
     def test_재시작해도_오늘_이미_도달했으면_다시_알리지_않는다(self):
-        """실제로 났던 증상: 10:06에 알리고 11:30 배포 후 또 알렸다.
-
-        재시작 순간 선물이 -4%로 돌아와 있어도, 당일 저가 -6.12%를 보면
-        이미 도달했음을 알 수 있다.
-        """
-        self.day(0, fut=-4.0, fut_low=-6.12)   # 프라이밍
-        self.assertEqual(self.sent, [])
-        self.day(0, fut=-5.14, fut_low=-6.12)  # 다시 -5% -> 조용해야 함
+        """실제로 났던 증상: 10:06에 알리고 11:30 배포 후 또 알렸다."""
+        self.day(0, fut=-4.0, fut_low=-6.12)              # 프라이밍
+        self.day(0, fut=-5.14, fut_low=-6.12, after=60)
+        self.day(0, fut=-5.14, fut_low=-6.12, after=120)
         self.assertEqual(self.sent, [])
 
     def test_반대_방향은_따로_한_번_알린다(self):
-        self.day(0, fut=-5.2, fut_low=-5.2)   # 프라이밍 (매도 도달로 기록)
-        self.day(0, fut=+5.3, fut_high=5.3, fut_low=-5.2)
+        self.day(0, fut=-5.2, fut_low=-5.2)                            # 프라이밍
+        self.day(0, fut=+5.3, fut_high=5.3, fut_low=-5.2, after=0)
+        self.day(0, fut=+5.4, fut_high=5.4, fut_low=-5.2, after=60)
         self.assertEqual(len(self.sent), 1)
 
 
 class 서킷브레이커(_Base):
-    def test_단계가_올라갈_때만_알린다(self):
-        self.day(0, kospi=-1.0)        # 프라이밍
-        self.day(0, kospi=-8.5)        # 1단계
+    def test_1분_지속되고_단계가_올라갈_때만_알린다(self):
+        self.day(0, kospi=-1.0)                    # 프라이밍
+        self.day(0, kospi=-8.5, after=0)           # 1단계 도달
+        self.assertEqual(self.sent, [])
+        self.day(0, kospi=-8.6, after=60)          # 1분 지속 -> 알림
         self.assertEqual(len(self.sent), 1)
-        self.day(0, kospi=-9.0)        # 같은 단계 -> 조용
+        self.day(0, kospi=-9.0, after=120)         # 같은 단계 -> 조용
         self.assertEqual(len(self.sent), 1)
-        self.day(0, kospi=-15.5)       # 2단계
+        self.day(0, kospi=-15.5, after=180)        # 2단계 도달
+        self.day(0, kospi=-15.6, after=240)        # 지속 -> 알림
         self.assertEqual(len(self.sent), 2)
 
     def test_재시작해도_오늘_밟은_단계는_다시_알리지_않는다(self):
-        self.day(0, kospi=-3.0, kospi_low=-8.6)   # 저가가 이미 1단계
-        self.day(0, kospi=-8.7, kospi_low=-8.7)
+        self.day(0, kospi=-3.0, kospi_low=-8.6)              # 저가가 이미 1단계
+        self.day(0, kospi=-8.7, kospi_low=-8.7, after=60)
+        self.day(0, kospi=-8.7, kospi_low=-8.7, after=120)
         self.assertEqual(self.sent, [])
 
 
