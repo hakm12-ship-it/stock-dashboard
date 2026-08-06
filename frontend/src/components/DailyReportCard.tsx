@@ -19,22 +19,11 @@ export default function DailyReportCard() {
         </span>
         <span className="font-mono text-label text-muted">{data.date.slice(5)}</span>
       </div>
+      {/* 태그 줄(KOSPI·KOSDAQ·NASDAQ·원달러·WTI)은 뺐다. 바로 아래 지수·매크로
+          스트립이 같은 다섯 숫자를 이미 보여주고, 위 문장에도 또 들어 있어서
+          한 화면에 같은 값이 세 번 나왔다. 응답의 tags는 그대로 두고 화면에서만
+          생략한다 — 쓰는 곳이 생기면 다시 꺼내 쓸 수 있게. */}
       <p className="text-caption leading-relaxed">{data.summary}</p>
-      {data.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-2">
-          {data.tags.map((tag) => (
-            <span
-              key={tag.label}
-              className={`font-mono text-label px-1.5 py-0.5 rounded border ${
-                tag.pct >= 0 ? 'border-up/40 text-up' : 'border-down/40 text-down'
-              }`}
-            >
-              {tag.label} {tag.pct >= 0 ? '+' : ''}
-              {tag.pct.toFixed(2)}%
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   )
 }

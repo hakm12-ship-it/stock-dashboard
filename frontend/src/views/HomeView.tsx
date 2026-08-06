@@ -248,7 +248,9 @@ export default function HomeView({
         onJournal={onOpenJournal}
       />
       <PortfolioReviewCard holdings={holdings} trades={trades} />
-      <DailyReportCard />
+      {/* 지수·매크로는 얇은 띠(둘 합쳐 130px)라 먼저 두고, 읽을거리인 일일
+          리포트는 관심종목 아래로 내렸다. 앱을 여는 이유인 관심종목이
+          스크롤 1.5화면 아래에서 시작하고 있었다. */}
       <MacroStrip />
       <IndexStrip />
       <div className="pt-2 pb-0.5 space-y-1">
@@ -346,6 +348,9 @@ export default function HomeView({
           ⚖️ 종목 비교
         </button>
       </div>
+
+      {/* 여기부터는 시장 전체 이야기 — 일일 리포트도 같은 성격이라 함께 둔다. */}
+      <DailyReportCard />
 
       <MarketTop
         existing={tickers}
