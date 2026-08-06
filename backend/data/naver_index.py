@@ -14,8 +14,24 @@ def _num(s) -> float:
     return float(str(s).replace(",", ""))
 
 
+def _day_range_pct(d: dict) -> tuple[float | None, float | None]:
+    """당일 고가·저가의 전일종가 대비 등락률.
+
+    사이드카·서킷은 '오늘 이미 도달했는지'가 중요한데, 알림 상태를 메모리에만
+    두면 재시작 때 날아간다. 이 값은 시세에 남아 있어 언제든 복원된다.
+    """
+    last = _num(d["closePrice"])
+    prev = last - _num(d.get("compareToPreviousClosePrice", 0))
+    if not prev:
+        return None, None
+    pct = lambda p: (p / prev - 1) * 100  # noqa: E731
+    high = _num(d["highPrice"]) if d.get("highPrice") else None
+    low = _num(d["lowPrice"]) if d.get("lowPrice") else None
+    return (pct(high) if high else None, pct(low) if low else None)
+
+
 def realtime_index(code: str) -> dict:
-    """{last, change, changePct} — code는 'KOSPI' | 'KOSDAQ'."""
+    """{last, change, changePct, highPct, lowPct} — code는 'KOSPI' | 'KOSDAQ' | 'FUT'."""
     req = urllib.request.Request(
         _URL.format(code),
         headers={"User-Agent": "Mozilla/5.0", "Referer": "https://finance.naver.com/"},
@@ -24,10 +40,13 @@ def realtime_index(code: str) -> dict:
         data = json.loads(resp.read())
     d = data["datas"][0]
     sign = 1 if d["compareToPreviousPrice"]["code"] in _UP_CODES else -1
+    high_pct, low_pct = _day_range_pct(d)
     return {
         "last": _num(d["closePrice"]),
         "change": sign * abs(_num(d["compareToPreviousClosePrice"])),
         "changePct": sign * abs(_num(d["fluctuationsRatio"])),
+        "highPct": high_pct,
+        "lowPct": low_pct,
     }
 
 
@@ -49,14 +68,11 @@ def realtime_quote(code: str) -> dict:
         data = json.loads(resp.read())
     d = data["datas"][0]
     sign = 1 if d["compareToPreviousPrice"]["code"] in _UP_CODES else -1
-    last = _num(d["closePrice"])
-    # 전일종가는 따로 안 주고 '현재가 - 전일대비'로 얻는다.
-    prev = last - _num(d.get("compareToPreviousClosePrice", 0))
-    pct = lambda p: (p / prev - 1) * 100 if prev else 0.0  # noqa: E731
+    high_pct, low_pct = _day_range_pct(d)
     return {
-        "last": last,
+        "last": _num(d["closePrice"]),
         "changePct": sign * abs(_num(d["fluctuationsRatio"])),
-        "highPct": pct(_num(d.get("highPrice", 0))) if d.get("highPrice") else None,
-        "lowPct": pct(_num(d.get("lowPrice", 0))) if d.get("lowPrice") else None,
+        "highPct": high_pct,
+        "lowPct": low_pct,
         "marketOpen": d.get("marketStatus") == "OPEN",
     }

@@ -109,27 +109,42 @@ def api_market_alert_check(force: bool = False, test: bool = False):
             lines.append(stock_message(name, q["last"], pct, step))
             _sent[key] = step
 
-    # 사이드카 — 코스피200 선물
+    # 사이드카 — 코스피200 선물. 매도·매수 각각 하루 한 번뿐이라, 한 번 알린
+    # 방향은 조건을 다시 만족해도 알리지 않는다.
     try:
         fut = realtime_index("FUT")
         seen["선물"] = fut["changePct"]
-        hit = sidecar_hit(fut["changePct"])
-        if hit != 0 and _sent.get("sidecar") != hit:
-            if not priming:
-                lines.append(sidecar_message(hit, fut["changePct"]))
+        if priming:
+            # 지금 값이 아니라 **당일 고가·저가**로 복원한다. 재시작 순간에
+            # 선물이 -5% 안쪽으로 돌아와 있으면 아무것도 기록되지 않아,
+            # 다시 -5%가 될 때 또 알린다 — 2026-08-06에 10:06과 11:30
+            # 두 번 간 게 이 경우였다(11:30이 배포 시각).
+            reached = max(
+                (sidecar_hit(p) for p in (fut.get("highPct"), fut.get("lowPct"), fut["changePct"])
+                 if p is not None),
+                key=abs, default=0,
+            )
+            if reached:
+                _sent["sidecar"] = reached
+        elif (hit := sidecar_hit(fut["changePct"])) != 0 and _sent.get("sidecar") != hit:
+            lines.append(sidecar_message(hit, fut["changePct"]))
             _sent["sidecar"] = hit
     except Exception as e:
         seen["선물"] = f"조회실패: {e}"
 
-    # 서킷브레이커 — 코스피 지수
+    # 서킷브레이커 — 코스피 지수. 단계별로 하루 한 번이라 단계가 올라갈 때만.
     try:
         kospi = realtime_index("KOSPI")
         seen["코스피"] = kospi["changePct"]
-        step = circuit_step(kospi["changePct"])
-        if step > _sent.get("circuit", 0):
-            if not priming:
+        if priming:
+            # 하락 단계만 있으므로 당일 저가가 밟은 단계를 복원한다.
+            low = kospi.get("lowPct")
+            _sent["circuit"] = circuit_step(low if low is not None else kospi["changePct"])
+        else:
+            step = circuit_step(kospi["changePct"])
+            if step > _sent.get("circuit", 0):
                 lines.append(circuit_message(step, kospi["changePct"]))
-            _sent["circuit"] = step
+                _sent["circuit"] = step
     except Exception as e:
         seen["코스피"] = f"조회실패: {e}"
 

@@ -55,14 +55,24 @@ class _Base(unittest.TestCase):
         finally:
             A.datetime = real
 
-    def day(self, pct, now=DAY, high=None, low=None):
+    def day(self, pct, now=DAY, high=None, low=None, fut=0.5,
+            fut_high=None, fut_low=None, kospi=0.5, kospi_low=None):
         """high/low = 당일 고가·저가의 등락률. 재시작 후 상태 복원에 쓰인다."""
         A.realtime_quote = lambda code: {
             "changePct": pct, "last": 1_668_000,
             "highPct": pct if high is None else high,
             "lowPct": pct if low is None else low,
         }
-        A.realtime_index = lambda name: {"changePct": 0.5, "last": 100}
+
+        def idx(name):
+            if name == "FUT":
+                return {"changePct": fut, "last": 100,
+                        "highPct": fut if fut_high is None else fut_high,
+                        "lowPct": fut if fut_low is None else fut_low}
+            return {"changePct": kospi, "last": 100,
+                    "highPct": kospi, "lowPct": kospi if kospi_low is None else kospi_low}
+
+        A.realtime_index = idx
         real, fake = self._at(now)
         A.datetime = fake
         try:
@@ -136,6 +146,50 @@ class 야간세션경계(unittest.TestCase):
             self.assertTrue(A._night_open(t), t)
         for t in (d(8, 31), d(12), d(15, 59)):
             self.assertFalse(A._night_open(t), t)
+
+
+class 사이드카(_Base):
+    """매도·매수 각각 하루 한 번뿐이다. 두 번 오면 잘못된 것."""
+
+    def test_같은_방향은_하루에_한_번만(self):
+        self.day(0, fut=0.5)          # 프라이밍 (조건 미달)
+        self.day(0, fut=-5.18)        # 첫 도달 -> 알림
+        self.assertEqual(len(self.sent), 1)
+        self.day(0, fut=-4.0)         # 조건에서 벗어남
+        self.day(0, fut=-5.14)        # 다시 도달 -> 알리면 안 된다
+        self.assertEqual(len(self.sent), 1)
+
+    def test_재시작해도_오늘_이미_도달했으면_다시_알리지_않는다(self):
+        """실제로 났던 증상: 10:06에 알리고 11:30 배포 후 또 알렸다.
+
+        재시작 순간 선물이 -4%로 돌아와 있어도, 당일 저가 -6.12%를 보면
+        이미 도달했음을 알 수 있다.
+        """
+        self.day(0, fut=-4.0, fut_low=-6.12)   # 프라이밍
+        self.assertEqual(self.sent, [])
+        self.day(0, fut=-5.14, fut_low=-6.12)  # 다시 -5% -> 조용해야 함
+        self.assertEqual(self.sent, [])
+
+    def test_반대_방향은_따로_한_번_알린다(self):
+        self.day(0, fut=-5.2, fut_low=-5.2)   # 프라이밍 (매도 도달로 기록)
+        self.day(0, fut=+5.3, fut_high=5.3, fut_low=-5.2)
+        self.assertEqual(len(self.sent), 1)
+
+
+class 서킷브레이커(_Base):
+    def test_단계가_올라갈_때만_알린다(self):
+        self.day(0, kospi=-1.0)        # 프라이밍
+        self.day(0, kospi=-8.5)        # 1단계
+        self.assertEqual(len(self.sent), 1)
+        self.day(0, kospi=-9.0)        # 같은 단계 -> 조용
+        self.assertEqual(len(self.sent), 1)
+        self.day(0, kospi=-15.5)       # 2단계
+        self.assertEqual(len(self.sent), 2)
+
+    def test_재시작해도_오늘_밟은_단계는_다시_알리지_않는다(self):
+        self.day(0, kospi=-3.0, kospi_low=-8.6)   # 저가가 이미 1단계
+        self.day(0, kospi=-8.7, kospi_low=-8.7)
+        self.assertEqual(self.sent, [])
 
 
 class 장중급변(_Base):
