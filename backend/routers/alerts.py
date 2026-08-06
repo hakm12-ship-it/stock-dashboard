@@ -14,6 +14,7 @@ GitHub Actions의 schedule은 이 저장소에서 2~9시간씩 밀리는 게 관
 
 import os
 from datetime import datetime, timedelta, timezone
+from datetime import time as dt_time
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
@@ -32,7 +33,7 @@ from data.kakao import is_configured as kakao_configured
 from data.kakao import last_error as kakao_last_error
 from data.kakao import refresh_token_days_left, send_kakao
 from data.notify import APP_URL, notify
-from routers.night import api_night_price
+from routers.night import api_night_price, night_gap_extreme
 
 router = APIRouter()
 
@@ -75,10 +76,13 @@ def api_market_alert_check(force: bool = False, test: bool = False):
     seen: dict = {}
 
     # 프로세스가 막 떴다면(배포·재시작) 이번 판정은 기록만 하고 알리지 않는다.
-    # 상태가 메모리에 있어서 재시작마다 비는데, 그대로 두면 "이미 몇 시간 전에
-    # 넘어선 조건"을 새로 넘은 것처럼 다시 알린다. 실제로 같은 +5.77% 알림이
-    # 16분 간격으로 두 번 갔다(2026-08-06). 갓 뜬 프로세스는 직전 상태를 모르니
-    # 침묵하는 쪽이 맞다 — 이후 진짜로 더 움직이면 그때 알린다.
+    # 상태가 메모리에 있어 재시작마다 비는데, 그대로 두면 이미 몇 시간 전에
+    # 넘어선 조건을 새로 넘은 것처럼 다시 알린다(2026-08-06에 실제로 그랬다).
+    #
+    # 기록할 값은 '지금 등락률'이 아니라 **당일 고가·저가가 밟은 계단**이다.
+    # 지금 값으로 기록하면, 재시작 순간에 주가가 계단 아래로 물러나 있을 때
+    # 0으로 잡히고 다시 올라올 때 또 알린다. 고가·저가는 시세에 남아 있어서
+    # 재시작해도 같은 값이 복원된다 — 그래서 상태 저장소가 필요 없다.
     priming = not _sent.get("primed")
     _sent["primed"] = True
 
@@ -93,9 +97,16 @@ def api_market_alert_check(force: bool = False, test: bool = False):
         step = stock_step(pct)
         seen[name] = pct
         key = f"stock:{code}"
+        if priming:
+            # 오늘 고가·저가가 이미 밟은 계단 중 가장 큰 것을 기록해 둔다.
+            reached = max(
+                (stock_step(p) for p in (q.get("highPct"), q.get("lowPct"), pct) if p is not None),
+                key=abs, default=0,
+            )
+            _sent[key] = reached
+            continue
         if step != 0 and abs(step) > abs(_sent.get(key, 0)):
-            if not priming:
-                lines.append(stock_message(name, q["last"], pct, step))
+            lines.append(stock_message(name, q["last"], pct, step))
             _sent[key] = step
 
     # 사이드카 — 코스피200 선물
@@ -166,6 +177,13 @@ def _night_session(now: datetime) -> str:
     return ref.strftime("%Y-%m-%d")
 
 
+def _session_start_ms(now: datetime) -> int:
+    """이 밤이 시작된 시각(KRX 마감 15:30) — perp 캔들을 어디서부터 볼지."""
+    day = now.date() if now.hour >= 9 else (now - timedelta(days=1)).date()
+    start = datetime.combine(day, dt_time(15, 30), tzinfo=KST)
+    return int(start.timestamp() * 1000)
+
+
 def _night_open(now: datetime) -> bool:
     """KRX 정규장 밖 — 야간 perp 가격이 의미를 갖는 시간대(16:00~08:30)."""
     minutes = now.hour * 60 + now.minute
@@ -221,10 +239,15 @@ def api_night_alert_check(force: bool = False, test: bool = False):
         gap = d["gapPct"]
         seen[name] = gap
         if priming:
+            # 지금 갭이 아니라 **이 밤에 가장 크게 벌어졌던 갭**을 기록한다.
+            # 지금 값만 보면, 재시작 순간에 갭이 좁아져 있을 때 그걸 기준으로
+            # 잡아 이미 알린 수준을 다시 알리게 된다. perp 캔들에 그 밤의
+            # 고가·저가가 남아 있어 복원할 수 있다.
+            worst = night_gap_extreme(code, _session_start_ms(now)) or gap
             # 임계 미만이면 기록하지 않는다. 기록해 두면 나중에 임계를 처음
             # 넘을 때 "직전 대비 1.5%p"를 못 채워 첫 알림을 삼킬 수 있다.
-            if abs(gap) >= _NIGHT_THRESHOLD:
-                _night[code] = gap
+            if abs(worst) >= _NIGHT_THRESHOLD:
+                _night[code] = worst
             continue
         # force는 시간대만 무시한다. 중복 방지까지 풀면 1분마다 같은 알림이 간다.
         if _night_should_alert(gap, _night.get(code)):

@@ -47,6 +47,37 @@ def api_night_price(ticker: str):
     }
 
 
+def night_gap_extreme(ticker: str, since_ms: int) -> float | None:
+    """since_ms 이후 이 밤에 벌어진 **가장 큰 갭**(부호 유지).
+
+    알림 상태를 메모리에만 두면 재시작 때 날아가서, 이미 알린 갭을 다시 알린다.
+    그런데 perp 캔들에는 그 밤의 고가·저가가 남아 있으므로, 언제든 "여기까지는
+    이미 벌어졌었다"를 복원할 수 있다. 저장소가 필요 없는 이유다.
+    """
+    perp = TICKER_TO_PERP.get(ticker)
+    if not perp:
+        return None
+    try:
+        fx_last, _, _ = change_of(load_fx()["Close"].dropna())
+        krx_close = float(load(ticker, "1m")["Close"].dropna().iloc[-1])
+        # 15분봉 96개 = 24시간. 야간 구간(최대 16.5시간)을 덮는다.
+        candles = cached_perp_candles(perp, "15m", 96)
+    except Exception:  # noqa: BLE001
+        return None
+    if not krx_close or not candles:
+        return None
+
+    gaps = []
+    for c in candles:
+        if c["t"] < since_ms:
+            continue
+        for px in (c["h"], c["l"]):
+            gaps.append((px * fx_last - krx_close) / krx_close * 100)
+    if not gaps:
+        return None
+    return max(gaps, key=abs)
+
+
 @router.get("/api/night-candles")
 def api_night_candles(ticker: str, interval: str = "5m"):
     perp = TICKER_TO_PERP.get(ticker)

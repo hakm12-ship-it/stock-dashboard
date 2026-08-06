@@ -41,11 +41,13 @@ class _Base(unittest.TestCase):
 
         return real, Fake
 
-    def night(self, gap, now=NIGHT):
+    def night(self, gap, now=NIGHT, worst=None):
+        """worst = 이 밤에 가장 크게 벌어졌던 갭 (perp 캔들에서 복원되는 값)."""
         A.api_night_price = lambda code: {
             "available": True, "gapPct": gap,
             "krxClose": 1_668_000, "krw": 1_668_000 * (1 + gap / 100),
         }
+        A.night_gap_extreme = lambda code, since: gap if worst is None else worst
         real, fake = self._at(now)
         A.datetime = fake
         try:
@@ -53,8 +55,13 @@ class _Base(unittest.TestCase):
         finally:
             A.datetime = real
 
-    def day(self, pct, now=DAY):
-        A.realtime_quote = lambda code: {"changePct": pct, "last": 1_668_000}
+    def day(self, pct, now=DAY, high=None, low=None):
+        """high/low = 당일 고가·저가의 등락률. 재시작 후 상태 복원에 쓰인다."""
+        A.realtime_quote = lambda code: {
+            "changePct": pct, "last": 1_668_000,
+            "highPct": pct if high is None else high,
+            "lowPct": pct if low is None else low,
+        }
         A.realtime_index = lambda name: {"changePct": 0.5, "last": 100}
         real, fake = self._at(now)
         A.datetime = fake
@@ -101,6 +108,14 @@ class 야간갭(_Base):
         self.night(-3.50)
         self.assertEqual(len(self.sent), 1)
 
+    def test_재시작_시점에_갭이_좁아져_있어도_다시_알리지_않는다(self):
+        """이 밤에 이미 -7%까지 벌어졌는데 재시작 순간엔 -3%로 좁아진 상황."""
+        self.night(-3.0, worst=-7.2)   # 프라이밍 — 기록은 -7.2
+        self.night(-6.5, worst=-7.2)   # 아직 -7.2 안쪽
+        self.assertEqual(self.sent, [])
+        self.night(-9.0, worst=-9.0)   # 진짜로 더 벌어졌다
+        self.assertEqual(len(self.sent), 1)
+
     def test_야간_시간대가_아니면_건너뛴다(self):
         r = self.night(-9.0, now=datetime(2026, 8, 6, 12, 0, tzinfo=A.KST))
         self.assertFalse(r["checked"])
@@ -139,6 +154,25 @@ class 장중급변(_Base):
         r = self.day(9.9, now=datetime(2026, 8, 6, 22, 0, tzinfo=A.KST))
         self.assertFalse(r["checked"])
         self.assertEqual(self.sent, [])
+
+    def test_재시작_시점에_계단_아래로_물러나_있어도_다시_알리지_않는다(self):
+        """지금 값만 보고 기록하면 여기서 중복이 난다.
+
+        오늘 이미 +5.8%를 찍었는데 재시작 순간엔 +3%로 물러나 있는 상황.
+        '지금 +3% -> 계단 0'으로 기록하면, 다시 +5.2%가 될 때 새로 넘은 것처럼
+        알린다. 당일 고가(+5.8%)를 보고 기록해야 조용하다.
+        """
+        self.day(3.0, high=5.8, low=-0.5)   # 프라이밍
+        self.assertEqual(self.sent, [])
+        self.day(5.2, high=5.8, low=-0.5)   # 고가 밑이라 새 계단이 아니다
+        self.assertEqual(self.sent, [])
+
+    def test_하락도_당일_저가를_기준으로_복원한다(self):
+        self.day(-2.0, high=1.0, low=-9.8)  # 오늘 이미 -5% 계단을 밟았다
+        self.day(-6.0, high=1.0, low=-9.8)
+        self.assertEqual(self.sent, [])
+        self.day(-11.0, high=1.0, low=-11.0)  # -10% 계단은 새로 밟았다
+        self.assertEqual(len(self.sent), 1)
 
 
 if __name__ == "__main__":
