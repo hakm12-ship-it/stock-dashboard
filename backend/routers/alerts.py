@@ -74,6 +74,14 @@ def api_market_alert_check(force: bool = False, test: bool = False):
     lines: list[str] = []
     seen: dict = {}
 
+    # 프로세스가 막 떴다면(배포·재시작) 이번 판정은 기록만 하고 알리지 않는다.
+    # 상태가 메모리에 있어서 재시작마다 비는데, 그대로 두면 "이미 몇 시간 전에
+    # 넘어선 조건"을 새로 넘은 것처럼 다시 알린다. 실제로 같은 +5.77% 알림이
+    # 16분 간격으로 두 번 갔다(2026-08-06). 갓 뜬 프로세스는 직전 상태를 모르니
+    # 침묵하는 쪽이 맞다 — 이후 진짜로 더 움직이면 그때 알린다.
+    priming = not _sent.get("primed")
+    _sent["primed"] = True
+
     # 개별 종목 — 5% 계단을 새로 넘었을 때만
     for code, name in WATCH:
         try:
@@ -86,7 +94,8 @@ def api_market_alert_check(force: bool = False, test: bool = False):
         seen[name] = pct
         key = f"stock:{code}"
         if step != 0 and abs(step) > abs(_sent.get(key, 0)):
-            lines.append(stock_message(name, q["last"], pct, step))
+            if not priming:
+                lines.append(stock_message(name, q["last"], pct, step))
             _sent[key] = step
 
     # 사이드카 — 코스피200 선물
@@ -95,7 +104,8 @@ def api_market_alert_check(force: bool = False, test: bool = False):
         seen["선물"] = fut["changePct"]
         hit = sidecar_hit(fut["changePct"])
         if hit != 0 and _sent.get("sidecar") != hit:
-            lines.append(sidecar_message(hit, fut["changePct"]))
+            if not priming:
+                lines.append(sidecar_message(hit, fut["changePct"]))
             _sent["sidecar"] = hit
     except Exception as e:
         seen["선물"] = f"조회실패: {e}"
@@ -106,7 +116,8 @@ def api_market_alert_check(force: bool = False, test: bool = False):
         seen["코스피"] = kospi["changePct"]
         step = circuit_step(kospi["changePct"])
         if step > _sent.get("circuit", 0):
-            lines.append(circuit_message(step, kospi["changePct"]))
+            if not priming:
+                lines.append(circuit_message(step, kospi["changePct"]))
             _sent["circuit"] = step
     except Exception as e:
         seen["코스피"] = f"조회실패: {e}"
@@ -176,7 +187,7 @@ def _night_should_alert(gap: float, last: float | None) -> bool:
 def api_night_alert_check(force: bool = False, test: bool = False):
     """야간 갭이 크게 벌어졌으면 알림. 외부 스케줄러 전용.
 
-    force=true  시간대를 무시하고 확인한다
+    force=true  시간대만 무시한다 (중복 방지는 그대로 — 안 그러면 1분마다 온다)
     test=true   조건에 안 걸려도 현재 갭을 한 번 보낸다 (연동 확인용)
     """
     now = datetime.now(KST)
@@ -187,6 +198,12 @@ def api_night_alert_check(force: bool = False, test: bool = False):
 
     if not (force or test) and not _night_open(now):
         return {"checked": False, "reason": "야간 시간대 아님", "at": now.strftime("%H:%M")}
+
+    # 장중 알림과 같은 이유로, 갓 뜬 프로세스는 이번 판정을 기록만 한다.
+    # 재시작 때마다 상태가 비어 "이 밤의 첫 알림"이 되는 바람에, 갭이 -5.47%
+    # -> -4.51% -> -4.13%로 **줄어드는데도** 알림이 계속 갔다(2026-08-06).
+    priming = not _night.get("primed")
+    _night["primed"] = True
 
     lines: list[str] = []
     seen: dict = {}
@@ -203,7 +220,14 @@ def api_night_alert_check(force: bool = False, test: bool = False):
             continue
         gap = d["gapPct"]
         seen[name] = gap
-        if force or _night_should_alert(gap, _night.get(code)):
+        if priming:
+            # 임계 미만이면 기록하지 않는다. 기록해 두면 나중에 임계를 처음
+            # 넘을 때 "직전 대비 1.5%p"를 못 채워 첫 알림을 삼킬 수 있다.
+            if abs(gap) >= _NIGHT_THRESHOLD:
+                _night[code] = gap
+            continue
+        # force는 시간대만 무시한다. 중복 방지까지 풀면 1분마다 같은 알림이 간다.
+        if _night_should_alert(gap, _night.get(code)):
             arrow = "▲" if gap > 0 else "▼"
             lines.append(
                 f"{arrow} {name} 야간 {gap:+.2f}%\n"
@@ -246,8 +270,8 @@ def api_market_alert_config():
         "telegramReady": bool(os.environ.get("TELEGRAM_BOT_TOKEN")) and bool(chats),
         "recipients": len(chats),
         "kakaoReady": kakao_configured(),
-        "sentToday": {k: v for k, v in _sent.items() if k != "date"},
-        "nightSent": {k: v for k, v in _night.items() if k != "session"},
+        "sentToday": {k: v for k, v in _sent.items() if k not in ("date", "primed")},
+        "nightSent": {k: v for k, v in _night.items() if k not in ("session", "primed")},
     }
 
 
