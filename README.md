@@ -65,6 +65,27 @@ npm run dev
 - 개발: `http://localhost:5173` (또는 같은 Wi-Fi에서 `http://<PC-IP>:5173`)
 - 프로덕션 미리보기: `cd frontend; npm run build` 후 백엔드 `http://localhost:8000`
 
+## 검사
+
+**로직 검사** — 네트워크도 서버도 없이 몇 초면 끝난다. 코드를 고쳤으면 이걸 먼저 돌린다.
+
+```powershell
+cd backend
+..\stock-dashboard\.venv\Scripts\python.exe -m unittest discover -s tests -t .
+```
+
+지키는 것: 알림 중복 방지(재시작을 끼워 넣어도 같은 알림이 두 번 가지 않는지 — 2026-08에 실제로 깨졌던 부분), 포트폴리오 진단 계산(레버리지를 기초자산 테마로 접는지, 환율 환산, LLM 캐시 키 안정성), TTL 캐시의 적중·만료·청소·동시성.
+
+**스모크 테스트** — 배포 전에 응답 *구조*가 달라졌는지 본다. 서버가 떠 있어야 하고 외부 API를 실제로 부른다.
+
+```powershell
+cd backend
+..\stock-dashboard\.venv\Scripts\python.exe smoke_test.py --save baseline.json   # 고치기 전
+..\stock-dashboard\.venv\Scripts\python.exe smoke_test.py --check baseline.json  # 고친 뒤
+```
+
+정상적으로도 흔들리는 항목: `signal-history`(백테스트 창), `ai-briefing`·`related-insight`·`portfolio-review`(Gemini 할당량), `market-top`(개장 전 빈 배열).
+
 ## 배포 (Render, 무료)
 
 `render.yaml` 청사진으로 Docker 단일 서비스 배포. 자세한 절차는 [DEPLOY.md](DEPLOY.md).
