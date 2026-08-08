@@ -5,6 +5,7 @@ import type { Period } from './lib/api'
 import IndexStrip from './components/IndexStrip'
 import TickerSwitcher from './components/TickerSwitcher'
 import StockHeader from './components/StockHeader'
+import AverageBuyCard from './components/AverageBuyCard'
 import Week52Bar from './components/Week52Bar'
 import BottomNav, { type TabKey } from './components/BottomNav'
 import HomeView from './views/HomeView'
@@ -234,6 +235,10 @@ export default function App() {
               <IndexStrip />
               <TickerSwitcher tickers={all} selected={t} onSelect={setT} />
               <StockHeader t={t} period={period} light={theme === 'light'} />
+              {(() => {
+                const h = holdings.find((x) => x.ticker === t.ticker && x.market === t.market)
+                return h ? <AverageBuyCard holding={h} /> : null
+              })()}
               <Week52Bar t={t} />
               <div className="pt-1">
                 {tab === 'signal' && <SignalView t={t} />}

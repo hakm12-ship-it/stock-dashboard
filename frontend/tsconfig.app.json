@@ -22,5 +22,8 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  // 테스트는 번들에 들어가지 않고 node:test로만 돌린다. 앱 빌드에 끼면
+  // node 타입이 없어서 컴파일이 깨진다 — tsconfig.node.json이 맡는다.
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

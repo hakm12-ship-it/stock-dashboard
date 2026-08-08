@@ -19,5 +19,6 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts"]
+  // node에서 도는 것들 — vite 설정과 node:test 검사. 여기만 node 타입을 안다.
+  "include": ["vite.config.ts", "src/**/*.test.ts"]
 }
