@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
 from deps import cached_symbols  # noqa: E402
-from routers import ai, alerts, fundamental, market, night, prices, signal  # noqa: E402
+from routers import ai, alerts, fundamental, market, night, prices, signal, telegram  # noqa: E402
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -53,7 +53,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for _router in (prices, fundamental, signal, market, night, ai, alerts):
+for _router in (prices, fundamental, signal, market, night, ai, alerts, telegram):
     app.include_router(_router.router)
 
 
