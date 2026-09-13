@@ -1,5 +1,7 @@
 # 스톡 인사이트 (Stock Insight)
 
+2026-09 리뉴얼: 데스크톱 리서치 화면·모바일 탐색, 검색/입력/백업 검증, URL 복원, 알림 API 인증을 정비했습니다. [진단·변경·검증 기록](RENEWAL.md), [디자인 기준](design-system.md)을 참고하세요. 운영 알림 스케줄러 인증 설정은 [배포 안내](DEPLOY.md)에 있습니다. 이 작업에서는 배포하지 않았습니다.
+
 한국·미국 종목을 한 화면에서 **기술적 · 기본적 · 신호 · 뉴스 · 포트폴리오** 관점으로 보는 **모바일 우선 웹앱**. 폰 홈화면에 설치(PWA)해서 앱처럼 쓸 수 있습니다.
 
 > ⚠️ 이 도구는 투자 조언이 아닙니다. 모든 정보·신호·추정치는 참고용이며 최종 판단과 책임은 사용자에게 있습니다.
@@ -61,6 +63,10 @@ cd frontend
 npm install
 npm run dev
 ```
+
+5173 포트가 다른 프로젝트에서 사용 중이면 `npm run dev -- --port 5186 --strictPort`로 실행하세요. 이번 검수의 주소는 `http://localhost:5186`입니다. API는 8000 포트를 사용합니다. Node 24 이상, Python 3.12 환경에서 검증했습니다. 기존 가상환경이 없다면 프로젝트 루트에서 `python -m venv backend/.venv`를 만든 뒤 `backend/.venv/Scripts/python.exe -m pip install -r backend/requirements.txt`로 설치하고, backend 폴더에서 `.venv/Scripts/python.exe -m uvicorn main:app --port 8000`을 실행하세요.
+
+검증: frontend에서 `npm run build`, `npm run lint`, `npm test`. 루트에서 `python scripts/verify_ui.py`는 Python Playwright와 Chromium이 설치된 경우 브라우저 회귀 검수를 실행합니다. `python scripts/verify_api.py`는 실행 중인 로컬 백엔드를 읽기 전용으로 확인합니다. 결과와 이미지는 `artifacts/renewal/`에 저장됩니다.
 
 - 개발: `http://localhost:5173` (또는 같은 Wi-Fi에서 `http://<PC-IP>:5173`)
 - 프로덕션 미리보기: `cd frontend; npm run build` 후 백엔드 `http://localhost:8000`

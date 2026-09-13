@@ -3,8 +3,9 @@ import type { FocusTicker } from '../data/tickers'
 import { realizedPnL, type Trade } from '../lib/trades'
 import { fmtPrice, changeColor, changeSign } from '../lib/format'
 import { Sheet } from './ui'
+import { positive, validDate } from '../lib/validation'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' }).format(new Date())
 
 export default function TradeJournalSheet({
   trades,
@@ -15,7 +16,7 @@ export default function TradeJournalSheet({
 }: {
   trades: Trade[]
   tickers: FocusTicker[]
-  onAdd: (t: Trade) => void
+  onAdd: (t: Trade) => boolean
   onRemove: (id: string) => void
   onClose: () => void
 }) {
@@ -26,23 +27,33 @@ export default function TradeJournalSheet({
   const [price, setPrice] = useState('')
   const [date, setDate] = useState(today())
   const [memo, setMemo] = useState('')
+  const [message, setMessage] = useState('')
 
   const add = () => {
     const t = options.find((o) => `${o.market}-${o.ticker}` === selKey)
     const q = Number(qty)
     const p = Number(price)
-    if (!t || !q || !p || !date) return
-    onAdd({
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      date,
-      ticker: t.ticker,
-      name: t.name,
-      market: t.market,
-      side,
-      qty: q,
-      price: p,
-      memo: memo.trim() || undefined,
-    })
+    if (!t || !positive(q) || !positive(p) || !Number.isFinite(q * p) || !validDate(date) || date > today()) {
+      setMessage('수량·가격은 0보다 큰 숫자, 날짜는 오늘 이전의 실제 날짜를 입력하세요.')
+      return
+    }
+    if (
+      !onAdd({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        date,
+        ticker: t.ticker,
+        name: t.name,
+        market: t.market,
+        side,
+        qty: q,
+        price: p,
+        memo: memo.trim() || undefined,
+      })
+    ) {
+      setMessage('저장하지 못했습니다. 브라우저 저장 공간을 확인해 주세요.')
+      return
+    }
+    setMessage('매매 기록을 저장했습니다.')
     setQty('')
     setPrice('')
     setMemo('')
@@ -76,11 +87,10 @@ export default function TradeJournalSheet({
 
       {/* 기록 추가 */}
       <div className="bg-surface border border-border rounded-xl p-3 space-y-2 card-shadow">
-        <div className="text-label font-semibold uppercase tracking-[0.07em] text-muted">
-          기록 추가
-        </div>
+        <div className="text-label font-semibold uppercase tracking-[0.07em] text-muted">기록 추가</div>
         <div className="flex gap-2">
           <select
+            aria-label="매매 종목"
             value={selKey}
             onChange={(e) => setSelKey(e.target.value)}
             className="flex-1 bg-ink border border-border rounded-lg px-2.5 py-2 text-sm text-text min-w-0"
@@ -110,8 +120,9 @@ export default function TradeJournalSheet({
             ))}
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2 trade-inputs">
           <input
+            aria-label="매매 수량"
             value={qty}
             onChange={(e) => setQty(e.target.value)}
             inputMode="decimal"
@@ -119,6 +130,7 @@ export default function TradeJournalSheet({
             className="flex-1 bg-ink border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-accent min-w-0"
           />
           <input
+            aria-label="매매 가격"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
             inputMode="decimal"
@@ -127,17 +139,27 @@ export default function TradeJournalSheet({
           />
           <input
             type="date"
+            aria-label="매매 날짜"
+            max={today()}
             value={date}
             onChange={(e) => setDate(e.target.value)}
             className="bg-ink border border-border rounded-lg px-2 py-2 text-xs text-text shrink-0"
           />
         </div>
         <input
+          aria-label="매매 메모"
+          maxLength={2000}
           value={memo}
           onChange={(e) => setMemo(e.target.value)}
           placeholder="메모 (선택) — 매수/매도 이유를 남겨두면 복기에 좋아요"
           className="w-full bg-ink border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-accent"
         />
+        <p className="text-label text-muted">매매 수량 · 1주당 가격 · 매매 날짜</p>
+        {message && (
+          <p role="status" className="text-sm text-accent">
+            {message}
+          </p>
+        )}
         <button
           onClick={add}
           className="w-full bg-accent/15 border border-accent/50 text-accent rounded-lg min-h-[44px] text-sm font-medium active:bg-accent/25"
@@ -165,7 +187,13 @@ export default function TradeJournalSheet({
                 <span className="font-mono text-xs tnum shrink-0">
                   {t.qty}주 · {fmtPrice(t.price, t.market)}
                 </span>
-                <button onClick={() => onRemove(t.id)} className="text-xs text-down px-1 shrink-0 active:opacity-70">
+                <button
+                  aria-label={`${t.name} 매매 기록 삭제`}
+                  onClick={() => {
+                    if (window.confirm(`${t.date} ${t.name} 매매 기록을 삭제할까요?`)) onRemove(t.id)
+                  }}
+                  className="text-xs text-down px-1 min-w-[44px] min-h-[44px] shrink-0 active:opacity-70"
+                >
                   ×
                 </button>
               </div>

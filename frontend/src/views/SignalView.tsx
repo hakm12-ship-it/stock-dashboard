@@ -16,7 +16,7 @@ import FxAttributionPanel from '../components/FxAttributionPanel'
 import LeverageDecayPanel from '../components/LeverageDecayPanel'
 import NightGapHistoryPanel from '../components/NightGapHistoryPanel'
 import RelatedInsightPanel from '../components/RelatedInsightPanel'
-import { Panel, Loading, Empty, ErrorState, Metric } from '../components/ui'
+import { Panel, Loading, Empty, ErrorState, Metric, Sheet } from '../components/ui'
 
 const RELATED_INSIGHT_TICKERS = new Set(['005930', '000660'])
 import { fmtQuote, fmtNum, fmtPct } from '../lib/format'
@@ -50,110 +50,92 @@ function ConfigSheet({
   onClose: () => void
 }) {
   const [draft, setDraft] = useState<SignalConfig>(cfg)
-  const setW = (k: keyof SignalConfig['w'], v: number) =>
-    setDraft((d) => ({ ...d, w: { ...d.w, [k]: v } }))
+  const setW = (k: keyof SignalConfig['w'], v: number) => setDraft((d) => ({ ...d, w: { ...d.w, [k]: v } }))
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/60 flex items-end justify-center fade-in" onClick={onClose}>
-      <div
-        className="bg-surface border border-border rounded-t-2xl p-5 w-full max-w-app card-shadow max-h-[85vh] overflow-y-auto pb-safe"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-base font-bold">신호 규칙 설정</span>
-          <button onClick={onClose} className="text-muted text-2xl leading-none px-1">×</button>
-        </div>
-        <p className="text-label text-muted mb-4">
-          종합신호·과거성과(백테스트)에 함께 적용돼요. 판정 문턱은 최대점수의 40%로 자동 조정.
-        </p>
+    <Sheet title="신호 규칙 설정" onClose={onClose}>
+      <p className="text-label text-muted mb-4">
+        종합신호·과거성과(백테스트)에 함께 적용돼요. 판정 문턱은 최대점수의 40%로 자동 조정.
+      </p>
 
-        <div className="text-label font-semibold uppercase tracking-[0.07em] text-muted mb-2">
-          지표 가중치
-        </div>
-        <div className="space-y-2 mb-4">
-          {IND_LABELS.map(([k, label]) => (
-            <div key={k} className="flex items-center justify-between gap-2">
-              <span className="text-sm">{label}</span>
-              <div className="flex gap-1">
-                {[0, 1, 2].map((v) => (
-                  <button
-                    key={v}
-                    onClick={() => setW(k, v)}
-                    className={`font-mono text-xs px-3 py-1.5 rounded-md border transition-colors ${
-                      draft.w[k] === v
-                        ? 'bg-surface-2 border-border text-text'
-                        : 'border-border text-muted'
-                    }`}
-                  >
-                    {v === 0 ? '끔' : `${v}×`}
-                  </button>
-                ))}
-              </div>
+      <div className="text-label font-semibold uppercase tracking-[0.07em] text-muted mb-2">지표 가중치</div>
+      <div className="space-y-2 mb-4">
+        {IND_LABELS.map(([k, label]) => (
+          <div key={k} className="flex items-center justify-between gap-2">
+            <span className="text-sm">{label}</span>
+            <div className="flex gap-1">
+              {[0, 1, 2].map((v) => (
+                <button
+                  key={v}
+                  aria-label={`${label} ${v}배`}
+                  aria-pressed={draft.w[k] === v}
+                  onClick={() => setW(k, v)}
+                  className={`font-mono text-xs px-3 py-1.5 rounded-md border transition-colors ${
+                    draft.w[k] === v ? 'bg-surface-2 border-border text-text' : 'border-border text-muted'
+                  }`}
+                >
+                  {v === 0 ? '끔' : `${v}×`}
+                </button>
+              ))}
             </div>
-          ))}
-        </div>
-
-        <div className="text-label font-semibold uppercase tracking-[0.07em] text-muted mb-2">
-          RSI 기준값
-        </div>
-        <div className="flex gap-3 mb-5">
-          <label className="flex-1 text-xs text-muted">
-            과매도 (반등 기대)
-            <select
-              value={draft.rsiLow}
-              onChange={(e) => setDraft((d) => ({ ...d, rsiLow: Number(e.target.value) }))}
-              className="w-full mt-1 bg-ink border border-border rounded-lg px-2 py-2 text-sm text-text"
-            >
-              {[20, 25, 30, 35, 40].map((v) => (
-                <option key={v} value={v}>{v} 이하</option>
-              ))}
-            </select>
-          </label>
-          <label className="flex-1 text-xs text-muted">
-            과매수 (과열)
-            <select
-              value={draft.rsiHigh}
-              onChange={(e) => setDraft((d) => ({ ...d, rsiHigh: Number(e.target.value) }))}
-              className="w-full mt-1 bg-ink border border-border rounded-lg px-2 py-2 text-sm text-text"
-            >
-              {[60, 65, 70, 75, 80].map((v) => (
-                <option key={v} value={v}>{v} 이상</option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <div className="flex gap-2">
-          <button
-            onClick={() => setDraft(DEFAULT_SIGNAL_CONFIG)}
-            className="flex-1 border border-border rounded-xl py-2.5 text-sm text-muted active:bg-surface-2"
-          >
-            기본값으로
-          </button>
-          <button
-            onClick={() => {
-              onApply(draft)
-              onClose()
-            }}
-            className="flex-[2] bg-accent/15 border border-accent/50 text-accent rounded-xl py-2.5 text-sm font-semibold active:bg-accent/25"
-          >
-            적용
-          </button>
-        </div>
+          </div>
+        ))}
       </div>
-    </div>
+
+      <div className="text-label font-semibold uppercase tracking-[0.07em] text-muted mb-2">RSI 기준값</div>
+      <div className="flex gap-3 mb-5">
+        <label className="flex-1 text-xs text-muted">
+          과매도 (반등 기대)
+          <select
+            value={draft.rsiLow}
+            onChange={(e) => setDraft((d) => ({ ...d, rsiLow: Number(e.target.value) }))}
+            className="w-full mt-1 bg-ink border border-border rounded-lg px-2 py-2 text-sm text-text"
+          >
+            {[20, 25, 30, 35, 40].map((v) => (
+              <option key={v} value={v}>
+                {v} 이하
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex-1 text-xs text-muted">
+          과매수 (과열)
+          <select
+            value={draft.rsiHigh}
+            onChange={(e) => setDraft((d) => ({ ...d, rsiHigh: Number(e.target.value) }))}
+            className="w-full mt-1 bg-ink border border-border rounded-lg px-2 py-2 text-sm text-text"
+          >
+            {[60, 65, 70, 75, 80].map((v) => (
+              <option key={v} value={v}>
+                {v} 이상
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          onClick={() => setDraft(DEFAULT_SIGNAL_CONFIG)}
+          className="flex-1 border border-border rounded-xl py-2.5 text-sm text-muted active:bg-surface-2"
+        >
+          기본값으로
+        </button>
+        <button
+          onClick={() => {
+            onApply(draft)
+            onClose()
+          }}
+          className="flex-[2] bg-accent/15 border border-accent/50 text-accent rounded-xl py-2.5 text-sm font-semibold active:bg-accent/25"
+        >
+          적용
+        </button>
+      </div>
+    </Sheet>
   )
 }
 
-function PerfBox({
-  label,
-  perf,
-  horizon,
-}: {
-  label: string
-  perf: SignalPerf | null
-  horizon: number
-}) {
+function PerfBox({ label, perf, horizon }: { label: string; perf: SignalPerf | null; horizon: number }) {
   if (!perf) {
     return (
       <div className="bg-surface-2/60 border border-border rounded-lg p-3">
@@ -185,8 +167,14 @@ export default function SignalView({ t }: { t: FocusTicker }) {
 
   const sig = useQuery({ queryKey: ['signal', t.ticker, key], queryFn: () => getSignal(t.ticker, params) })
   const fc = useQuery({ queryKey: ['forecast', t.ticker], queryFn: () => getForecast(t.ticker) })
-  const val = useQuery({ queryKey: ['val', t.market, t.ticker], queryFn: () => getValuation(t.market, t.ticker) })
-  const hist = useQuery({ queryKey: ['sighist', t.ticker, key], queryFn: () => getSignalHistory(t.ticker, params) })
+  const val = useQuery({
+    queryKey: ['val', t.market, t.ticker],
+    queryFn: () => getValuation(t.market, t.ticker),
+  })
+  const hist = useQuery({
+    queryKey: ['sighist', t.ticker, key],
+    queryFn: () => getSignalHistory(t.ticker, params),
+  })
 
   const applyCfg = (c: SignalConfig) => {
     setCfg(c)
@@ -207,16 +195,23 @@ export default function SignalView({ t }: { t: FocusTicker }) {
   return (
     <div className="space-y-3">
       <p className="text-label text-muted leading-relaxed">
-        ⚠️ 과거 가격·지표를 규칙으로 요약한 참고용 정보입니다. 예측·투자조언이 아니며 판단·책임은 본인에게 있습니다.
+        ⚠️ 과거 가격·지표를 규칙으로 요약한 참고용 정보입니다. 예측·투자조언이 아니며 판단·책임은 본인에게
+        있습니다.
       </p>
 
       {/* 판정 */}
-      <div className={`rounded-xl border px-4 py-3.5 card-shadow ${VERDICT_STYLE[s.verdict] ?? VERDICT_STYLE['중립']}`}>
+      <div
+        className={`rounded-xl border px-4 py-3.5 card-shadow ${VERDICT_STYLE[s.verdict] ?? VERDICT_STYLE['중립']}`}
+      >
         <div className="flex items-center justify-between">
           <span className="text-label uppercase tracking-[0.09em] opacity-70">
             기술적 신호 종합{!isDefaultConfig(cfg) && ' · 내 규칙'}
           </span>
-          <button onClick={() => setCfgOpen(true)} aria-label="신호 규칙 설정" className="relative z-10 opacity-70 active:opacity-100 text-sm leading-none before:absolute before:-inset-4 before:content-['']">
+          <button
+            onClick={() => setCfgOpen(true)}
+            aria-label="신호 규칙 설정"
+            className="relative z-10 opacity-70 active:opacity-100 text-sm leading-none before:absolute before:-inset-4 before:content-['']"
+          >
             ⚙️
           </button>
         </div>
@@ -246,9 +241,19 @@ export default function SignalView({ t }: { t: FocusTicker }) {
       {b && (
         <Panel label="🔮 예상 변동 범위 · 향후 7거래일" help="forecast">
           <div className="grid grid-cols-3 gap-2 mb-3">
-            <Metric label="예상 하단" value={fmtQuote(b.lower_inner, t)} sub={fmtPct(((b.lower_inner / cur) - 1) * 100)} subClass="text-down" />
+            <Metric
+              label="예상 하단"
+              value={fmtQuote(b.lower_inner, t)}
+              sub={fmtPct((b.lower_inner / cur - 1) * 100)}
+              subClass="text-down"
+            />
             <Metric label="현재가" value={fmtQuote(cur, t)} />
-            <Metric label="예상 상단" value={fmtQuote(b.upper_inner, t)} sub={fmtPct(((b.upper_inner / cur) - 1) * 100)} subClass="text-up" />
+            <Metric
+              label="예상 상단"
+              value={fmtQuote(b.upper_inner, t)}
+              sub={fmtPct((b.upper_inner / cur - 1) * 100)}
+              subClass="text-up"
+            />
           </div>
           <div className="relative h-3 rounded-full bg-surface-2 overflow-hidden">
             <div
@@ -275,7 +280,9 @@ export default function SignalView({ t }: { t: FocusTicker }) {
         <ul className="space-y-2">
           {s.signals.map((it) => (
             <li key={it.name} className="flex gap-2.5 text-sm">
-              <span className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${it.score > 0 ? 'bg-up' : it.score < 0 ? 'bg-down' : 'bg-muted'}`} />
+              <span
+                className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${it.score > 0 ? 'bg-up' : it.score < 0 ? 'bg-down' : 'bg-muted'}`}
+              />
               <span>
                 <span className="font-semibold">{it.name}</span>
                 <span className="text-muted"> — {it.detail}</span>
@@ -293,8 +300,8 @@ export default function SignalView({ t }: { t: FocusTicker }) {
             <PerfBox label="매도 우위 후" perf={hist.data.sell} horizon={hist.data.horizon} />
           </div>
           <p className="text-label text-muted mt-2">
-            같은 규칙을 지난 1년에 적용한 결과 · 신호일로부터 {hist.data.horizon}거래일 뒤 기준 · 과거
-            성과가 미래를 보장하지 않아요
+            같은 규칙을 지난 1년에 적용한 결과 · 신호일로부터 {hist.data.horizon}거래일 뒤 기준 · 과거 성과가
+            미래를 보장하지 않아요
           </p>
         </Panel>
       )}
@@ -304,21 +311,29 @@ export default function SignalView({ t }: { t: FocusTicker }) {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <div className="text-label text-down font-semibold mb-1.5">지지 (매수 관심)</div>
-            {s.support.length ? s.support.map((x) => (
-              <div key={x.label} className="flex justify-between text-xs py-0.5">
-                <span className="font-mono tnum">{fmtQuote(x.value, t)}</span>
-                <span className="text-muted">{x.label}</span>
-              </div>
-            )) : <div className="text-label text-muted">없음</div>}
+            {s.support.length ? (
+              s.support.map((x) => (
+                <div key={x.label} className="flex justify-between text-xs py-0.5">
+                  <span className="font-mono tnum">{fmtQuote(x.value, t)}</span>
+                  <span className="text-muted">{x.label}</span>
+                </div>
+              ))
+            ) : (
+              <div className="text-label text-muted">없음</div>
+            )}
           </div>
           <div>
             <div className="text-label text-up font-semibold mb-1.5">저항 (매도 관심)</div>
-            {s.resistance.length ? s.resistance.map((x) => (
-              <div key={x.label} className="flex justify-between text-xs py-0.5">
-                <span className="font-mono tnum">{fmtQuote(x.value, t)}</span>
-                <span className="text-muted">{x.label}</span>
-              </div>
-            )) : <div className="text-label text-muted">없음</div>}
+            {s.resistance.length ? (
+              s.resistance.map((x) => (
+                <div key={x.label} className="flex justify-between text-xs py-0.5">
+                  <span className="font-mono tnum">{fmtQuote(x.value, t)}</span>
+                  <span className="text-muted">{x.label}</span>
+                </div>
+              ))
+            ) : (
+              <div className="text-label text-muted">없음</div>
+            )}
           </div>
         </div>
       </Panel>
@@ -327,9 +342,24 @@ export default function SignalView({ t }: { t: FocusTicker }) {
       {t.kind === 'stock' && val.data && (
         <Panel label="밸류에이션 참고">
           <div className="grid grid-cols-3 gap-2">
-            <Metric label="PER" help="per" value={fmtNum(val.data.PER, 1)} sub={band(val.data.PER, 10, 25, ['낮음', '보통', '높음'])} />
-            <Metric label="PBR" help="pbr" value={fmtNum(val.data.PBR, 2)} sub={band(val.data.PBR, 1, 3, ['낮음', '보통', '높음'])} />
-            <Metric label="ROE" help="roe" value={val.data.ROE != null ? `${(val.data.ROE * 100).toFixed(1)}%` : '—'} sub={band(val.data.ROE, 0.05, 0.15, ['낮음', '보통', '우수'])} />
+            <Metric
+              label="PER"
+              help="per"
+              value={fmtNum(val.data.PER, 1)}
+              sub={band(val.data.PER, 10, 25, ['낮음', '보통', '높음'])}
+            />
+            <Metric
+              label="PBR"
+              help="pbr"
+              value={fmtNum(val.data.PBR, 2)}
+              sub={band(val.data.PBR, 1, 3, ['낮음', '보통', '높음'])}
+            />
+            <Metric
+              label="ROE"
+              help="roe"
+              value={val.data.ROE != null ? `${(val.data.ROE * 100).toFixed(1)}%` : '—'}
+              sub={band(val.data.ROE, 0.05, 0.15, ['낮음', '보통', '우수'])}
+            />
           </div>
         </Panel>
       )}

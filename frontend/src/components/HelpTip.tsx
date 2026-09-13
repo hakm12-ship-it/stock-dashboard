@@ -1,3 +1,4 @@
+import { Sheet } from './Sheet'
 import { useState } from 'react'
 
 // 초보자용 용어 설명 사전. 이 파일 밖에서는 쓰지 않는다 — 내보내면 이 모듈이
@@ -78,30 +79,16 @@ export default function HelpTip({ term }: { term: keyof typeof HELP | string }) 
         }}
         // before:-inset-4 = 보이는 원(16px)은 그대로 두고 탭 영역만 사방 16px 넓혀
         // 48px를 만든다(44 기준에 여유). 절대배치라 레이아웃은 전혀 밀리지 않는다.
-        className="relative inline-flex items-center justify-center h-4 w-4 rounded-full border border-border text-muted text-label leading-none align-middle ml-1 before:absolute before:-inset-4 before:content-['']"
+        className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-muted text-label align-middle"
         aria-label={`${info.title} 설명`}
       >
         ?
       </button>
       {open && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-5 fade-in"
-          onClick={() => setOpen(false)}
-        >
-          <div
-            className="bg-surface border border-border rounded-2xl p-4 w-full max-w-app card-shadow"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-bold">{info.title}</span>
-              <button onClick={() => setOpen(false)} className="relative z-10 text-muted text-xl leading-none px-1 before:absolute before:-inset-3 before:content-['']">
-                ×
-              </button>
-            </div>
-            <p className="text-sm text-muted leading-relaxed whitespace-pre-line">{info.text}</p>
-            <p className="text-label text-muted/70 mt-3">참고용 설명 · 투자 조언이 아니에요</p>
-          </div>
-        </div>
+        <Sheet title={info.title} onClose={() => setOpen(false)}>
+          <p className="text-sm text-muted leading-relaxed whitespace-pre-line">{info.text}</p>
+          <p className="text-label text-muted mt-3">참고용 설명 · 투자 조언이 아니에요</p>
+        </Sheet>
       )}
     </>
   )

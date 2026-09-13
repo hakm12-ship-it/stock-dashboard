@@ -3,14 +3,15 @@ import { useQuery } from '@tanstack/react-query'
 import { getPrices, getValuation, getSignal, type Period, type Candle } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import { fmtQuote, fmtNum, changeColor } from '../lib/format'
-import { ChartFallback, Sheet } from './ui'
+import { loadSignalConfig, cfgKey, cfgParams } from '../lib/signalConfig'
+import { ChartFallback, Sheet, Loading, ErrorState, Empty } from './ui'
 
 // 차트 라이브러리가 무거워서 비교 시트를 열 때만 받는다.
 const CompareChart = lazy(() => import('./CompareChart'))
 
 const PERIODS: Period[] = ['1m', '3m', '6m', '1y']
 const LABEL: Record<Period, string> = { '1m': '1개월', '3m': '3개월', '6m': '6개월', '1y': '1년' }
-const CA = '#E0A63C'
+const CA = '#249D83'
 const CB = '#3B82F6'
 
 function useTickerData(t: FocusTicker | undefined, period: Period) {
@@ -24,12 +25,17 @@ function useTickerData(t: FocusTicker | undefined, period: Period) {
     queryFn: () => getValuation(t!.market, t!.ticker),
     enabled: !!t && t.kind === 'stock',
   })
-  const sig = useQuery({ queryKey: ['signal', t?.ticker], queryFn: () => getSignal(t!.ticker), enabled: !!t })
+  const cfg = loadSignalConfig()
+  const sig = useQuery({
+    queryKey: ['signal', t?.ticker, cfgKey(cfg)],
+    queryFn: () => getSignal(t!.ticker, cfgParams(cfg)),
+    enabled: !!t,
+  })
   return { prices, val, sig }
 }
 
 const normalized = (data?: Candle[]) => {
-  if (!data || !data.length) return []
+  if (!data || !data.length || !data[0].close) return []
   const base = data[0].close
   return data.map((c) => ({ time: c.time, value: (c.close / base - 1) * 100 }))
 }
@@ -69,6 +75,7 @@ export default function ComparisonSheet({
 
   const Select = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
     <select
+      aria-label={value === aKey ? '첫 번째 비교 종목' : '두 번째 비교 종목'}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className="w-full bg-ink border border-border rounded-lg px-2.5 py-2 text-sm text-text"
@@ -119,14 +126,27 @@ export default function ComparisonSheet({
       {/* 수익률 차트 */}
       <div className="bg-surface border border-border rounded-xl p-3 card-shadow">
         <div className="text-label text-muted mb-1">기간 수익률 비교 (시작점 0%)</div>
-        <Suspense fallback={<ChartFallback height={200} />}>
-          <CompareChart series={series} light={light} />
-        </Suspense>
+        {da.prices.isLoading || db.prices.isLoading ? (
+          <Loading />
+        ) : da.prices.isError || db.prices.isError ? (
+          <ErrorState
+            onRetry={() => {
+              void da.prices.refetch()
+              void db.prices.refetch()
+            }}
+          />
+        ) : series.some((s) => s.data.length === 0) ? (
+          <Empty label="비교할 가격 데이터가 부족합니다" />
+        ) : (
+          <Suspense fallback={<ChartFallback height={200} />}>
+            <CompareChart series={series} light={light} />
+          </Suspense>
+        )}
       </div>
 
       {/* 지표 표 */}
       <div className="bg-surface border border-border rounded-xl px-4 py-2 card-shadow">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm table-fixed">
           <thead>
             <tr className="text-label text-muted uppercase tracking-wide">
               <th className="text-left font-medium py-2">지표</th>
@@ -146,8 +166,12 @@ export default function ComparisonSheet({
             </tr>
             <tr className="border-t border-border">
               <td className="text-muted py-2">기간 수익률</td>
-              <td className={`text-right py-2 font-mono tnum ${ra != null ? changeColor(ra) : ''}`}>{retStr(ra)}</td>
-              <td className={`text-right py-2 font-mono tnum ${rb != null ? changeColor(rb) : ''}`}>{retStr(rb)}</td>
+              <td className={`text-right py-2 font-mono tnum ${ra != null ? changeColor(ra) : ''}`}>
+                {retStr(ra)}
+              </td>
+              <td className={`text-right py-2 font-mono tnum ${rb != null ? changeColor(rb) : ''}`}>
+                {retStr(rb)}
+              </td>
             </tr>
             <tr className="border-t border-border">
               <td className="text-muted py-2">신호</td>

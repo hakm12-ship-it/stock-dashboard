@@ -29,7 +29,9 @@ export default function AverageBuyCard({ holding }: { holding: Holding }) {
             {holding.qty.toLocaleString()}주 · 평단 {fmtPrice(holding.avg, holding.market)}
           </div>
           <div className={`font-mono text-label ${changeColor(pl)}`}>
-            {fmtChange(cost ? (pl / cost) * 100 : 0, pl)} ({fmtPrice(Math.abs(pl), holding.market)})
+            {last != null
+              ? `${fmtChange(cost ? (pl / cost) * 100 : 0, pl)} (${fmtPrice(Math.abs(pl), holding.market)})`
+              : '시세 조회 전 · 평가 대기'}
           </div>
         </div>
         <button

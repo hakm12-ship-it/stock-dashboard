@@ -1,20 +1,19 @@
-import type { FocusTicker } from '../data/tickers'
+import { isTicker } from './validation.ts'
+import { persist } from './storage.ts'
+import type { FocusTicker } from '../data/tickers.ts'
 
 const KEY = 'customTickers'
 
 export function loadCustom(): FocusTicker[] {
   try {
     const raw = localStorage.getItem(KEY)
-    return raw ? (JSON.parse(raw) as FocusTicker[]) : []
+    const value: unknown = raw ? JSON.parse(raw) : []
+    return Array.isArray(value) ? value.filter(isTicker) : []
   } catch {
     return []
   }
 }
 
-export function saveCustom(list: FocusTicker[]): void {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(list))
-  } catch {
-    /* 저장 실패는 무시 */
-  }
+export function saveCustom(list: FocusTicker[]): boolean {
+  return persist({ customTickers: list })
 }

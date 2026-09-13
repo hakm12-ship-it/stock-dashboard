@@ -1,0 +1,298 @@
+[
+  {
+    "endpoint": "health",
+    "params": {},
+    "status": 200,
+    "noindex": "noindex, nofollow",
+    "shape": [
+      "status"
+    ],
+    "count": null,
+    "passed": true
+  },
+  {
+    "endpoint": "symbols",
+    "params": {
+      "market": "KR",
+      "q": "삼성"
+    },
+    "status": 200,
+    "noindex": "noindex, nofollow",
+    "shape": "list",
+    "count": 26,
+    "passed": true
+  },
+  {
+    "endpoint": "symbols",
+    "params": {
+      "market": "US",
+      "q": "Apple"
+    },
+    "status": 200,
+    "noindex": "noindex, nofollow",
+    "shape": "list",
+    "count": 3,
+    "passed": true
+  },
+  {
+    "endpoint": "prices",
+    "params": {
+      "ticker": "005930",
+      "period": "3m"
+    },
+    "status": 200,
+    "noindex": "noindex, nofollow",
+    "shape": "list",
+    "count": 63,
+    "passed": true
+  },
+  {
+    "endpoint": "indicators",
+    "params": {
+      "ticker": "005930",
+      "period": "3m"
+    },
+    "status": 200,
+    "noindex": "noindex, nofollow",
+    "shape": [
+      "time",
+      "rsi",
+      "macd",
+      "signal",
+      "hist",
+      "bb_upper",
+      "bb_lower",
+      "ma20",
+      "ma60"
+    ],
+    "count": null,
+    "passed": true
+  },
+  {
+    "endpoint": "signal",
+    "params": {
+      "ticker": "005930"
+    },
+    "status": 200,
+    "noindex": "noindex, nofollow",
+    "shape": [
+      "signals",
+      "total",
+      "verdict",
+      "maxScore",
+      "price",
+      "support",
+      "resistance"
+    ],
+    "count": null,
+    "passed": true
+  },
+  {
+    "endpoint": "forecast",
+    "params": {
+      "ticker": "005930"
+    },
+    "status": 200,
+    "noindex": "noindex, nofollow",
+    "shape": [
+      "last",
+      "sigma",
+      "band"
+    ],
+    "count": null,
+    "passed": true
+  },
+  {
+    "endpoint": "valuation",
+    "params": {
+      "market": "KR",
+      "ticker": "005930"
+    },
+    "status": 200,
+    "noindex": "noindex, nofollow",
+    "shape": [
+      "종목",
+      "섹터",
+      "통화",
+      "PER",
+      "PBR",
+      "EPS",
+      "ROE",
+      "배당수익률",
+      "주당배당금",
+      "시가총액"
+    ],
+    "count": null,
+    "passed": true
+  },
+  {
+    "endpoint": "news",
+    "params": {
+      "market": "KR",
+      "name": "삼성전자"
+    },
+    "status": 200,
+    "noindex": "noindex, nofollow",
+    "shape": "list",
+    "count": 15,
+    "passed": true
+  },
+  {
+    "endpoint": "index",
+    "params": {
+      "name": "KOSPI"
+    },
+    "status": 200,
+    "noindex": "noindex, nofollow",
+    "shape": [
+      "name",
+      "last",
+      "change",
+      "changePct",
+      "series"
+    ],
+    "count": null,
+    "passed": true
+  },
+  {
+    "endpoint": "fx",
+    "params": {},
+    "status": 200,
+    "noindex": "noindex, nofollow",
+    "shape": [
+      "usdkrw",
+      "change",
+      "changePct"
+    ],
+    "count": null,
+    "passed": true
+  },
+  {
+    "endpoint": "macro",
+    "params": {},
+    "status": 200,
+    "noindex": "noindex, nofollow",
+    "shape": [
+      "usdkrw",
+      "wti"
+    ],
+    "count": null,
+    "passed": true
+  },
+  {
+    "endpoint": "daily-report",
+    "params": {},
+    "status": 200,
+    "noindex": "noindex, nofollow",
+    "shape": [
+      "date",
+      "summary",
+      "tags"
+    ],
+    "count": null,
+    "passed": true
+  },
+  {
+    "endpoint": "market-top",
+    "params": {
+      "direction": "up",
+      "market": "KOSPI"
+    },
+    "status": 200,
+    "noindex": "noindex, nofollow",
+    "shape": "list",
+    "count": 5,
+    "passed": true
+  },
+  {
+    "endpoint": "groups",
+    "params": {
+      "kind": "industry"
+    },
+    "status": 200,
+    "noindex": "noindex, nofollow",
+    "shape": "list",
+    "count": 79,
+    "passed": true
+  },
+  {
+    "endpoint": "night-price",
+    "params": {
+      "ticker": "005930"
+    },
+    "status": 200,
+    "noindex": "noindex, nofollow",
+    "shape": [
+      "available",
+      "usd",
+      "krw",
+      "krxClose",
+      "gapPct"
+    ],
+    "count": null,
+    "passed": true
+  },
+  {
+    "endpoint": "synth-price",
+    "params": {
+      "ticker": "KORU"
+    },
+    "status": 200,
+    "noindex": "noindex, nofollow",
+    "shape": [
+      "available",
+      "estimate",
+      "lastClose",
+      "lastCloseAt",
+      "changePct",
+      "underlyingName",
+      "underlyingPct",
+      "leverage",
+      "asOf"
+    ],
+    "count": null,
+    "passed": true
+  },
+  {
+    "endpoint": "market-alert-check",
+    "status": 503,
+    "passed": true,
+    "check": "unauthenticated request rejected"
+  },
+  {
+    "endpoint": "night-alert-check",
+    "status": 503,
+    "passed": true,
+    "check": "unauthenticated request rejected"
+  },
+  {
+    "endpoint": "kakao-redirect-uri",
+    "status": 401,
+    "passed": true,
+    "check": "unauthenticated request rejected"
+  },
+  {
+    "endpoint": "kakao-token-status",
+    "status": 401,
+    "passed": true,
+    "check": "unauthenticated request rejected"
+  },
+  {
+    "endpoint": "/",
+    "status": 200,
+    "passed": true,
+    "check": "production static serving"
+  },
+  {
+    "endpoint": "/robots.txt",
+    "status": 200,
+    "passed": true,
+    "check": "production static serving"
+  },
+  {
+    "endpoint": "/sitemap.xml",
+    "status": 200,
+    "passed": true,
+    "check": "production static serving"
+  }
+]

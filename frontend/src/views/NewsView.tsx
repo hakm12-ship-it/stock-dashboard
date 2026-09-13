@@ -64,8 +64,13 @@ export default function NewsView({ t, tickers }: { t: FocusTicker; tickers: Focu
   entries.sort((a, b) => (b.d?.getTime() ?? 0) - (a.d?.getTime() ?? 0))
   if (mode === 'all') entries = entries.slice(0, 40)
 
-  const isLoading = mode === 'one' ? single.isLoading : allQs.every((q) => q.isLoading)
-  const isError = mode === 'one' && single.isError
+  const isLoading = mode === 'one' ? single.isLoading : entries.length === 0 && allQs.some((q) => q.isLoading)
+  const isError = mode === 'one' ? single.isError : entries.length === 0 && allQs.some((q) => q.isError)
+  const partialError = mode === 'all' && entries.length > 0 && allQs.some((q) => q.isError)
+  const retry = () => {
+    if (mode === 'one') void single.refetch()
+    else allQs.filter((q) => q.isError).forEach((q) => void q.refetch())
+  }
 
   return (
     <div className="space-y-2">
@@ -80,6 +85,7 @@ export default function NewsView({ t, tickers }: { t: FocusTicker; tickers: Focu
           <button
             key={m}
             onClick={() => setMode(m)}
+            aria-pressed={mode === m}
             className={`flex-1 min-h-[44px] rounded-md text-xs font-medium transition-colors ${
               m === mode ? 'bg-surface-2 text-text' : 'text-muted'
             }`}
@@ -92,14 +98,21 @@ export default function NewsView({ t, tickers }: { t: FocusTicker; tickers: Focu
       {isLoading ? (
         <Loading />
       ) : isError ? (
-        <ErrorState onRetry={() => single.refetch()} />
+        <ErrorState onRetry={retry} />
       ) : entries.length === 0 ? (
         <Empty label="관련 뉴스를 찾지 못했어요" />
       ) : (
         <>
+          {partialError && (
+            <p role="status" className="text-sm text-muted">
+              일부 종목의 뉴스를 가져오지 못했습니다.{' '}
+              <button className="underline min-h-[44px]" onClick={retry}>
+                실패한 종목 다시 조회
+              </button>
+            </p>
+          )}
           <p className="text-label text-muted">
-            {mode === 'one' ? `'${t.name}' 관련 최신 뉴스` : '관심종목 전체 뉴스'} · 출처 Google News ·
-            최신순
+            {mode === 'one' ? `'${t.name}' 관련 최신 뉴스` : '관심종목 전체 뉴스'} · 출처 Google News · 최신순
           </p>
           {entries.map(({ n, d, tag }, i) => {
             const fresh = d != null && Date.now() - d.getTime() < FRESH_MS
@@ -120,9 +133,7 @@ export default function NewsView({ t, tickers }: { t: FocusTicker; tickers: Focu
                   {n.title}
                 </div>
                 <div className="text-label text-muted mt-1.5 font-mono flex items-center gap-1.5 flex-wrap">
-                  {tag && (
-                    <span className="border border-border rounded px-1 py-0.5 text-label">{tag}</span>
-                  )}
+                  {tag && <span className="border border-border rounded px-1 py-0.5 text-label">{tag}</span>}
                   <span>{[n.source, d ? relTime(d) : n.published].filter(Boolean).join(' · ')}</span>
                 </div>
               </a>

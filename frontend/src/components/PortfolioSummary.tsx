@@ -29,6 +29,7 @@ export default function PortfolioSummary({
   })
   const fx = useQuery({ queryKey: ['fx'], queryFn: getFx, enabled: holdings.length > 0 })
   const rate = fx.data?.usdkrw
+  const hasMissingPrices = holdings.some((_, i) => !qs[i].data?.length)
 
   const groups: Record<Market, { cost: number; value: number }> = {
     KR: { cost: 0, value: 0 },
@@ -51,7 +52,7 @@ export default function PortfolioSummary({
 
   const hasHoldings = rows.length > 0
   const hasUS = groups.US.cost > 0
-  const canUnify = !hasUS || rate != null
+  const canUnify = !hasMissingPrices && (!hasUS || rate != null)
   const uniCost = groups.KR.cost + (rate ? groups.US.cost * rate : 0)
   const uniValue = groups.KR.value + (rate ? groups.US.value * rate : 0)
   const uniPL = uniValue - uniCost
@@ -60,32 +61,49 @@ export default function PortfolioSummary({
   return (
     <div className="bg-surface border border-border rounded-xl p-4 card-shadow">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-label font-semibold uppercase tracking-[0.08em] text-muted">
-          내 자산
-        </span>
+        <span className="text-label font-semibold uppercase tracking-[0.08em] text-muted">내 자산</span>
         {/* -my-3로 탭 영역만 넓히고 줄 높이는 유지 (터치타겟 44px) */}
-        <div className="flex -my-3">
+        <div className="flex gap-3 -my-3">
           <button
             onClick={onJournal}
             className="min-w-[44px] min-h-[44px] flex items-center justify-center text-label text-muted active:opacity-70"
           >
-            일지
+            매매일지
           </button>
           <button
             onClick={onManage}
             className="min-w-[44px] min-h-[44px] flex items-center justify-end text-label text-text active:opacity-70"
           >
-            관리
+            보유 관리
           </button>
         </div>
       </div>
 
       {!hasHoldings ? (
-        <button onClick={onManage} className="w-full min-h-[44px] flex items-center text-sm text-muted text-left">
-          보유종목을 추가해 손익을 확인하세요 →
+        <button
+          onClick={onManage}
+          className="w-full min-h-[44px] flex items-center text-sm text-muted text-left"
+        >
+          보유종목 등록하고 손익 확인 →
         </button>
       ) : (
         <>
+          {!canUnify && (
+            <div className="py-3 text-sm text-muted" role="status">
+              {qs.some((q) => q.isFetching) || fx.isFetching
+                ? '평가에 필요한 시세와 환율을 조회하고 있습니다.'
+                : '시세 또는 환율이 없어 평가액을 계산할 수 없습니다.'}
+              <button
+                className="button button-quiet mt-2"
+                onClick={() => {
+                  qs.forEach((q) => void q.refetch())
+                  void fx.refetch()
+                }}
+              >
+                다시 조회
+              </button>
+            </div>
+          )}
           {canUnify && (
             <div className="mb-3">
               <div className="text-label text-muted">총 평가 (원 환산)</div>
@@ -98,7 +116,7 @@ export default function PortfolioSummary({
             </div>
           )}
 
-          {rows.length > 1 && (
+          {!hasMissingPrices && (rows.length > 1 || !canUnify) && (
             <div className="space-y-1.5 pt-2 border-t border-border">
               {rows.map((r) => (
                 <div key={r.m} className="flex items-center justify-between">

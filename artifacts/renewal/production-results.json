@@ -1,0 +1,17 @@
+[
+  {
+    "check": "production bundle, SEO metadata, actual chart canvas and skip-link",
+    "passed": true
+  },
+  {
+    "check": "production service worker activated",
+    "passed": true,
+    "caches": [
+      "stock-insight-v2"
+    ]
+  },
+  {
+    "check": "admin diagnostics blocked and not cached",
+    "passed": true
+  }
+]

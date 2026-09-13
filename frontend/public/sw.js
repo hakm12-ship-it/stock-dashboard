@@ -1,31 +1,16 @@
-// 스톡 인사이트 서비스워커 — 앱 셸 캐시(설치형 PWA), API는 항상 네트워크
-const CACHE = 'stock-insight-v1'
-
+﻿// Cache only successful same-origin app assets. API and account endpoints stay on the network.
+const CACHE = 'stock-insight-v2'
 self.addEventListener('install', () => self.skipWaiting())
-
-self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches
-      .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim()),
-  )
+self.addEventListener('activate', event => {
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith('stock-insight-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()))
 })
-
-self.addEventListener('fetch', (e) => {
-  const url = new URL(e.request.url)
-  // 데이터(API)는 캐시하지 않고 항상 네트워크
-  if (url.pathname.startsWith('/api/')) return
-  if (e.request.method !== 'GET') return
-
-  // 앱 셸: 네트워크 우선 + 성공 시 캐시, 실패 시 캐시 폴백
-  e.respondWith(
-    fetch(e.request)
-      .then((res) => {
-        const copy = res.clone()
-        caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {})
-        return res
-      })
-      .catch(() => caches.match(e.request).then((r) => r || caches.match('/'))),
-  )
+self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url)
+  if (url.origin !== self.location.origin || event.request.method !== 'GET' || url.pathname.startsWith('/api/')) return
+  const navigation = event.request.mode === 'navigate'
+  if (!navigation && !url.pathname.startsWith('/assets/') && !/\.(png|svg|webmanifest)$/.test(url.pathname)) return
+  event.respondWith(fetch(event.request).then(response => {
+    if (response.ok) { const copy = response.clone(); event.waitUntil(caches.open(CACHE).then(cache => cache.put(navigation ? '/' : event.request, copy))) }
+    return response
+  }).catch(async () => (await caches.match(navigation ? '/' : event.request)) || new Response('오프라인입니다. 연결 후 다시 시도해 주세요.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } })))
 })

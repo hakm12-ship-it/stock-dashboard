@@ -41,21 +41,28 @@ function PeersPanel({
         {peers.map((p) => {
           const added = findAdded(p.ticker)
           return (
-            <div key={p.ticker} className="flex items-center gap-2 min-h-[44px] border-b border-border last:border-0">
-              <button onClick={() => added && onOpen(added)} className="min-w-0 flex-1 self-stretch text-left">
+            <div
+              key={p.ticker}
+              className="flex items-center gap-2 min-h-[44px] border-b border-border last:border-0"
+            >
+              <button
+                disabled={!added}
+                onClick={() => added && onOpen(added)}
+                className="min-w-0 flex-1 self-stretch text-left"
+              >
                 <div className="text-sm font-medium truncate">
                   {p.name}
                   {added && <span className="text-muted text-label ml-1">›</span>}
                 </div>
-                <div className="font-mono text-label text-muted">
-                  시총 {fmtCap(p.marketCap, 'KR')}
-                </div>
+                <div className="font-mono text-label text-muted">시총 {fmtCap(p.marketCap, 'KR')}</div>
               </button>
               <div className="text-right shrink-0">
                 <div className="font-mono text-sm tnum">
                   {p.price != null ? `${Math.round(p.price).toLocaleString()}원` : '—'}
                 </div>
-                <div className={`font-mono text-label ${p.changePct != null ? changeColor(p.changePct) : 'text-muted'}`}>
+                <div
+                  className={`font-mono text-label ${p.changePct != null ? changeColor(p.changePct) : 'text-muted'}`}
+                >
                   {p.changePct != null ? fmtChange(p.changePct) : '—'}
                 </div>
               </div>
@@ -194,11 +201,31 @@ export default function FundamentalView({
     queryFn: () => getProfile(t.market, t.ticker),
     enabled: t.market === 'KR',
   })
-  const val = useQuery({ queryKey: ['val', t.market, t.ticker], queryFn: () => getValuation(t.market, t.ticker), enabled: isStock })
-  const fpe = useQuery({ queryKey: ['fpe', t.market, t.ticker], queryFn: () => getForwardPe(t.market, t.ticker), enabled: isStock })
-  const trend = useQuery({ queryKey: ['trend', t.market, t.ticker], queryFn: () => getTrend(t.market, t.ticker), enabled: isStock })
-  const target = useQuery({ queryKey: ['target', t.market, t.ticker], queryFn: () => getTarget(t.market, t.ticker), enabled: isStock })
-  const priceQ = useQuery({ queryKey: ['prices', t.ticker, '1m'], queryFn: () => getPrices(t.ticker, '1m'), enabled: isStock })
+  const val = useQuery({
+    queryKey: ['val', t.market, t.ticker],
+    queryFn: () => getValuation(t.market, t.ticker),
+    enabled: isStock,
+  })
+  const fpe = useQuery({
+    queryKey: ['fpe', t.market, t.ticker],
+    queryFn: () => getForwardPe(t.market, t.ticker),
+    enabled: isStock,
+  })
+  const trend = useQuery({
+    queryKey: ['trend', t.market, t.ticker],
+    queryFn: () => getTrend(t.market, t.ticker),
+    enabled: isStock,
+  })
+  const target = useQuery({
+    queryKey: ['target', t.market, t.ticker],
+    queryFn: () => getTarget(t.market, t.ticker),
+    enabled: isStock,
+  })
+  const priceQ = useQuery({
+    queryKey: ['prices', t.ticker, '1m'],
+    queryFn: () => getPrices(t.ticker, '1m'),
+    enabled: isStock,
+  })
 
   if (!isStock) {
     const isIndex = t.kind === 'index'
@@ -215,9 +242,11 @@ export default function FundamentalView({
               </>
             ) : (
               <>
-                <b className="text-text">{t.name}</b> 는 ETF라 PER·PBR 같은 개별 기업 밸류에이션이 적용되지 않아요.
+                <b className="text-text">{t.name}</b> 는 ETF라 PER·PBR 같은 개별 기업 밸류에이션이 적용되지
+                않아요.
                 <br />
-                <span className="text-up">레버리지</span> 상품이라 변동성이 매우 큽니다 — 차트·종합신호 탭에서 확인하세요.
+                <span className="text-up">레버리지</span> 상품이라 변동성이 매우 큽니다 — 차트·종합신호 탭에서
+                확인하세요.
               </>
             )}
           </p>
@@ -237,7 +266,10 @@ export default function FundamentalView({
   const v = val.data
 
   const cur = fpe.data?.trailing
-  const yearsData = trend.data && 'years' in trend.data ? (trend.data as { years: number[] } & Record<string, (number | null)[]>) : null
+  const yearsData =
+    trend.data && 'years' in trend.data
+      ? (trend.data as { years: number[] } & Record<string, (number | null)[]>)
+      : null
 
   return (
     <div className="space-y-3">
@@ -275,7 +307,11 @@ export default function FundamentalView({
                 sub={`${upside >= 0 ? '+' : ''}${upside.toFixed(1)}% 여력`}
                 subClass={upside >= 0 ? 'text-up' : 'text-down'}
               />
-              <Metric label="투자의견" value={recLabel} sub={rec != null ? `${rec.toFixed(2)} / 5` : undefined} />
+              <Metric
+                label="투자의견"
+                value={recLabel}
+                sub={rec != null ? `${rec.toFixed(2)} / 5` : undefined}
+              />
             </div>
             <p className="text-label text-muted mt-2">
               증권사 컨센서스 평균 · 현재가 {fmtPrice(cur, t.market)} 기준 · 투자조언 아님
@@ -312,7 +348,11 @@ export default function FundamentalView({
             years={yearsData.years}
             series={[
               { label: '매출', color: '#E0B84D', values: (yearsData['매출'] as (number | null)[]) ?? [] },
-              { label: '영업이익', color: '#3B82F6', values: (yearsData['영업이익'] as (number | null)[]) ?? [] },
+              {
+                label: '영업이익',
+                color: '#3B82F6',
+                values: (yearsData['영업이익'] as (number | null)[]) ?? [],
+              },
               { label: '순이익', color: '#8B94A3', values: (yearsData['순이익'] as (number | null)[]) ?? [] },
             ]}
           />

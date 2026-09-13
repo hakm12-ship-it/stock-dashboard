@@ -1,7 +1,7 @@
 import axios from 'axios'
 import type { Market } from '../data/tickers'
 
-const api = axios.create({ baseURL: '' })
+const api = axios.create({ baseURL: '', timeout: 45_000 })
 
 export type Period = '1m' | '3m' | '6m' | '1y'
 
@@ -117,8 +117,7 @@ const get = <T>(url: string, params: Record<string, unknown>) =>
   api.get<T>(url, { params }).then((r) => r.data)
 
 export const getIndex = (name: string) => get<IndexData>('/api/index', { name })
-export const getPrices = (ticker: string, period: Period) =>
-  get<Candle[]>('/api/prices', { ticker, period })
+export const getPrices = (ticker: string, period: Period) => get<Candle[]>('/api/prices', { ticker, period })
 export const getIndicators = (ticker: string, period: Period) =>
   get<Indicators>('/api/indicators', { ticker, period })
 export const getValuation = (market: Market, ticker: string) =>
@@ -132,12 +131,9 @@ export const getSignal = (ticker: string, cfg?: Record<string, number>) =>
 export const getSignalHistory = (ticker: string, cfg?: Record<string, number>) =>
   get<SignalHistory>('/api/signal-history', { ticker, ...(cfg ?? {}) })
 export const getForecast = (ticker: string) => get<Forecast>('/api/forecast', { ticker })
-export const getNews = (market: Market, name: string) =>
-  get<NewsItem[]>('/api/news', { market, name })
-export const getSymbols = (market: Market, q: string) =>
-  get<SymbolResult[]>('/api/symbols', { market, q })
-export const getTarget = (market: Market, ticker: string) =>
-  get<Target>('/api/target', { market, ticker })
+export const getNews = (market: Market, name: string) => get<NewsItem[]>('/api/news', { market, name })
+export const getSymbols = (market: Market, q: string) => get<SymbolResult[]>('/api/symbols', { market, q })
+export const getTarget = (market: Market, ticker: string) => get<Target>('/api/target', { market, ticker })
 
 export interface Fx {
   usdkrw: number
@@ -288,8 +284,7 @@ export interface RelatedInsight {
   stale?: boolean
   stocks?: RelatedStock[]
 }
-export const getRelatedInsight = (ticker: string) =>
-  get<RelatedInsight>('/api/related-insight', { ticker })
+export const getRelatedInsight = (ticker: string) => get<RelatedInsight>('/api/related-insight', { ticker })
 
 export interface LeverageDecay {
   available: boolean
@@ -344,10 +339,8 @@ export interface MarketTopItem {
   price: number | null
   changePct: number | null
 }
-export const getMarketTop = (
-  direction: 'up' | 'down',
-  market: 'KOSPI' | 'KOSDAQ' | 'NASDAQ' | 'CRYPTO',
-) => get<MarketTopItem[]>('/api/market-top', { direction, market })
+export const getMarketTop = (direction: 'up' | 'down', market: 'KOSPI' | 'KOSDAQ' | 'NASDAQ' | 'CRYPTO') =>
+  get<MarketTopItem[]>('/api/market-top', { direction, market })
 
 export interface Group {
   no: number
@@ -367,8 +360,7 @@ export interface Peer {
   changePct: number | null
   marketCap: number | null
 }
-export const getPeers = (market: Market, ticker: string) =>
-  get<Peer[]>('/api/peers', { market, ticker })
+export const getPeers = (market: Market, ticker: string) => get<Peer[]>('/api/peers', { market, ticker })
 
 export interface DealTrend {
   date: string
@@ -387,5 +379,4 @@ export interface Profile {
   logo: string | null
   researches: { title: string; brokerage: string; date: string }[]
 }
-export const getProfile = (market: Market, ticker: string) =>
-  get<Profile>('/api/profile', { market, ticker })
+export const getProfile = (market: Market, ticker: string) => get<Profile>('/api/profile', { market, ticker })

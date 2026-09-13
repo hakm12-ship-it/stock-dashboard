@@ -10,6 +10,7 @@ deps.py에 모여 있다.
 """
 
 import threading
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -48,10 +49,23 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="스톡 인사이트 API", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 개발용. 배포 시 프런트 도메인으로 좁힐 것.
+    allow_origins=[origin.strip() for origin in os.environ.get(
+        "CORS_ORIGINS", "http://localhost:5173,http://localhost:5186,http://127.0.0.1:5173"
+    ).split(",") if origin.strip()],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def private_api_headers(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/api/") or request.url.path in ("/docs", "/redoc", "/openapi.json"):
+        response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    if request.url.path.startswith("/api/kakao-"):
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+    return response
 
 for _router in (prices, fundamental, signal, market, night, ai, alerts, telegram):
     app.include_router(_router.router)

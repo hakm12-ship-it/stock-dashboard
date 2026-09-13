@@ -13,10 +13,12 @@ GitHub Actions의 schedule은 이 저장소에서 2~9시간씩 밀리는 게 관
 """
 
 import os
+from html import escape
 from datetime import datetime, timedelta, timezone
 from datetime import time as dt_time
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
+from security import require_alert_key, require_admin_key
 from fastapi.responses import HTMLResponse
 
 from analysis.market_alerts import (
@@ -85,7 +87,7 @@ def _krx_open(now: datetime) -> bool:
     return 9 * 60 <= minutes <= 15 * 60 + 30
 
 
-@router.get("/api/market-alert-check")
+@router.get("/api/market-alert-check", dependencies=[Depends(require_alert_key)])
 def api_market_alert_check(force: bool = False, test: bool = False):
     """급변 조건을 확인하고 넘으면 텔레그램 발송. 외부 스케줄러 전용.
 
@@ -253,7 +255,7 @@ def _night_should_alert(gap: float, last: float | None) -> bool:
     return abs(gap) - abs(last) >= _NIGHT_STEP
 
 
-@router.get("/api/night-alert-check")
+@router.get("/api/night-alert-check", dependencies=[Depends(require_alert_key)])
 def api_night_alert_check(force: bool = False, test: bool = False):
     """야간 갭이 크게 벌어졌으면 알림. 외부 스케줄러 전용.
 
@@ -353,7 +355,7 @@ def api_market_alert_config():
     }
 
 
-@router.get("/api/kakao-redirect-uri")
+@router.get("/api/kakao-redirect-uri", dependencies=[Depends(require_admin_key)])
 def api_kakao_redirect_uri(request: Request):
     """서버가 카카오에 보내는 redirect_uri.
 
@@ -379,7 +381,7 @@ def api_kakao_redirect_uri(request: Request):
     }
 
 
-@router.get("/api/kakao-token-status")
+@router.get("/api/kakao-token-status", dependencies=[Depends(require_admin_key)])
 def api_kakao_token_status():
     """리프레시 토큰 잔여일. 60일마다 사람이 갱신해야 해서 확인 수단을 둔다.
 
@@ -464,19 +466,19 @@ def api_kakao_auth(request: Request, key: str = ""):
 def api_kakao_callback(request: Request, code: str = "", error: str = ""):
     """동의 후 돌아오는 곳. 받은 리프레시 토큰을 복사할 수 있게 보여준다."""
     if error or not code:
-        return _page("연결 취소됨", f"<p class=muted>{error or 'code가 없습니다.'}</p>")
+        return _page("연결 취소됨", f"<p class=muted>{escape(error or 'code가 없습니다.')}</p>")
     try:
         tok = exchange_code(code, _redirect_uri(request))
     except Exception as e:  # noqa: BLE001
-        return _page("토큰 발급 실패", f"<p class=muted>{e}</p>")
+        return _page("토큰 발급 실패", f"<p class=muted>{escape(str(e))}</p>")
 
     refresh = tok.get("refresh_token")
     if not refresh:
-        return _page("토큰 발급 실패", f"<p class=muted>{tok}</p>")
+        return _page("토큰 발급 실패", "<p class=muted>리프레시 토큰을 받지 못했습니다. 동의 항목을 확인해 주세요.</p>")
     days = int(tok.get("refresh_token_expires_in", 0)) // 86400
     return _page(
         "연결 완료",
         "<p>아래 값을 Render 환경변수 <b>KAKAO_REFRESH_TOKEN</b>에 붙여넣으세요.</p>"
-        f"<code>{refresh}</code>"
+        f"<code>{escape(str(refresh))}</code>"
         f"<p class=muted>이 토큰은 약 {days}일 뒤 만료돼요. 그때 이 페이지에서 다시 받으면 됩니다.</p>",
     )

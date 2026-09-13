@@ -1,0 +1,146 @@
+{
+  "base": "http://localhost:5186",
+  "results": [
+    {
+      "check": "home width 360",
+      "passed": true
+    },
+    {
+      "check": "home width 390",
+      "passed": true
+    },
+    {
+      "check": "home width 768",
+      "passed": true
+    },
+    {
+      "check": "home width 1280",
+      "passed": true
+    },
+    {
+      "check": "home width 1440",
+      "passed": true
+    },
+    {
+      "check": "market filters, empty result, sort and reorder",
+      "passed": true
+    },
+    {
+      "check": "real symbol search, add, focus containment and Escape",
+      "passed": true
+    },
+    {
+      "check": "tech width 360",
+      "passed": true
+    },
+    {
+      "check": "tech width 390",
+      "passed": true
+    },
+    {
+      "check": "tech width 768",
+      "passed": true
+    },
+    {
+      "check": "tech width 1280",
+      "passed": true
+    },
+    {
+      "check": "tech width 1440",
+      "passed": true
+    },
+    {
+      "check": "fund width 360",
+      "passed": true
+    },
+    {
+      "check": "fund width 390",
+      "passed": true
+    },
+    {
+      "check": "fund width 768",
+      "passed": true
+    },
+    {
+      "check": "fund width 1280",
+      "passed": true
+    },
+    {
+      "check": "fund width 1440",
+      "passed": true
+    },
+    {
+      "check": "news width 360",
+      "passed": true
+    },
+    {
+      "check": "news width 390",
+      "passed": true
+    },
+    {
+      "check": "news width 768",
+      "passed": true
+    },
+    {
+      "check": "news width 1280",
+      "passed": true
+    },
+    {
+      "check": "news width 1440",
+      "passed": true
+    },
+    {
+      "check": "stock analysis, tabs, reload and browser back",
+      "passed": true
+    },
+    {
+      "check": "holdings modal width 360",
+      "passed": true
+    },
+    {
+      "check": "holdings modal width 390",
+      "passed": true
+    },
+    {
+      "check": "holdings modal width 768",
+      "passed": true
+    },
+    {
+      "check": "holdings modal width 1280",
+      "passed": true
+    },
+    {
+      "check": "holdings modal width 1440",
+      "passed": true
+    },
+    {
+      "check": "holding validation, persistence and staged legacy restore",
+      "passed": true
+    },
+    {
+      "check": "trade validation, duplicate prevention, delete cancel and full backup",
+      "passed": true
+    },
+    {
+      "check": "comparison chart at 360px",
+      "passed": true
+    },
+    {
+      "check": "light theme and persistence",
+      "passed": true
+    },
+    {
+      "check": "no application JavaScript exceptions",
+      "passed": true
+    },
+    {
+      "check": "503 response is distinguished from empty search and loading",
+      "passed": true
+    },
+    {
+      "check": "67 items and long Korean names at 360px",
+      "passed": true
+    }
+  ],
+  "pageErrors": []
+}

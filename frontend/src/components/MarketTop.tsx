@@ -1,3 +1,4 @@
+import { ErrorState } from './ui'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getMarketTop } from '../lib/api'
@@ -20,7 +21,7 @@ export default function MarketTop({
 }: {
   existing: FocusTicker[]
   onAdd: (t: FocusTicker) => void
-  onOpen: (ticker: string) => void
+  onOpen: (ticker: FocusTicker) => void
 }) {
   const [dir, setDir] = useState<Dir>('up')
   const [mkt, setMkt] = useState<Mkt>('KOSPI')
@@ -34,14 +35,13 @@ export default function MarketTop({
   const mktKr = mkt === 'KOSPI' || mkt === 'KOSDAQ'
   const isCrypto = mkt === 'CRYPTO'
   const tickerMarket = mktKr ? 'KR' : 'US'
-  const isAdded = (ticker: string) =>
-    existing.some((x) => x.ticker === ticker && x.market === tickerMarket)
+  const isAdded = (ticker: string) => existing.some((x) => x.ticker === ticker && x.market === tickerMarket)
 
   return (
     <section className="bg-surface border border-border rounded-xl p-4 card-shadow">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
         <span className="text-label font-semibold uppercase tracking-[0.08em] text-muted">
-          🔥 오늘의 시장 TOP
+          오늘의 시장 TOP
         </span>
         <div className="flex gap-0.5">
           {MKTS.map((m) => (
@@ -79,6 +79,8 @@ export default function MarketTop({
 
       {q.isLoading ? (
         <div className="h-32 rounded-lg shimmer" />
+      ) : q.isError ? (
+        <ErrorState onRetry={() => q.refetch()} />
       ) : !q.data || q.data.length === 0 ? (
         <div className="text-muted text-xs text-center py-4">데이터가 없어요</div>
       ) : (
@@ -92,7 +94,16 @@ export default function MarketTop({
               >
                 <span className="font-mono text-label text-muted w-4 shrink-0">{i + 1}</span>
                 <button
-                  onClick={() => added && onOpen(s.ticker)}
+                  disabled={isCrypto}
+                  onClick={() =>
+                    onOpen({
+                      ticker: s.ticker,
+                      name: s.name,
+                      short: s.name,
+                      market: tickerMarket,
+                      kind: 'stock',
+                    })
+                  }
                   className="min-w-0 flex-1 self-stretch text-left"
                 >
                   <div className="text-sm font-medium truncate">
@@ -111,10 +122,10 @@ export default function MarketTop({
                           ? `${Math.round(s.price).toLocaleString()}원`
                           : `$${s.price.toFixed(2)}`}
                   </div>
-                  <div className={`font-mono text-label ${s.changePct != null ? changeColor(s.changePct) : 'text-muted'}`}>
-                    {s.changePct != null
-                      ? fmtChange(s.changePct)
-                      : '—'}
+                  <div
+                    className={`font-mono text-label ${s.changePct != null ? changeColor(s.changePct) : 'text-muted'}`}
+                  >
+                    {s.changePct != null ? fmtChange(s.changePct) : '—'}
                   </div>
                 </div>
                 {!isCrypto && (

@@ -5,7 +5,7 @@ import { marketStatus } from '../lib/market'
 import type { Market } from '../data/tickers'
 
 function IndexItem({ name, market }: { name: string; market: Market }) {
-  const { data } = useQuery({ queryKey: ['index', name], queryFn: () => getIndex(name) })
+  const { data, isError, refetch } = useQuery({ queryKey: ['index', name], queryFn: () => getIndex(name) })
   const st = marketStatus(market)
   return (
     <div className="flex-1 min-w-0 bg-surface border border-border rounded-lg px-2.5 py-2 card-shadow">
@@ -25,6 +25,14 @@ function IndexItem({ name, market }: { name: string; market: Market }) {
             {fmtChange(data.changePct, data.change)}
           </div>
         </div>
+      ) : isError ? (
+        <button
+          className="text-label text-muted min-h-[44px]"
+          onClick={() => refetch()}
+          aria-label={`${name} 다시 조회`}
+        >
+          조회 실패 · 재시도
+        </button>
       ) : (
         <div className="h-8 mt-0.5 rounded bg-surface-2 animate-pulse" />
       )}

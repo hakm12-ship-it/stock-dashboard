@@ -1,4 +1,6 @@
-import type { Market } from '../data/tickers'
+import { isTrade } from './validation.ts'
+import { persist } from './storage.ts'
+import type { Market } from '../data/tickers.ts'
 
 export interface Trade {
   id: string
@@ -17,18 +19,15 @@ const KEY = 'trades-v1'
 export function loadTrades(): Trade[] {
   try {
     const raw = localStorage.getItem(KEY)
-    return raw ? (JSON.parse(raw) as Trade[]) : []
+    const value: unknown = raw ? JSON.parse(raw) : []
+    return Array.isArray(value) ? value.filter(isTrade) : []
   } catch {
     return []
   }
 }
 
-export function saveTrades(list: Trade[]): void {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(list))
-  } catch {
-    /* ignore */
-  }
+export function saveTrades(list: Trade[]): boolean {
+  return persist({ 'trades-v1': list })
 }
 
 /** 평균단가법으로 매도 시 실현손익 계산 (통화별 합계) */

@@ -10,20 +10,21 @@ import { Panel } from './ui'
 // 정작 강조해야 할 곳이 묻힌다. 나머지는 무채색 계조로 순서만 읽히게 한다.
 const BAR = ['bg-accent', 'bg-slate-400', 'bg-slate-500', 'bg-slate-600', 'bg-slate-700']
 
-export default function PortfolioReviewCard({
-  holdings,
-  trades,
-}: {
-  holdings: Holding[]
-  trades: Trade[]
-}) {
+export default function PortfolioReviewCard({ holdings, trades }: { holdings: Holding[]; trades: Trade[] }) {
   const [open, setOpen] = useState(false)
   // 구성이 바뀌지 않으면 다시 물어볼 이유가 없다 — 백엔드도 2시간 캐시한다.
-  const key = holdings.map((h) => `${h.ticker}:${h.qty}:${h.avg}`).join('|')
+  const key = JSON.stringify([
+    holdings.map((h) => [h.market, h.ticker, h.qty, h.avg]),
+    trades.map((t) => [t.ticker, t.date, t.side]),
+  ])
   const payload = () =>
     [
       holdings.map((h) => ({
-        ticker: h.ticker, name: h.name, market: h.market, qty: h.qty, avg: h.avg,
+        ticker: h.ticker,
+        name: h.name,
+        market: h.market,
+        qty: h.qty,
+        avg: h.avg,
       })),
       trades.map((t) => ({ ticker: t.ticker, date: t.date, side: t.side })),
     ] as const
@@ -93,9 +94,7 @@ export default function PortfolioReviewCard({
           <div key={p.ticker} className="flex items-center gap-2">
             <span className={`h-2 w-2 rounded-sm shrink-0 ${BAR[Math.min(i, BAR.length - 1)]}`} />
             <span className="text-label truncate flex-1">{p.name}</span>
-            {p.leverage > 1 && (
-              <span className="text-label text-muted shrink-0">{p.leverage}x</span>
-            )}
+            {p.leverage > 1 && <span className="text-label text-muted shrink-0">{p.leverage}x</span>}
             <span className="font-mono text-label tnum shrink-0">{p.weight.toFixed(0)}%</span>
             <span className={`font-mono text-label tnum shrink-0 w-14 text-right ${changeColor(p.plPct)}`}>
               {fmtChange(p.plPct)}

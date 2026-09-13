@@ -1,13 +1,15 @@
+import { ErrorState } from './ui'
 import { useQuery } from '@tanstack/react-query'
 import { getDailyReport } from '../lib/api'
 
 export default function DailyReportCard() {
-  const { data } = useQuery({
+  const { data, isError, refetch } = useQuery({
     queryKey: ['daily-report'],
     queryFn: getDailyReport,
     // 백엔드가 10분 캐시하므로 그보다 자주 물어볼 이유가 없다.
     staleTime: 10 * 60 * 1000,
   })
+  if (isError) return <ErrorState label="시장 요약을 불러오지 못했습니다" onRetry={() => refetch()} />
   if (!data) {
     return <div className="h-20 rounded-xl bg-surface-2 animate-pulse" />
   }
@@ -15,7 +17,7 @@ export default function DailyReportCard() {
     <div className="bg-surface border border-border rounded-xl p-3.5 card-shadow">
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-label font-semibold uppercase tracking-[0.08em] text-muted">
-          📋 일일 리포트
+          오늘의 시장 요약
         </span>
         <span className="font-mono text-label text-muted">{data.date.slice(5)}</span>
       </div>

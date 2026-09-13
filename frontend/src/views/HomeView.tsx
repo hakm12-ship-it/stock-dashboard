@@ -1,9 +1,10 @@
+import WatchlistRow from '../components/WatchlistRow'
+import Icon from '../components/Icon'
 import { useState } from 'react'
-import { useQuery, useQueries } from '@tanstack/react-query'
-import { getPrices, getSignal, getIndex, getProfile, getNightPrice, getSynthPrice, type Period } from '../lib/api'
+import { useQueries } from '@tanstack/react-query'
+import { getPrices, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
-import { hasNightPrice, nightLabel, showSynthPrice } from '../lib/night'
-import { pickQuote } from '../lib/quote'
+
 import DailyReportCard from '../components/DailyReportCard'
 import IndexStrip from '../components/IndexStrip'
 import MacroStrip from '../components/MacroStrip'
@@ -14,172 +15,6 @@ import AlertInviteCard from '../components/AlertInviteCard'
 import type { Holding } from '../lib/holdings'
 import type { Trade } from '../lib/trades'
 import PortfolioReviewCard from '../components/PortfolioReviewCard'
-import { loadSignalConfig, cfgKey, cfgParams } from '../lib/signalConfig'
-import { fmtQuote, fmtChange, changeColor } from '../lib/format'
-
-const UP = '#F23645'
-const DOWN = '#2E86FF'
-
-function Sparkline({ data, up }: { data: number[]; up: boolean }) {
-  if (!data || data.length < 2) return <div className="h-8" />
-  const w = 120
-  const h = 32
-  const min = Math.min(...data)
-  const max = Math.max(...data)
-  const range = max - min || 1
-  const pts = data
-    .map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * (h - 2) - 1}`)
-    .join(' ')
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-8" preserveAspectRatio="none">
-      <polyline points={pts} fill="none" stroke={up ? UP : DOWN} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-    </svg>
-  )
-}
-
-const VERDICT_COLOR: Record<string, string> = {
-  '매수 우위': 'text-up',
-  '매도 우위': 'text-down',
-  중립: 'text-muted',
-}
-
-function HomeCard({
-  t,
-  holding,
-  period,
-  onClick,
-}: {
-  t: FocusTicker
-  holding?: Holding
-  period: Period
-  onClick: () => void
-}) {
-  const isIndex = t.kind === 'index' && !!t.indexName
-  const prices = useQuery({ queryKey: ['prices', t.ticker, period], queryFn: () => getPrices(t.ticker, period) })
-  const scfg = loadSignalConfig()
-  const sig = useQuery({
-    queryKey: ['signal', t.ticker, cfgKey(scfg)],
-    queryFn: () => getSignal(t.ticker, cfgParams(scfg)),
-  })
-  const idx = useQuery({
-    queryKey: ['index', t.indexName],
-    queryFn: () => getIndex(t.indexName as string),
-    enabled: isIndex,
-  })
-  const prof = useQuery({
-    queryKey: ['profile', t.market, t.ticker],
-    queryFn: () => getProfile(t.market, t.ticker),
-    enabled: t.market === 'KR' && t.kind !== 'index',
-  })
-  const logo = prof.data?.logo
-
-  // 장 마감 뒤에도 흐름을 보려는 게 이 기능의 요점이라 홈에서도 바로 보여준다.
-  // 상세 화면과 같은 queryKey라 캐시를 공유한다(중복 요청 없음).
-  const nightEnabled = hasNightPrice(t)
-  const night = useQuery({
-    queryKey: ['night-price', t.ticker],
-    queryFn: () => getNightPrice(t.ticker),
-    enabled: nightEnabled,
-    refetchInterval: nightEnabled ? 60_000 : false,
-  })
-
-  // KORU 등 합성추정가 종목 — 상세 화면과 같은 queryKey라 캐시 공유(중복 요청 없음)
-  const synthEnabled = showSynthPrice(t)
-  const synth = useQuery({
-    queryKey: ['synth-price', t.ticker],
-    queryFn: () => getSynthPrice(t.ticker),
-    enabled: synthEnabled,
-    refetchInterval: synthEnabled ? 60_000 : false,
-  })
-
-  const series = prices.data?.map((c) => c.close) ?? []
-  const last = prices.data?.at(-1)
-  const { price: priceVal, change: chg, changePct: pct, hasChange } = pickQuote(
-    prices.data,
-    isIndex ? idx.data : undefined,
-  )
-  const up = hasChange ? chg >= 0 : series.length > 1 ? series[series.length - 1] >= series[0] : true
-  const holdPct = holding && last ? (last.close / holding.avg - 1) * 100 : null
-
-  return (
-    <button
-      onClick={onClick}
-      className="w-full bg-surface border border-border rounded-xl p-3.5 card-shadow active:bg-surface-2 active:scale-[0.99] text-left transition-all"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
-            {logo && (
-              <img
-                src={logo}
-                alt=""
-                className="h-5 w-5 rounded-full border border-border bg-surface object-contain shrink-0"
-                onError={(e) => {
-                  ;(e.target as HTMLImageElement).style.display = 'none'
-                }}
-              />
-            )}
-            <span className="font-semibold truncate">{t.short}</span>
-            {t.kind === 'etf' && (
-              <span className="font-mono text-label text-muted">{t.lev ?? 'ETF'}</span>
-            )}
-            {t.kind === 'index' && <span className="font-mono text-label text-muted">지수</span>}
-            {holding && (
-              <span
-                className={`font-mono text-label px-1 py-0.5 rounded border shrink-0 ${
-                  holdPct != null && holdPct >= 0 ? 'border-up/40 text-up' : 'border-down/40 text-down'
-                }`}
-              >
-                보유 {holdPct != null ? `${holdPct >= 0 ? '+' : ''}${holdPct.toFixed(1)}%` : ''}
-              </span>
-            )}
-          </div>
-          <div className="font-mono text-label text-muted mt-0.5">{t.ticker}</div>
-        </div>
-        <div className="text-right shrink-0">
-          <div className="font-mono font-semibold tnum text-body">{fmtQuote(priceVal, t)}</div>
-          {hasChange && (
-            <div className={`font-mono text-label ${changeColor(chg)}`}>
-              {fmtChange(pct, chg)}
-            </div>
-          )}
-          {nightEnabled && night.data?.available && (
-            <div className="flex items-center justify-end gap-1 mt-0.5">
-              <span className="text-label text-muted">{nightLabel(t)}</span>
-              <span className="font-mono text-label tnum text-muted">
-                ₩{Math.round(night.data.krw ?? 0).toLocaleString()}
-              </span>
-              <span className={`font-mono text-label ${changeColor(night.data.gapPct ?? 0)}`}>
-                {fmtChange(night.data.gapPct ?? 0)}
-              </span>
-            </div>
-          )}
-          {synthEnabled && synth.data?.available && (
-            <div className="flex items-center justify-end gap-1 mt-0.5">
-              <span className="text-label text-accent border border-accent/40 rounded px-1">추정</span>
-              <span className="font-mono text-label tnum text-muted">
-                {fmtQuote(synth.data.estimate, t)}
-              </span>
-              <span className={`font-mono text-label ${changeColor(synth.data.changePct ?? 0)}`}>
-                {fmtChange(synth.data.changePct ?? 0)}
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="flex items-center gap-3 mt-2">
-        <div className="flex-1 min-w-0">
-          <Sparkline data={series} up={up} />
-        </div>
-        {sig.data && (
-          <span className={`font-mono text-label font-semibold shrink-0 ${VERDICT_COLOR[sig.data.verdict] ?? 'text-muted'}`}>
-            {sig.data.verdict}
-          </span>
-        )}
-      </div>
-    </button>
-  )
-}
 
 export default function HomeView({
   tickers,
@@ -207,6 +42,8 @@ export default function HomeView({
   onCompare: () => void
 }) {
   const [sort, setSort] = useState<'default' | 'gainers' | 'losers'>('default')
+  const [filter, setFilter] = useState<'all' | 'KR' | 'US' | 'held'>('all')
+  const [query, setQuery] = useState('')
   const [editing, setEditing] = useState(false)
   const [sparkPeriod, setSparkPeriod] = useState<Period>('1m')
 
@@ -233,6 +70,15 @@ export default function HomeView({
           return sort === 'gainers' ? bv - av : av - bv
         })
 
+  const filtered = ordered.filter(
+    ({ t }) =>
+      (filter === 'all' ||
+        (filter === 'held'
+          ? holdings.some((h) => h.ticker === t.ticker && h.market === t.market)
+          : t.market === filter)) &&
+      `${t.name} ${t.ticker}`.toLowerCase().includes(query.trim().toLowerCase()),
+  )
+
   const SORTS: [typeof sort, string][] = [
     ['default', '기본'],
     ['gainers', '상승순'],
@@ -240,137 +86,191 @@ export default function HomeView({
   ]
 
   return (
-    <div className="space-y-2">
-      <PortfolioSummary
-        holdings={holdings}
-        light={light}
-        onManage={onManageHoldings}
-        onJournal={onOpenJournal}
-      />
-      <PortfolioReviewCard holdings={holdings} trades={trades} />
-      {/* 지수·매크로는 얇은 띠(둘 합쳐 130px)라 먼저 두고, 읽을거리인 일일
-          리포트는 관심종목 아래로 내렸다. 앱을 여는 이유인 관심종목이
-          스크롤 1.5화면 아래에서 시작하고 있었다. */}
-      <MacroStrip />
-      <IndexStrip />
-      <div className="pt-2 pb-0.5 space-y-1">
-        <div className="flex items-center justify-between">
-          <span className="text-label font-semibold uppercase tracking-[0.08em] text-muted">
-            관심 종목
-          </span>
+    <div className="home-layout">
+      <section className="market-overview" aria-label="시장 지수와 환율">
+        <IndexStrip />
+        <MacroStrip />
+      </section>
+      <section className="watchlist-section" aria-labelledby="watchlist-title">
+        <div className="section-heading">
+          <div>
+            <h2 id="watchlist-title">
+              관심종목 <span className="text-muted text-sm">{tickers.length}</span>
+            </h2>
+            <p>종목을 선택하면 상세 분석으로 이동합니다.</p>
+          </div>
+          <div className="flex gap-2">
+            <button className="button button-quiet" onClick={onCompare}>
+              <Icon name="compare" size={16} /> 비교
+            </button>
+            <button className="button button-primary" onClick={onAddClick}>
+              <Icon name="plus" size={16} /> 종목 추가
+            </button>
+          </div>
+        </div>
+        <div className="watchlist-filters">
+          <div className="segmented" aria-label="시장 필터">
+            {(
+              [
+                ['all', '전체'],
+                ['KR', '한국'],
+                ['US', '미국'],
+                ['held', '보유'],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                aria-pressed={filter === key}
+                onClick={() => {
+                  setFilter(key)
+                  setEditing(false)
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <label className="list-search">
+            <Icon name="search" size={16} />
+            <input
+              aria-label="관심종목 검색"
+              placeholder="목록에서 찾기"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </label>
+        </div>
+        <div className="watchlist-toolbar">
+          {!editing && (
+            <>
+              <div className="period-controls" aria-label="가격 흐름 기간">
+                {(['1m', '3m', '6m'] as Period[]).map((p) => (
+                  <button key={p} aria-pressed={sparkPeriod === p} onClick={() => setSparkPeriod(p)}>
+                    {p.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+              <select
+                aria-label="전일 대비 정렬"
+                value={sort}
+                onChange={(e) => setSort(e.target.value as typeof sort)}
+              >
+                {SORTS.map(([k, label]) => (
+                  <option key={k} value={k}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
           <button
+            className="edit-order"
             onClick={() => {
-              setEditing((v) => !v)
-              if (!editing) setSort('default')
+              setEditing(!editing)
+              if (!editing) {
+                setSort('default')
+                setFilter('all')
+                setQuery('')
+              }
             }}
-            className={`text-label px-2.5 min-h-[44px] rounded-md border ${
-              editing ? 'bg-surface-2 border-border text-text' : 'border-border text-muted'
-            }`}
           >
-            {editing ? '완료' : '순서 편집'}
+            {editing ? '편집 완료' : '순서 편집'}
           </button>
         </div>
-        {!editing && (
-          <div className="flex items-center justify-between">
-            <div className="flex gap-1">
-              {(['1m', '3m', '6m'] as Period[]).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setSparkPeriod(p)}
-                  className={`font-mono text-label min-w-[44px] min-h-[44px] rounded transition-colors ${
-                    sparkPeriod === p ? 'bg-surface-2 text-text' : 'text-muted/70'
-                  }`}
+        <div className="watchlist-columns">
+          <span>종목</span>
+          <span>현재가 / 전일 대비</span>
+          <span>가격 흐름 / 종합 신호</span>
+        </div>
+        <div className="watchlist-rows">
+          {editing
+            ? tickers.map((t, i) => (
+                <div
+                  key={`${t.market}-${t.ticker}`}
+                  className="flex items-center gap-2 bg-surface border border-border rounded-xl px-3.5 py-2.5 card-shadow"
                 >
-                  {p.toUpperCase()}
-                </button>
+                  <span className="font-mono text-label text-muted w-4">{i + 1}</span>
+                  <span className="text-sm font-medium flex-1 truncate">{t.short}</span>
+                  <button
+                    aria-label={`${t.short} 위로 이동`}
+                    onClick={() => onMove(`${t.market}-${t.ticker}`, -1)}
+                    disabled={i === 0}
+                    className={`min-w-[44px] min-h-[44px] rounded-md border border-border text-sm ${i === 0 ? 'text-muted/30' : 'text-text active:bg-surface-2'}`}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    aria-label={`${t.short} 아래로 이동`}
+                    onClick={() => onMove(`${t.market}-${t.ticker}`, 1)}
+                    disabled={i === tickers.length - 1}
+                    className={`min-w-[44px] min-h-[44px] rounded-md border border-border text-sm ${i === tickers.length - 1 ? 'text-muted/30' : 'text-text active:bg-surface-2'}`}
+                  >
+                    ↓
+                  </button>
+                </div>
+              ))
+            : filtered.map(({ t }) => (
+                <WatchlistRow
+                  key={`${t.market}-${t.ticker}`}
+                  t={t}
+                  period={sparkPeriod}
+                  holding={holdings.find((h) => h.ticker === t.ticker && h.market === t.market)}
+                  onClick={() => onSelect(t)}
+                />
               ))}
+          {!editing && filtered.length === 0 && (
+            <div className="empty-state">
+              <h3>
+                {filter === 'held' && holdings.length === 0
+                  ? '보유종목을 등록해 보세요'
+                  : '조건에 맞는 종목이 없습니다'}
+              </h3>
+              <p>
+                {filter === 'held' && holdings.length === 0
+                  ? '수량과 평균 매수가를 입력하면 손익을 함께 볼 수 있습니다.'
+                  : '검색어를 바꾸거나 필터를 초기화해 주세요.'}
+              </p>
+              <button
+                className="button button-quiet"
+                onClick={() => {
+                  if (filter === 'held' && holdings.length === 0) onManageHoldings()
+                  else {
+                    setFilter('all')
+                    setQuery('')
+                  }
+                }}
+              >
+                {filter === 'held' && holdings.length === 0 ? '보유종목 등록' : '필터 초기화'}
+              </button>
             </div>
-            <div className="flex gap-1">
-              {SORTS.map(([k, label]) => (
-                <button
-                  key={k}
-                  onClick={() => setSort(k)}
-                  className={`text-label px-2 min-w-[44px] min-h-[44px] rounded-md transition-colors ${
-                    sort === k ? 'bg-surface-2 text-text' : 'text-muted'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+          )}
+        </div>
+        <p className="watchlist-footnote">가격 흐름은 선택 기간 기준 · 종합 신호는 규칙 기반 참고 정보</p>
+      </section>
+      <aside className="home-aside" aria-label="내 자산과 시장 요약">
+        <PortfolioSummary
+          holdings={holdings}
+          light={light}
+          onManage={onManageHoldings}
+          onJournal={onOpenJournal}
+        />
+        <DailyReportCard />
+        <PortfolioReviewCard holdings={holdings} trades={trades} />
+        <AlertInviteCard />
+      </aside>
+      <section className="market-discovery" aria-label="시장 탐색">
+        <div className="section-heading">
+          <div>
+            <h2>시장 둘러보기</h2>
+            <p>오늘의 움직임과 업종별 흐름을 확인하세요.</p>
           </div>
-        )}
-      </div>
-      {editing
-        ? tickers.map((t, i) => (
-            <div
-              key={`${t.market}-${t.ticker}`}
-              className="flex items-center gap-2 bg-surface border border-border rounded-xl px-3.5 py-2.5 card-shadow"
-            >
-              <span className="font-mono text-label text-muted w-4">{i + 1}</span>
-              <span className="text-sm font-medium flex-1 truncate">{t.short}</span>
-              <button
-                onClick={() => onMove(`${t.market}-${t.ticker}`, -1)}
-                disabled={i === 0}
-                className={`min-w-[44px] min-h-[44px] rounded-md border border-border text-sm ${i === 0 ? 'text-muted/30' : 'text-text active:bg-surface-2'}`}
-              >
-                ↑
-              </button>
-              <button
-                onClick={() => onMove(`${t.market}-${t.ticker}`, 1)}
-                disabled={i === tickers.length - 1}
-                className={`min-w-[44px] min-h-[44px] rounded-md border border-border text-sm ${i === tickers.length - 1 ? 'text-muted/30' : 'text-text active:bg-surface-2'}`}
-              >
-                ↓
-              </button>
-            </div>
-          ))
-        : ordered.map(({ t }) => (
-            <HomeCard
-              key={`${t.market}-${t.ticker}`}
-              t={t}
-              period={sparkPeriod}
-              holding={holdings.find((h) => h.ticker === t.ticker && h.market === t.market)}
-              onClick={() => onSelect(t)}
-            />
-          ))}
-      <div className="flex gap-2">
-        <button
-          onClick={onAddClick}
-          className="flex-1 border border-dashed border-border rounded-xl py-3 text-muted text-sm active:bg-surface transition-colors"
-        >
-          + 종목 추가
-        </button>
-        <button
-          onClick={onCompare}
-          className="flex-1 border border-border rounded-xl py-3 text-muted text-sm active:bg-surface transition-colors"
-        >
-          ⚖️ 종목 비교
-        </button>
-      </div>
+        </div>
+        <div className="discovery-grid">
+          <MarketTop existing={tickers} onAdd={onAddTicker} onOpen={onSelect} />
 
-      {/* 여기부터는 시장 전체 이야기 — 일일 리포트도 같은 성격이라 함께 둔다. */}
-      <DailyReportCard />
-
-      <MarketTop
-        existing={tickers}
-        onAdd={onAddTicker}
-        onOpen={(code) => {
-          const f = tickers.find((x) => x.ticker === code)
-          if (f) onSelect(f)
-        }}
-      />
-
-      <GroupsPanel
-        existing={tickers}
-        onAdd={onAddTicker}
-        onOpen={(code) => {
-          const f = tickers.find((x) => x.ticker === code)
-          if (f) onSelect(f)
-        }}
-      />
-
-      <AlertInviteCard />
+          <GroupsPanel existing={tickers} onAdd={onAddTicker} onOpen={onSelect} />
+        </div>
+      </section>
     </div>
   )
 }

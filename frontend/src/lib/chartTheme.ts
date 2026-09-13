@@ -3,7 +3,7 @@ import { ColorType } from 'lightweight-charts'
 /** 차트 공통 색 — 상승=빨강 / 하락=파랑 (KR 관례) */
 export const CHART_UP = '#F23645'
 export const CHART_DOWN = '#2E86FF'
-export const CHART_ACCENT = '#E0A63C'
+export const CHART_ACCENT = '#249D83'
 
 /**
  * lightweight-charts 공통 옵션.
@@ -16,7 +16,7 @@ export const CHART_ACCENT = '#E0A63C'
  * 시각까지 필요해서 인자로 받는다.
  */
 export function chartBase(light: boolean, timeVisible = false) {
-  const text = light ? '#5C6672' : '#8B94A3'
+  const text = light ? '#526778' : '#9DADBC'
   const grid = light ? 'rgba(22,27,38,0.07)' : 'rgba(35,40,51,0.4)'
   const border = light ? '#E0E3E8' : '#232833'
   return {
@@ -24,7 +24,7 @@ export function chartBase(light: boolean, timeVisible = false) {
       background: { type: ColorType.Solid, color: 'transparent' },
       textColor: text,
       fontFamily: '"IBM Plex Mono", monospace',
-      fontSize: 10,
+      fontSize: 11,
     },
     grid: {
       vertLines: { color: grid },

@@ -1,67 +1,42 @@
-# 스톡 인사이트 — 디자인 시스템 (React 버전)
+﻿# 스톡 인사이트 디자인 시스템
 
-> 컨셉: **프리미엄 핀테크 터미널** — 잉크블랙 배경 · 앰버 포인트(최소 사용) · IBM Plex(숫자는 모노).
-> 다음 세션에 Tailwind `theme.extend`로 그대로 옮긴다.
+관심종목을 반복해서 관찰하는 개인 리서치 도구. 장식적인 대시보드 대신 비교 가능한 종목 행, 읽기 쉬운 시장 요약, 종목 맥락을 유지하는 탐색을 사용한다.
 
-## 1. 컬러 토큰
+## 구현 기준
 
-| 토큰 | HEX | 용도 |
+- `frontend/src/workspace.css`: 색상 토큰, 앱 셸, 목록, 공통 버튼·입력·팝업, 화면 폭별 배치.
+- `frontend/src/index.css`: Tailwind 기본 레이어, 글꼴 로드, 숫자 정렬, 로딩 애니메이션.
+- `frontend/tailwind.config.js`: 기존 컴포넌트가 공유하는 의미 기반 색상·글꼴·타입 스케일.
+- `components/Sheet.tsx`, `ui.tsx`, `Icon.tsx`: 공통 모달, 데이터 상태와 패널, 선형 SVG 아이콘.
+
+## 색상
+
+| 역할 | 어두운 테마 | 밝은 테마 |
 |---|---|---|
-| `ink` | `#0A0C10` | 페이지 배경 |
-| `surface` | `#12151C` | 카드·패널 |
-| `surface-2` | `#171B24` | hover·상승 표면 |
-| `border` | `#232833` | 헤어라인 경계 |
-| `text` | `#E8EBF0` | 기본 텍스트 |
-| `muted` | `#8B94A3` | 보조 텍스트·라벨 |
-| `accent` | `#E0A63C` | 앰버 포인트 (탭 언더라인·포커스·배지에만) |
-| `up` | `#F23645` | 상승 (KR 관례: 빨강) |
-| `down` | `#2E86FF` | 하락 (KR 관례: 파랑) |
+| 배경 | #0E1319 | #F5F7F9 |
+| 표면 | #151C24 | #FFFFFF |
+| 선택·보조 표면 | #1E2731 | #EBF1F3 |
+| 경계 | #2F3B47 | #D2DCE3 |
+| 본문 | #EAEFF3 | #192834 |
+| 보조 텍스트 | #9DADBC | #526778 |
+| 주요 행동·포커스 | #75D2BC | #11705B |
+| 상승 | #FF6F7A | #BF273B |
+| 하락 | #71AAFF | #215EBD |
 
-원칙: **앰버는 화면당 2~3곳만.** 나머지는 잉크/서피스/헤어라인으로 조용하게. 상승/하락 색은 데이터에만.
+상승·하락은 색상과 함께 ▲/▼, 부호를 표시한다. 실제 차트는 `lib/chartTheme.ts`의 공통 옵션을 사용한다. 지표 선은 서로 구분 가능하도록 별도 색을 유지한다.
 
-## 2. 타이포그래피
+## 글꼴·밀도
 
-- **본문/UI**: `IBM Plex Sans KR` (400/500/600/700) — Latin+Hangul.
-- **숫자·티커·가격**: `IBM Plex Mono` (400/500/600) + `font-variant-numeric: tabular-nums`.
-- 로드: Google Fonts (`IBM+Plex+Sans+KR`, `IBM+Plex+Mono`).
+IBM Plex Sans KR와 IBM Plex Mono를 유지한다. 폰트 로드 실패 시 시스템 글꼴로 대체한다. 본문 14px, 주요 제목 28px(모바일 25px), 구역 제목 18px, 보조 라벨 12px. 숫자는 tabular-nums. 긴 한국어는 어절을 유지하되 공간을 넘으면 줄바꿈한다. 종목 이름은 행에서 줄임표로 표시하고 접근 가능한 이름과 상세 화면에서 전체 이름을 제공한다.
 
-**타입 스케일** (rem): 헤더가격 2.0 / h1 1.5 / h2 1.15 / 본문 0.95 / 라벨 0.72(uppercase, letter-spacing .08em) / 캡션 0.8.
+간격은 4px 단위를 기본으로 8·12·16·20·24px를 사용한다. 버튼·입력 모서리 6–8px, 구역 10px, 모달 14px. 반복되는 종목 행에는 개별 카드 그림자를 사용하지 않는다.
 
-## 3. 간격 · 모양
+## 반응형·상태
 
-- 라운드: 카드 `12px`, 칩·버튼 `8px`, 배지 `5px`.
-- 패널 패딩: `16px`. 카드 간격(gap): `12px`.
-- 컨테이너 최대폭: `1120px`, 모바일 우선 반응형.
-- 경계: 항상 `1px solid border`. 그림자는 아주 은은하게(`0 1px 2px rgba(0,0,0,.3)`) 또는 생략.
-
-## 4. 차트 색 (lightweight-charts / Recharts 공통)
-
-| 요소 | 색 |
-|---|---|
-| 캔들 상승 | `up` 몸통+테두리 단색 |
-| 캔들 하락 | `down` 몸통+테두리 단색 |
-| MA20 | `#E0B84D` (골드) |
-| MA60 | `#8A94A3` (muted) |
-| RSI 라인 | `accent` |
-| RSI 70/30 기준선 | `up`/`down` 점선 |
-| MACD 라인 | `accent` / Signal `muted` / 히스토그램 up·down |
-| 예상범위 밴드 | 회색 반투명 (`rgba(140,148,162,.10/.24)`), 현재가 중심선 점선 |
-| 차트 배경 | 투명(패널색 위) · 그리드 `#1A1F28` 아주 옅게 |
-
-## 5. 컴포넌트 스펙
-
-- **MetricCard**: surface 배경 + border + radius12 + 패딩. 라벨(uppercase muted 0.72) 위, 값(mono 1.4rem 600) 아래, 델타(mono, up/down색).
-- **Tabs**: 밑줄형. 비활성 muted, 활성 text + `accent` 2px 언더라인.
-- **Panel**: surface + border + radius12 + 패딩16. 상단에 작은 uppercase 섹션 라벨(muted).
-- **Badge(BETA 등)**: 앰버 테두리(투명 배경) + mono 0.65rem.
-- **Button**: surface + border, hover 시 border→accent.
-- **VerdictPill(매수/중립/매도)**: 매수=up 톤, 매도=down 톤, 중립=muted. 채도 낮게.
-
-## 6. Tailwind 매핑 (다음 세션 참고)
-```js
-// tailwind.config.js theme.extend.colors
-{ ink:'#0A0C10', surface:'#12151C', 'surface-2':'#171B24',
-  border:'#232833', text:'#E8EBF0', muted:'#8B94A3',
-  accent:'#E0A63C', up:'#F23645', down:'#2E86FF' }
-// fontFamily: sans:['IBM Plex Sans KR',...], mono:['IBM Plex Mono',...]
-```
+- 1200px 이상: 왼쪽 메뉴, 넓은 목록, 300px 자산·시장 요약 영역.
+- 901–1199px: 좁은 왼쪽 메뉴, 자산 정보를 목록 아래로 배치.
+- 900px 이하: 하단 5개 메뉴, 세로 콘텐츠. 600px 이하에서는 모바일 시트.
+- 검수 폭: 360, 390, 768, 1280, 1440px.
+- 검색 중·실패·빈 결과를 구분한다. 미조회 가격을 0이나 매수가로 평가하지 않는다.
+- 모달은 native dialog, Escape, Tab 순환, 열기 버튼 포커스 복귀, 배경 스크롤 잠금을 사용한다.
+- 주요 터치 대상 44px, 눈에 보이는 키보드 포커스, 입력 레이블, 동작 결과의 status/alert를 제공한다. 전체 접근성 표준 준수를 보증하는 문서는 아니다.

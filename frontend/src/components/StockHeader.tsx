@@ -11,7 +11,15 @@ import { hasNightPrice, nightLabel, showSynthPrice } from '../lib/night'
 // 차트 라이브러리가 무거워서 '차트 보기'를 누를 때만 받는다.
 const NightCandleChart = lazy(() => import('./NightCandleChart'))
 
-export default function StockHeader({ t, period, light = false }: { t: FocusTicker; period: Period; light?: boolean }) {
+export default function StockHeader({
+  t,
+  period,
+  light = false,
+}: {
+  t: FocusTicker
+  period: Period
+  light?: boolean
+}) {
   const isIndex = t.kind === 'index' && !!t.indexName
   const prices = useQuery({
     queryKey: ['prices', t.ticker, period],
@@ -46,10 +54,12 @@ export default function StockHeader({ t, period, light = false }: { t: FocusTick
     refetchInterval: synthEnabled ? 60_000 : false,
   })
 
-  const { price: priceVal, change: chg, changePct: pct, hasChange } = pickQuote(
-    prices.data,
-    isIndex ? idx.data : undefined,
-  )
+  const {
+    price: priceVal,
+    change: chg,
+    changePct: pct,
+    hasChange,
+  } = pickQuote(prices.data, isIndex ? idx.data : undefined)
 
   const [showNightChart, setShowNightChart] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -104,29 +114,36 @@ export default function StockHeader({ t, period, light = false }: { t: FocusTick
           const st = marketStatus(t.market)
           return (
             <span className={`flex items-center gap-1 text-label ${st.open ? 'text-accent' : 'text-muted'}`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${st.open ? 'bg-accent animate-pulse' : 'bg-muted'}`} />
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${st.open ? 'bg-accent animate-pulse' : 'bg-muted'}`}
+              />
               {st.label}
             </span>
           )
         })()}
-        <button onClick={share} aria-label="공유" className="relative ml-auto text-muted active:text-text p-1 before:absolute before:-inset-4 before:content-['']">
+        <button onClick={share} aria-label="공유" className="icon-button ml-auto">
           {copied ? (
             <span className="text-label text-accent">복사됨</span>
           ) : (
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              viewBox="0 0 24 24"
+              width="17"
+              height="17"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M12 3v12M8 7l4-4 4 4M5 12v8h14v-8" />
             </svg>
           )}
         </button>
       </div>
-      <div className="flex items-baseline gap-3 mt-2">
-        <span className="font-mono text-3xl font-semibold tnum tracking-tight">
-          {fmtQuote(priceVal, t)}
-        </span>
+      <div className="flex items-baseline flex-wrap gap-3 mt-2">
+        <span className="font-mono text-3xl font-semibold tnum tracking-tight">{fmtQuote(priceVal, t)}</span>
         {hasChange && (
-          <span className={`font-mono text-sm font-semibold ${changeColor(chg)}`}>
-            {fmtChange(pct, chg)}
-          </span>
+          <span className={`font-mono text-sm font-semibold ${changeColor(chg)}`}>{fmtChange(pct, chg)}</span>
         )}
       </div>
       {nightEnabled && night.data?.available && (
@@ -152,17 +169,15 @@ export default function StockHeader({ t, period, light = false }: { t: FocusTick
             <span className="text-label text-accent border border-accent/40 rounded px-1 py-0.5 shrink-0">
               추정
             </span>
-            <span className="font-mono text-lg font-semibold tnum">
-              {fmtQuote(synth.data.estimate, t)}
-            </span>
+            <span className="font-mono text-lg font-semibold tnum">{fmtQuote(synth.data.estimate, t)}</span>
             <span className={`font-mono text-label ${changeColor(synth.data.changePct ?? 0)}`}>
               {fmtChange(synth.data.changePct ?? 0)}
             </span>
           </div>
           <div className="text-label text-muted mt-1 leading-relaxed">
             {synth.data.underlyingName} {(synth.data.underlyingPct ?? 0) >= 0 ? '+' : ''}
-            {(synth.data.underlyingPct ?? 0).toFixed(2)}% × {synth.data.leverage}배로 계산 · 기준
-            정규장 종가 {fmtQuote(synth.data.lastClose, t)}
+            {(synth.data.underlyingPct ?? 0).toFixed(2)}% × {synth.data.leverage}배로 계산 · 기준 정규장 종가{' '}
+            {fmtQuote(synth.data.lastClose, t)}
           </div>
           <div className="text-label text-muted/70 mt-0.5">
             실제 체결가가 아니라 추정치예요 · 기초자산 흔들림이 {synth.data.leverage}배로 커져요

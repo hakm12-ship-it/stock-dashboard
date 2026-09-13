@@ -1,3 +1,4 @@
+import { ErrorState } from './ui'
 import { useQuery } from '@tanstack/react-query'
 import { getMacro, type MacroItem as MacroValue } from '../lib/api'
 import { fmtNum, fmtChange, changeColor } from '../lib/format'
@@ -24,7 +25,10 @@ function MacroItem({ label, unit, value }: { label: string; unit: string; value?
 }
 
 export default function MacroStrip() {
-  const { data } = useQuery({ queryKey: ['macro'], queryFn: getMacro })
+  const { data, isError, isPending, refetch } = useQuery({ queryKey: ['macro'], queryFn: getMacro })
+  if (isError) return <ErrorState label="환율·원유 조회 실패" onRetry={() => refetch()} />
+  if (!isPending && !data?.usdkrw && !data?.wti)
+    return <p className="text-label text-muted p-3">환율·원유 데이터 없음</p>
   return (
     <div className="flex gap-2">
       <MacroItem label="원/달러" unit="원" value={data?.usdkrw} />

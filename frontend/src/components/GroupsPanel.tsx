@@ -1,3 +1,4 @@
+import { ErrorState } from './ui'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getGroups, getGroupStocks } from '../lib/api'
@@ -17,10 +18,11 @@ function GroupStocks({
   no: number
   existing: FocusTicker[]
   onAdd: (t: FocusTicker) => void
-  onOpen: (ticker: string) => void
+  onOpen: (ticker: FocusTicker) => void
 }) {
   const q = useQuery({ queryKey: ['groupStocks', kind, no], queryFn: () => getGroupStocks(kind, no) })
   if (q.isLoading) return <div className="h-20 rounded-lg shimmer my-1" />
+  if (q.isError) return <ErrorState onRetry={() => q.refetch()} />
   if (!q.data || q.data.length === 0)
     return <div className="text-muted text-xs py-2 text-center">구성 종목이 없어요</div>
 
@@ -32,8 +34,13 @@ function GroupStocks({
         const added = findAdded(s.ticker)
         return (
           <div key={s.ticker} className="flex items-center gap-2 min-h-[44px] border-t border-border/60">
-            <button onClick={() => added && onOpen(s.ticker)} className="min-w-0 flex-1 self-stretch text-left">
-              <span className="text-xs font-medium truncate">
+            <button
+              onClick={() =>
+                onOpen({ ticker: s.ticker, name: s.name, short: s.name, market: 'KR', kind: 'stock' })
+              }
+              className="min-w-0 flex-1 self-stretch text-left"
+            >
+              <span className="block text-xs font-medium truncate">
                 {s.name}
                 {added && <span className="text-muted text-label ml-1">›</span>}
               </span>
@@ -71,7 +78,7 @@ export default function GroupsPanel({
 }: {
   existing: FocusTicker[]
   onAdd: (t: FocusTicker) => void
-  onOpen: (ticker: string) => void
+  onOpen: (ticker: FocusTicker) => void
 }) {
   const [kind, setKind] = useState<Kind>('industry')
   const [openNo, setOpenNo] = useState<number | null>(null)
@@ -87,7 +94,7 @@ export default function GroupsPanel({
     <section className="bg-surface border border-border rounded-xl p-4 card-shadow">
       <div className="flex items-center justify-between mb-3">
         <span className="text-label font-semibold uppercase tracking-[0.08em] text-muted">
-          🏷️ 업종·테마 시세
+          업종·테마 시세
         </span>
         <div className="flex gap-1">
           {(
@@ -114,6 +121,8 @@ export default function GroupsPanel({
 
       {q.isLoading ? (
         <div className="h-40 rounded-lg shimmer" />
+      ) : q.isError ? (
+        <ErrorState onRetry={() => q.refetch()} />
       ) : rows.length === 0 ? (
         <div className="text-muted text-xs text-center py-4">데이터가 없어요</div>
       ) : (
@@ -128,11 +137,15 @@ export default function GroupsPanel({
                 <span className="font-mono text-label text-muted shrink-0">
                   <span className="text-up">▲{g.rise}</span> <span className="text-down">▼{g.fall}</span>
                 </span>
-                <span className={`font-mono text-sm tnum w-16 text-right shrink-0 ${changeColor(g.changeRate)}`}>
+                <span
+                  className={`font-mono text-sm tnum w-16 text-right shrink-0 ${changeColor(g.changeRate)}`}
+                >
                   {changeSign(g.changeRate)}
                   {Math.abs(g.changeRate).toFixed(2)}%
                 </span>
-                <span className={`text-muted text-label transition-transform ${openNo === g.no ? 'rotate-90' : ''}`}>
+                <span
+                  className={`text-muted text-label transition-transform ${openNo === g.no ? 'rotate-90' : ''}`}
+                >
                   ›
                 </span>
               </button>
@@ -141,9 +154,7 @@ export default function GroupsPanel({
               )}
             </div>
           ))}
-          <p className="text-label text-muted mt-2">
-            등락률 상위 순 · 탭하면 구성 종목 · 장중에 갱신돼요
-          </p>
+          <p className="text-label text-muted mt-2">등락률 상위 순 · 탭하면 구성 종목 · 장중에 갱신돼요</p>
         </div>
       )}
     </section>
