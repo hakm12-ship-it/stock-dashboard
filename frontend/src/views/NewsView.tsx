@@ -3,6 +3,7 @@ import { useQuery, useQueries } from '@tanstack/react-query'
 import { getNews, type NewsItem } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import { Loading, Empty, ErrorState } from '../components/ui'
+import Icon from '../components/Icon'
 
 // 백엔드 published 형식: "YYYY-MM-DD HH:MM" (KST)
 function parseDate(s: string): Date | null {
@@ -33,7 +34,22 @@ interface Entry {
 }
 
 export default function NewsView({ t, tickers }: { t: FocusTicker; tickers: FocusTicker[] }) {
-  const [mode, setMode] = useState<'one' | 'all'>('one')
+  // 종목을 바꿔도 보던 범위를 유지한다.
+  const [mode, setModeState] = useState<'one' | 'all'>(() =>
+    sessionStorage.getItem('newsMode') === 'all' ? 'all' : 'one',
+  )
+  const setMode = (m: 'one' | 'all') => {
+    setModeState(m)
+    try {
+      sessionStorage.setItem('newsMode', m)
+    } catch {
+      /* 이번 화면에서만 유지 */
+    }
+  }
+  const [tagFilter, setTagFilter] = useState<string | null>(null)
+  const [withIndex, setWithIndex] = useState(false)
+  // 지수 뉴스는 개별 종목과 무관한 기사가 많아 기본으로 뺀다.
+  const feedTickers = tickers.filter((tk) => withIndex || tk.kind !== 'index')
 
   const single = useQuery({
     queryKey: ['news', t.market, t.name],
@@ -41,7 +57,7 @@ export default function NewsView({ t, tickers }: { t: FocusTicker; tickers: Focu
     enabled: mode === 'one',
   })
   const allQs = useQueries({
-    queries: tickers.map((tk) => ({
+    queries: feedTickers.map((tk) => ({
       queryKey: ['news', tk.market, tk.name],
       queryFn: () => getNews(tk.market, tk.name),
       enabled: mode === 'all',
@@ -49,12 +65,13 @@ export default function NewsView({ t, tickers }: { t: FocusTicker; tickers: Focu
   })
 
   let entries: Entry[] = []
+  const counts = new Map<string, number>()
   if (mode === 'one') {
     entries = (single.data ?? []).map((n) => ({ n, d: parseDate(n.published) }))
   } else {
     const seen = new Set<string>()
-    tickers.forEach((tk, i) => {
-      for (const n of allQs[i].data ?? []) {
+    feedTickers.forEach((tk, i) => {
+      for (const n of allQs[i]?.data ?? []) {
         if (seen.has(n.title)) continue // 여러 종목에 걸친 같은 기사 중복 제거
         seen.add(n.title)
         entries.push({ n, d: parseDate(n.published), tag: tk.short })
@@ -62,9 +79,15 @@ export default function NewsView({ t, tickers }: { t: FocusTicker; tickers: Focu
     })
   }
   entries.sort((a, b) => (b.d?.getTime() ?? 0) - (a.d?.getTime() ?? 0))
-  if (mode === 'all') entries = entries.slice(0, 40)
+  if (mode === 'all') {
+    entries = entries.slice(0, 60)
+    entries.forEach((e) => e.tag && counts.set(e.tag, (counts.get(e.tag) ?? 0) + 1))
+    if (tagFilter) entries = entries.filter((e) => e.tag === tagFilter)
+  }
 
-  const isLoading = mode === 'one' ? single.isLoading : entries.length === 0 && allQs.some((q) => q.isLoading)
+  const loaded = allQs.filter((q) => !q.isLoading).length
+  const stillLoading = mode === 'all' && allQs.some((q) => q.isLoading)
+  const isLoading = mode === 'one' ? single.isLoading : entries.length === 0 && stillLoading
   const isError = mode === 'one' ? single.isError : entries.length === 0 && allQs.some((q) => q.isError)
   const partialError = mode === 'all' && entries.length > 0 && allQs.some((q) => q.isError)
   const retry = () => {
@@ -73,72 +96,97 @@ export default function NewsView({ t, tickers }: { t: FocusTicker; tickers: Focu
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {/* 범위 토글 */}
-      <div className="flex gap-1 bg-surface border border-border rounded-lg p-1">
+      <div className="segmented news-scope" role="group" aria-label="뉴스 범위">
         {(
           [
             ['one', `${t.short} 뉴스`],
             ['all', '관심종목 전체'],
           ] as const
         ).map(([m, label]) => (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            aria-pressed={mode === m}
-            className={`flex-1 min-h-[44px] rounded-md text-xs font-medium transition-colors ${
-              m === mode ? 'bg-surface-2 text-text' : 'text-muted'
-            }`}
-          >
+          <button key={m} onClick={() => setMode(m)} aria-pressed={mode === m}>
             {label}
           </button>
         ))}
       </div>
 
+      {mode === 'all' && (
+        <div className="ticker-switcher no-scrollbar" role="group" aria-label="종목별로 거르기">
+          <button className={`ticker-chip ${tagFilter == null ? 'is-active' : ''}`} aria-pressed={tagFilter == null} onClick={() => setTagFilter(null)}>
+            전체
+          </button>
+          {feedTickers
+            .filter((tk) => counts.has(tk.short))
+            .map((tk) => (
+              <button
+                key={`${tk.market}-${tk.ticker}`}
+                className={`ticker-chip ${tagFilter === tk.short ? 'is-active' : ''}`}
+                aria-pressed={tagFilter === tk.short}
+                onClick={() => setTagFilter(tagFilter === tk.short ? null : tk.short)}
+              >
+                {tk.short} <span className="font-mono text-label opacity-70">{counts.get(tk.short)}</span>
+              </button>
+            ))}
+          <button
+            className={`ticker-chip ${withIndex ? 'is-active' : ''}`}
+            aria-pressed={withIndex}
+            onClick={() => {
+              setWithIndex((v) => !v)
+              setTagFilter(null)
+            }}
+          >
+            지수 뉴스 포함
+          </button>
+        </div>
+      )}
+
       {isLoading ? (
         <Loading />
       ) : isError ? (
-        <ErrorState onRetry={retry} />
+        <ErrorState label="뉴스를 불러오지 못했어요" onRetry={retry} />
       ) : entries.length === 0 ? (
         <Empty label="관련 뉴스를 찾지 못했어요" />
       ) : (
         <>
+          {stillLoading && (
+            <p role="status" className="text-label text-muted">
+              관심종목 {feedTickers.length}개 중 {loaded}개 불러옴 · 나머지가 도착하면 목록에 더해져요
+            </p>
+          )}
           {partialError && (
             <p role="status" className="text-sm text-muted">
               일부 종목의 뉴스를 가져오지 못했습니다.{' '}
-              <button className="underline min-h-[44px]" onClick={retry}>
+              <button className="text-action underline" onClick={retry}>
                 실패한 종목 다시 조회
               </button>
             </p>
           )}
           <p className="text-label text-muted">
-            {mode === 'one' ? `'${t.name}' 관련 최신 뉴스` : '관심종목 전체 뉴스'} · 출처 Google News · 최신순
+            {mode === 'one' ? `'${t.name}' 관련 최신 뉴스` : `관심종목 ${feedTickers.length}개`} · 출처 Google News ·
+            최신순 · 누르면 새 탭에서 열려요
           </p>
-          {entries.map(({ n, d, tag }, i) => {
-            const fresh = d != null && Date.now() - d.getTime() < FRESH_MS
-            return (
-              <a
-                key={i}
-                href={n.link}
-                target="_blank"
-                rel="noreferrer"
-                className="block bg-surface border border-border rounded-xl px-4 py-3 card-shadow active:bg-surface-2 transition-colors"
-              >
-                <div className="text-sm font-medium leading-snug">
-                  {fresh && (
-                    <span className="font-mono text-label text-accent border border-accent/40 rounded px-1 py-0.5 mr-1.5 align-middle">
-                      NEW
+          <ul className="news-list">
+            {entries.map(({ n, d, tag }, i) => {
+              const fresh = d != null && Date.now() - d.getTime() < FRESH_MS
+              return (
+                <li key={i}>
+                  <a href={n.link} target="_blank" rel="noreferrer" className="news-item group">
+                    <span className="news-title">
+                      {fresh && <span className="news-new">새 기사</span>}
+                      {n.title}
                     </span>
-                  )}
-                  {n.title}
-                </div>
-                <div className="text-label text-muted mt-1.5 font-mono flex items-center gap-1.5 flex-wrap">
-                  {tag && <span className="border border-border rounded px-1 py-0.5 text-label">{tag}</span>}
-                  <span>{[n.source, d ? relTime(d) : n.published].filter(Boolean).join(' · ')}</span>
-                </div>
-              </a>
-            )
-          })}
+                    <span className="news-meta">
+                      {tag && <span className="text-accent font-medium">{tag}</span>}
+                      <span>{[n.source, d ? relTime(d) : n.published].filter(Boolean).join(' · ')}</span>
+                      <Icon name="external" size={13} />
+                      <span className="sr-only">(새 탭에서 열림)</span>
+                    </span>
+                  </a>
+                </li>
+              )
+            })}
+          </ul>
         </>
       )}
     </div>

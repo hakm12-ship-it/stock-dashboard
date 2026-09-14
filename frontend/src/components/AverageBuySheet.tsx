@@ -10,10 +10,11 @@ import {
 import type { Holding } from '../lib/holdings'
 import { changeColor, fmtPrice } from '../lib/format'
 import { Sheet } from './ui'
+import { parseAmount } from '../lib/validation'
 
 const num = (s: string) => {
-  const v = Number(s.replace(/[^\d.]/g, ''))
-  return Number.isFinite(v) ? v : 0
+  const v = parseAmount(s)
+  return Number.isFinite(v) && v > 0 ? v : 0
 }
 
 export default function AverageBuySheet({
@@ -30,7 +31,9 @@ export default function AverageBuySheet({
   const whole = holding.market === 'KR' // 국내는 소수점 매수가 안 된다
   const [mode, setMode] = useState<'qty' | 'amount'>('amount')
   const [raw, setRaw] = useState('')
-  const [buyPrice, setBuyPrice] = useState(String(Math.round(cur)))
+  // 미국 종목은 센트 단위까지 살려야 계산이 현재가와 맞는다.
+  const [buyPrice, setBuyPrice] = useState(whole ? String(Math.round(cur)) : cur.toFixed(2))
+  const currency = whole ? 'KRW' : 'USD'
 
   const px = num(buyPrice) || cur
   const addQty = mode === 'qty' ? num(raw) : qtyForAmount(num(raw), px, whole)
@@ -48,21 +51,22 @@ export default function AverageBuySheet({
   const active = addQty > 0
 
   return (
-    <Sheet title={`${holding.name} 추가 매수 계산`} onClose={onClose}>
+    <Sheet title={`${holding.name} 추가 매수 계산`} onClose={onClose} dismissOnBackdrop={false}>
       <div className="bg-surface border border-border rounded-xl p-4 card-shadow">
         <div className="text-label text-muted mb-2">
           지금 {holding.qty}주 · 평단 {fmtPrice(holding.avg, holding.market)} · 현재가{' '}
           {fmtPrice(cur, holding.market)}
         </div>
 
-        <div className="flex gap-1 mb-3">
+        <div className="segmented segmented--block mb-3" role="group" aria-label="계산 기준">
           {(['amount', 'qty'] as const).map((m) => (
             <button
               key={m}
-              onClick={() => { setMode(m); setRaw('') }}
-              className={`flex-1 min-h-[44px] rounded-lg border text-caption ${
-                mode === m ? 'border-accent text-accent' : 'border-border text-muted'
-              }`}
+              aria-pressed={mode === m}
+              onClick={() => {
+                setMode(m)
+                setRaw('')
+              }}
             >
               {m === 'amount' ? '금액으로' : '수량으로'}
             </button>
@@ -71,23 +75,23 @@ export default function AverageBuySheet({
 
         <label className="block mb-2">
           <span className="text-label text-muted">
-            {mode === 'amount' ? '추가 매수 금액' : '추가 매수 수량'}
+            {mode === 'amount' ? `추가 매수 금액 (${currency})` : '추가 매수 수량 (주)'}
           </span>
           <input
             inputMode="decimal"
             value={raw}
             onChange={(e) => setRaw(e.target.value)}
-            placeholder={mode === 'amount' ? '예: 1000000' : '예: 10'}
-            className="w-full mt-1 min-h-[44px] px-3 rounded-lg bg-surface-2 border border-border font-mono tnum"
+            placeholder={mode === 'amount' ? (whole ? '예: 1,000,000' : '예: 1,000') : '예: 10'}
+            className="field font-mono tnum"
           />
         </label>
         <label className="block">
-          <span className="text-label text-muted">매수 가격</span>
+          <span className="text-label text-muted">1주당 매수 가격 ({currency})</span>
           <input
             inputMode="decimal"
             value={buyPrice}
             onChange={(e) => setBuyPrice(e.target.value)}
-            className="w-full mt-1 min-h-[44px] px-3 rounded-lg bg-surface-2 border border-border font-mono tnum"
+            className="field font-mono tnum"
           />
         </label>
 
@@ -109,7 +113,7 @@ export default function AverageBuySheet({
             />
             {beBefore != null && beAfter != null && (
               <Line
-                label="본전까지"
+                label="본전까지 필요한 상승"
                 value={`${beBefore >= 0 ? '+' : ''}${beBefore.toFixed(1)}% → ${
                   beAfter >= 0 ? '+' : ''
                 }${beAfter.toFixed(1)}%`}
@@ -121,7 +125,7 @@ export default function AverageBuySheet({
 
       {active && (
         <div className="bg-surface border border-border rounded-xl p-4 card-shadow">
-          <div className="text-label font-semibold uppercase tracking-[0.08em] text-muted mb-1">
+          <div className="section-label mb-1">
             현재가가 움직이면
           </div>
           <p className="text-label text-muted mb-3 leading-relaxed">
@@ -131,10 +135,10 @@ export default function AverageBuySheet({
           <div className="overflow-x-auto no-scrollbar">
             <table className="w-full text-label font-mono tnum">
               <thead>
-                <tr className="text-muted">
-                  <th className="text-left font-medium py-1">가격</th>
-                  <th className="text-right font-medium">지금 그대로</th>
-                  <th className="text-right font-medium">추가 매수 후</th>
+                <tr className="text-muted font-sans">
+                  <th className="text-left font-medium py-1">현재가가</th>
+                  <th className="text-right font-medium">지금 그대로면</th>
+                  <th className="text-right font-medium">추가 매수하면</th>
                 </tr>
               </thead>
               <tbody>
@@ -143,8 +147,8 @@ export default function AverageBuySheet({
                     <td className="py-1.5 text-left">
                       <div>{fmtPrice(r.price, holding.market)}</div>
                       <div className="text-muted">
-                        {r.movePct > 0 ? '+' : ''}
-                        {r.movePct}%
+                        {r.movePct > 0 ? '+' : r.movePct < 0 ? '−' : ''}
+                        {Math.abs(r.movePct)}%
                       </div>
                     </td>
                     <Cell pct={r.before.pct} pl={r.before.pl} market={holding.market} />
@@ -154,7 +158,7 @@ export default function AverageBuySheet({
               </tbody>
             </table>
           </div>
-          <p className="text-label text-muted/70 mt-3 leading-relaxed">
+          <p className="text-label text-muted mt-3 leading-relaxed">
             가격이 그렇게 될 거라는 예측이 아니라, 그 가격이 되면 이렇게 된다는 계산이에요 ·
             수수료·세금은 넣지 않았습니다
           </p>
@@ -185,11 +189,11 @@ function Cell({ pct, pl, market }: { pct: number; pl: number; market: 'KR' | 'US
   return (
     <td className={`text-right py-1.5 ${changeColor(pl)}`}>
       <div>
-        {pct >= 0 ? '+' : ''}
-        {pct.toFixed(1)}%
+        {pct >= 0 ? '+' : '−'}
+        {Math.abs(pct).toFixed(1)}%
       </div>
       <div className="opacity-80">
-        {pl >= 0 ? '+' : '-'}
+        {pl >= 0 ? '+' : '−'}
         {fmtPrice(Math.abs(pl), market)}
       </div>
     </td>

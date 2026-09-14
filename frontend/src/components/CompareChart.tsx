@@ -26,7 +26,21 @@ export default function CompareChart({ series, light }: { series: CompareSeries[
       ls.setData(s.data)
     })
     chart.timeScale().fitContent()
-    return () => chart.remove()
+    // 시트가 열리며 폭이 바뀌면 전체 기간이 다시 보이게 맞춘다.
+    const el = ref.current
+    let lastWidth = el.clientWidth
+    const observer = new ResizeObserver(([entry]) => {
+      const w = Math.round(entry.contentRect.width)
+      if (w !== lastWidth) {
+        lastWidth = w
+        chart.timeScale().fitContent()
+      }
+    })
+    observer.observe(el)
+    return () => {
+      observer.disconnect()
+      chart.remove()
+    }
   }, [series, light])
 
   return <div ref={ref} className="w-full h-[250px]" />

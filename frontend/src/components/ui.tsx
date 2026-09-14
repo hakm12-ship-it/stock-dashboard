@@ -15,10 +15,10 @@ export function Panel({
   return (
     <section className={`bg-surface border border-border rounded-xl p-4 card-shadow ${className}`}>
       {label && (
-        <div className="text-label font-semibold uppercase tracking-[0.08em] text-muted mb-3">
+        <h2 className="panel-title mb-3">
           {label}
           {help && <HelpTip term={help} />}
-        </div>
+        </h2>
       )}
       {children}
     </section>
@@ -42,12 +42,12 @@ export function Metric({
 }) {
   return (
     <div className="bg-surface border border-border rounded-xl px-3.5 py-3 card-shadow">
-      <div className="text-label font-semibold uppercase tracking-[0.07em] text-muted">
+      <div className="metric-label">
         {label}
         {help && <HelpTip term={help} />}
       </div>
-      <div className="font-mono text-lg font-semibold tnum mt-1 leading-tight truncate">{value}</div>
-      {sub != null && <div className={`font-mono text-xs mt-0.5 ${subClass}`}>{sub}</div>}
+      <div className="font-mono text-base sm:text-lg font-semibold tnum mt-1 leading-tight truncate">{value}</div>
+      {sub != null && <div className={`text-xs mt-0.5 truncate ${subClass}`}>{sub}</div>}
     </div>
   )
 }
@@ -79,13 +79,10 @@ export function ErrorState({
   label?: string
 }) {
   return (
-    <div className="text-center py-8" role="alert">
+    <div className="text-center py-6" role="alert">
       <div className="text-muted text-sm">{label}</div>
       {onRetry && (
-        <button
-          onClick={onRetry}
-          className="mt-3 px-4 py-1.5 rounded-lg border border-border text-sm text-text active:bg-surface-2"
-        >
+        <button onClick={onRetry} className="button button-quiet mt-3">
           다시 시도
         </button>
       )}

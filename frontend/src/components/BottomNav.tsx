@@ -27,17 +27,8 @@ export default function BottomNav({
         ))}
       </div>
       <div className="nav-context">
-        <span className="text-label text-muted">현재 분석 종목</span>
+        <span className="text-label text-muted">분석 메뉴에서 볼 종목</span>
         <strong>{ticker}</strong>
-        <p>
-          시세부터 뉴스까지,
-          <br />한 종목을 여러 관점으로.
-        </p>
-      </div>
-      <div className="nav-foot">
-        한국 · 미국 시장
-        <br />
-        <span>Stock Insight</span>
       </div>
     </nav>
   )

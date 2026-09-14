@@ -9,74 +9,79 @@ import {
   getDealTrend,
   getPeers,
 } from '../lib/api'
-import { changeColor, fmtChange } from '../lib/format'
+import { changeColor, fmtChange, fmtNum, fmtEps, fmtCap, fmtPrice } from '../lib/format'
 import type { FocusTicker } from '../data/tickers'
-import { Panel, Loading, Empty, ErrorState, Metric } from '../components/ui'
-import { fmtNum, fmtEps, fmtCap, fmtPrice } from '../lib/format'
+import type { TabKey } from '../lib/navigation'
+import { Panel, ErrorState, Metric } from '../components/ui'
+import Icon from '../components/Icon'
+
+const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토']
+const dayLabel = (iso: string) => {
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number)
+  return `${m}.${d}(${WEEKDAY[new Date(y, m - 1, d).getDay()]})`
+}
+
+function PanelSkeleton({ height = 160 }: { height?: number }) {
+  return <div className="rounded-xl shimmer" style={{ height }} aria-hidden="true" />
+}
 
 function PeersPanel({
   t,
   tickers,
   onAddTicker,
   onOpen,
+  title,
 }: {
   t: FocusTicker
   tickers: FocusTicker[]
   onAddTicker: (x: FocusTicker) => void
   onOpen: (x: FocusTicker) => void
+  title: string
 }) {
   const pq = useQuery({
     queryKey: ['peers', t.market, t.ticker],
     queryFn: () => getPeers(t.market, t.ticker),
     enabled: t.market === 'KR' && t.kind === 'stock',
   })
+  if (pq.isLoading) return <PanelSkeleton height={220} />
   const peers = pq.data ?? []
   if (!peers.length) return null
 
   const findAdded = (code: string) => tickers.find((x) => x.ticker === code && x.market === 'KR')
 
   return (
-    <Panel label="🏭 동종업종 비교">
+    <Panel label={title}>
       <div>
         {peers.map((p) => {
           const added = findAdded(p.ticker)
+          const target: FocusTicker = added ?? { ticker: p.ticker, name: p.name, short: p.name, market: 'KR', kind: 'stock' }
           return (
-            <div
-              key={p.ticker}
-              className="flex items-center gap-2 min-h-[44px] border-b border-border last:border-0"
-            >
-              <button
-                disabled={!added}
-                onClick={() => added && onOpen(added)}
-                className="min-w-0 flex-1 self-stretch text-left"
-              >
-                <div className="text-sm font-medium truncate">
-                  {p.name}
-                  {added && <span className="text-muted text-label ml-1">›</span>}
-                </div>
-                <div className="font-mono text-label text-muted">시총 {fmtCap(p.marketCap, 'KR')}</div>
+            <div key={p.ticker} className="flex items-center gap-2 min-h-[52px] border-b border-border last:border-0">
+              <button onClick={() => onOpen(target)} className="list-link min-w-0 flex-1 self-stretch text-left">
+                <span className="block text-sm font-medium truncate">
+                  {p.name} <span className="text-muted" aria-hidden="true">›</span>
+                </span>
+                <span className="block text-label text-muted">
+                  시총 <span className="font-mono tnum">{fmtCap(p.marketCap, 'KR')}</span>
+                </span>
               </button>
               <div className="text-right shrink-0">
-                <div className="font-mono text-sm tnum">
-                  {p.price != null ? `${Math.round(p.price).toLocaleString()}원` : '—'}
-                </div>
-                <div
-                  className={`font-mono text-label ${p.changePct != null ? changeColor(p.changePct) : 'text-muted'}`}
-                >
+                <div className="font-mono text-sm tnum">{fmtPrice(p.price, 'KR')}</div>
+                <div className={`font-mono text-label tnum ${p.changePct != null ? changeColor(p.changePct) : 'text-muted'}`}>
                   {p.changePct != null ? fmtChange(p.changePct) : '—'}
                 </div>
               </div>
-              <button
-                disabled={!!added}
-                onClick={() =>
-                  onAddTicker({ ticker: p.ticker, name: p.name, short: p.name, market: 'KR', kind: 'stock' })
-                }
-                className={`shrink-0 text-label px-2 min-w-[44px] min-h-[44px] rounded-md border ${
-                  added ? 'text-muted border-border' : 'text-text border-border active:border-accent'
-                }`}
-              >
-                {added ? '추가됨' : '+담기'}
-              </button>
+              {added ? (
+                <span className="add-state">관심 종목</span>
+              ) : (
+                <button
+                  onClick={() => onAddTicker(target)}
+                  aria-label={`${p.name} 관심종목에 담기`}
+                  className="add-button"
+                >
+                  <Icon name="plus" size={14} /> 담기
+                </button>
+              )}
             </div>
           )
         })}
@@ -85,12 +90,13 @@ function PeersPanel({
   )
 }
 
+/** 순매수 주식 수 — 한 열 안에서 크기를 비교할 수 있게 항상 '만 주' 단위로 맞춘다. */
 const fmtShares = (v: number | null): string => {
   if (v == null) return '—'
-  const sign = v > 0 ? '+' : v < 0 ? '-' : ''
-  const a = Math.abs(v)
-  return a >= 1e4 ? `${sign}${(a / 1e4).toFixed(1)}만` : `${sign}${a.toLocaleString()}`
+  const man = v / 1e4
+  return `${man > 0 ? '+' : man < 0 ? '−' : ''}${Math.abs(man).toLocaleString('ko-KR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`
 }
+const sharesTone = (v: number | null) => (v != null && v > 0 ? 'text-up' : v != null && v < 0 ? 'text-down' : 'text-muted')
 
 function DealTrendPanel({ t }: { t: FocusTicker }) {
   const dq = useQuery({
@@ -98,87 +104,142 @@ function DealTrendPanel({ t }: { t: FocusTicker }) {
     queryFn: () => getDealTrend(t.market, t.ticker),
     enabled: t.market === 'KR' && t.kind !== 'index',
   })
+  if (dq.isLoading) return <PanelSkeleton height={220} />
+  if (dq.isError) return <ErrorState label="매매동향을 불러오지 못했어요" onRetry={() => dq.refetch()} />
   const rows = (dq.data ?? []).slice(0, 5)
   if (!rows.length) return null
   const holdRatio = rows[0]?.foreignHoldRatio
+  const sum = (pick: (r: (typeof rows)[number]) => number | null) =>
+    rows.reduce((acc, r) => acc + (pick(r) ?? 0), 0)
+  const totals = [sum((r) => r.foreign), sum((r) => r.organ), sum((r) => r.individual)]
 
   return (
-    <Panel label="🌊 투자자별 매매동향 (순매수, 주)" help="flow">
-      <div className="overflow-x-auto no-scrollbar">
-        <table className="w-full text-xs font-mono tnum">
-          <thead>
-            <tr className="text-muted text-label">
-              <th className="text-left font-medium py-1">날짜</th>
-              <th className="text-right font-medium">외국인</th>
-              <th className="text-right font-medium">기관</th>
-              <th className="text-right font-medium">개인</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.date} className="border-t border-border">
-                <td className="py-1.5 text-left text-muted">{r.date.slice(5).replace('-', '.')}</td>
-                {[r.foreign, r.organ, r.individual].map((v, i) => (
-                  <td
-                    key={i}
-                    className={`text-right ${v != null && v > 0 ? 'text-up' : v != null && v < 0 ? 'text-down' : 'text-muted'}`}
-                  >
-                    {fmtShares(v)}
-                  </td>
-                ))}
-              </tr>
+    <Panel label="투자자별 매매동향" help="flow">
+      <table className="flow-table">
+        <caption className="sr-only">최근 5거래일 투자자별 순매수, 단위 만 주</caption>
+        <thead>
+          <tr>
+            <th scope="col">날짜</th>
+            <th scope="col">외국인</th>
+            <th scope="col">기관</th>
+            <th scope="col">개인</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr className="flow-total">
+            <th scope="row">5일 합계</th>
+            {totals.map((v, i) => (
+              <td key={i} className={sharesTone(v)}>
+                {fmtShares(v)}
+              </td>
             ))}
-          </tbody>
-        </table>
-      </div>
-      {holdRatio != null && (
-        <p className="text-label text-muted mt-2 font-mono">외국인 보유율 {holdRatio}%</p>
-      )}
+          </tr>
+          {rows.map((r) => (
+            <tr key={r.date}>
+              <th scope="row">{dayLabel(r.date)}</th>
+              {[r.foreign, r.organ, r.individual].map((v, i) => (
+                <td key={i} className={sharesTone(v)}>
+                  {fmtShares(v)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="text-label text-muted mt-2">
+        순매수 · 단위 만 주 · {dayLabel(rows[0].date)} 기준
+        {holdRatio != null && ` · 외국인 보유율 ${holdRatio}%`}
+      </p>
     </Panel>
   )
 }
 
-function RevenueBars({
+type SeriesValues = (number | null)[]
+
+/**
+ * 연간 실적. 매출과 이익은 크기가 수십 배 차이 나서 한 축에 그리면 이익이 보이지 않는다.
+ * 두 줄로 나누고, 이익은 0선 기준 위(흑자)·아래(적자)로 그린다.
+ */
+function AnnualResults({
   years,
-  series,
+  revenue,
+  operating,
+  net,
+  market,
 }: {
   years: number[]
-  series: { label: string; color: string; values: (number | null)[] }[]
+  revenue: SeriesValues
+  operating: SeriesValues
+  net: SeriesValues
+  market: FocusTicker['market']
 }) {
-  const max = Math.max(1, ...series.flatMap((s) => s.values.map((v) => (v && v > 0 ? v : 0))))
+  const revMax = Math.max(1, ...revenue.map((v) => Math.abs(v ?? 0)))
+  const profitMax = Math.max(1, ...[...operating, ...net].map((v) => Math.abs(v ?? 0)))
+  const hasLoss = [...operating, ...net].some((v) => v != null && v < 0)
+  const bar = (v: number | null, max: number, tone: string, half: boolean) => {
+    if (v == null) return <div className="flex-1" />
+    const h = Math.max(2, (Math.abs(v) / max) * 100)
+    return (
+      <div className={`flex-1 flex ${half ? (v >= 0 ? 'items-end' : 'items-start') : 'items-end'} h-full`}>
+        <div className={`w-full ${v >= 0 ? 'rounded-t-sm' : 'rounded-b-sm'} ${tone}`} style={{ height: `${h}%` }} />
+      </div>
+    )
+  }
+  const positive = (v: number | null) => (v != null && v >= 0 ? v : null)
+  const negative = (v: number | null) => (v != null && v < 0 ? v : null)
+  const short = (v: number | null) => (v == null ? '—' : `${v < 0 ? '−' : ''}${fmtCap(Math.abs(v), market)}`)
+
   return (
-    <div>
-      <div className="flex items-end gap-2 h-36">
+    <div className="annual">
+      <div className="annual-row-label">매출</div>
+      <div className="annual-grid">
         {years.map((yr, i) => (
-          <div key={yr} className="flex-1 flex items-end justify-center gap-[3px] h-full">
-            {series.map((s) => {
-              const v = s.values[i] ?? 0
-              const h = v > 0 ? Math.max(3, (v / max) * 100) : 2
-              return (
-                <div
-                  key={s.label}
-                  className="flex-1 rounded-t-sm"
-                  style={{ height: `${h}%`, backgroundColor: s.color }}
-                />
-              )
-            })}
+          <div key={yr} className="annual-col" aria-label={`${yr}년 매출 ${short(revenue[i])}`}>
+            <span className="annual-value">{short(revenue[i])}</span>
+            <div className="annual-bars h-16">{bar(revenue[i], revMax, 'bg-muted/45', false)}</div>
           </div>
         ))}
       </div>
-      <div className="flex gap-2 mt-1">
-        {years.map((yr) => (
-          <div key={yr} className="flex-1 text-center text-label text-muted font-mono">
-            {yr}
-          </div>
-        ))}
+
+      <div className="annual-row-label mt-3">
+        <span>
+          <span className="inline-block h-2 w-2 rounded-sm bg-accent mr-1" aria-hidden="true" />
+          영업이익
+        </span>
+        <span>
+          <span className="inline-block h-2 w-2 rounded-sm bg-accent/45 mr-1" aria-hidden="true" />
+          순이익
+        </span>
       </div>
-      <div className="flex gap-3 justify-center mt-2">
-        {series.map((s) => (
-          <span key={s.label} className="flex items-center gap-1 text-label text-muted">
-            <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: s.color }} />
-            {s.label}
-          </span>
-        ))}
+      <div className="annual-grid">
+        {years.map((yr, i) => {
+          const op = operating[i]
+          const margin = op != null && revenue[i] ? (op / (revenue[i] as number)) * 100 : null
+          return (
+            <div
+              key={yr}
+              className="annual-col"
+              aria-label={`${yr}년 영업이익 ${short(op)}, 순이익 ${short(net[i])}${margin != null ? `, 영업이익률 ${margin.toFixed(1)}%` : ''}`}
+            >
+              <span className={`annual-value ${op != null && op < 0 ? 'text-down' : ''}`}>
+                {short(op)}
+                {op != null && op < 0 && <span className="ml-0.5">적자</span>}
+              </span>
+              <div className={`annual-bars ${hasLoss ? 'h-10' : 'h-16'}`}>
+                {bar(positive(op), profitMax, 'bg-accent', false)}
+                {bar(positive(net[i]), profitMax, 'bg-accent/45', false)}
+              </div>
+              {hasLoss && (
+                <div className="annual-bars h-10 border-t border-border">
+                  {bar(negative(op), profitMax, 'bg-down/70', true)}
+                  {bar(negative(net[i]), profitMax, 'bg-down/40', true)}
+                </div>
+              )}
+              <span className="annual-year">{yr}</span>
+              <span className="annual-margin">{margin != null ? `이익률 ${margin.toFixed(1)}%` : ''}</span>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -189,11 +250,13 @@ export default function FundamentalView({
   tickers,
   onAddTicker,
   onOpen,
+  onNavigate,
 }: {
   t: FocusTicker
   tickers: FocusTicker[]
   onAddTicker: (x: FocusTicker) => void
   onOpen: (x: FocusTicker) => void
+  onNavigate: (tab: TabKey) => void
 }) {
   const isStock = t.kind === 'stock'
   const profile = useQuery({
@@ -232,28 +295,29 @@ export default function FundamentalView({
     const desc = profile.data?.description
     return (
       <div className="space-y-3">
-        <Panel label={isIndex ? '지수 안내' : 'ETF 안내'}>
+        <Panel label={isIndex ? '지수에는 기업 가치 지표가 없어요' : 'ETF에는 기업 가치 지표가 없어요'}>
           <p className="text-sm text-muted leading-relaxed">
-            {isIndex ? (
-              <>
-                <b className="text-text">{t.name}</b> 는 지수라 PER·PBR 같은 개별 기업 밸류에이션이 없어요.
-                <br />
-                차트·종합신호 탭에서 지수 흐름과 예상 변동 범위를 확인하세요.
-              </>
-            ) : (
-              <>
-                <b className="text-text">{t.name}</b> 는 ETF라 PER·PBR 같은 개별 기업 밸류에이션이 적용되지
-                않아요.
-                <br />
-                <span className="text-up">레버리지</span> 상품이라 변동성이 매우 큽니다 — 차트·종합신호 탭에서
-                확인하세요.
-              </>
-            )}
+            PER·PBR 같은 지표는 개별 기업에만 계산돼요. {isIndex ? '지수' : '상품'}의 흐름과 예상 변동 범위는 차트와
+            종합 분석에서 확인하세요.
           </p>
+          {t.lev && (
+            <p className="text-sm font-medium leading-relaxed mt-2">
+              {t.lev} 레버리지 상품이라 하루 변동이 기초자산보다 훨씬 커요. 종합 분석의 레버리지 감쇠 패널도 함께
+              보세요.
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2 mt-3">
+            <button className="button button-quiet" onClick={() => onNavigate('tech')}>
+              차트 보기
+            </button>
+            <button className="button button-quiet" onClick={() => onNavigate('signal')}>
+              종합 분석 보기
+            </button>
+          </div>
         </Panel>
         {!isIndex && desc && (
           <Panel label="상품 개요">
-            <p className="text-xs text-muted leading-relaxed">{desc}</p>
+            <p className="text-sm text-muted leading-relaxed">{desc}</p>
           </Panel>
         )}
         {!isIndex && <DealTrendPanel t={t} />}
@@ -261,140 +325,186 @@ export default function FundamentalView({
     )
   }
 
-  if (val.isLoading) return <Loading />
-  if (val.isError) return <ErrorState onRetry={() => val.refetch()} />
   const v = val.data
-
+  const hasVal = !!v && [v.PER, v.PBR, v.EPS, v.ROE, v.배당수익률, v.시가총액].some((x) => x != null)
+  const fwd = fpe.data?.forward[0]
   const cur = fpe.data?.trailing
   const yearsData =
-    trend.data && 'years' in trend.data
-      ? (trend.data as { years: number[] } & Record<string, (number | null)[]>)
-      : null
+    trend.data && 'years' in trend.data ? (trend.data as { years: number[] } & Record<string, SeriesValues>) : null
 
   return (
-    <div className="space-y-3">
-      {v && (
-        <div className="grid grid-cols-3 gap-2">
-          <Metric label="PER" help="per" value={fmtNum(v.PER, 1)} />
-          <Metric label="PBR" help="pbr" value={fmtNum(v.PBR, 2)} />
-          <Metric label="EPS" help="eps" value={fmtEps(v.EPS, t.market)} />
-          <Metric label="ROE" help="roe" value={v.ROE != null ? `${(v.ROE * 100).toFixed(1)}%` : '—'} />
-          {/* 주당배당금은 배당수익률과 같이 읽는 값이라 아래에 붙인다.
-              따로 카드를 두면 7개가 되어 3열 그리드 마지막 줄에 하나만 남는다. */}
-          <Metric
-            label="배당수익률"
-            value={v.배당수익률 != null ? `${v.배당수익률.toFixed(2)}%` : '—'}
-            sub={v.주당배당금 != null ? `주당 ${fmtPrice(v.주당배당금, t.market)}` : undefined}
-          />
-          <Metric label="시가총액" value={fmtCap(v.시가총액, t.market)} />
-        </div>
-      )}
+    <div className="fund-grid">
+      <div className="fund-wide">
+        {val.isLoading ? (
+          <div className="kpi-grid" aria-hidden="true">
+            {Array.from({ length: 6 }, (_, i) => (
+              <div key={i} className="h-[84px] rounded-xl shimmer" />
+            ))}
+          </div>
+        ) : val.isError ? (
+          <Panel>
+            <ErrorState label="재무 지표를 불러오지 못했어요" onRetry={() => val.refetch()} />
+          </Panel>
+        ) : hasVal && v ? (
+          <div className="kpi-grid">
+            <Metric
+              label="PER"
+              help="per"
+              value={v.PER != null ? `${fmtNum(v.PER, 1)}배` : '—'}
+              sub={fwd ? `예상 ${fmtNum(fwd.per, 1)}배` : undefined}
+            />
+            <Metric label="PBR" help="pbr" value={v.PBR != null ? `${fmtNum(v.PBR, 2)}배` : '—'} />
+            <Metric
+              label="EPS"
+              help="eps"
+              value={fmtEps(v.EPS, t.market)}
+              sub={fwd ? `예상 ${fmtEps(fwd.eps, t.market)}` : undefined}
+            />
+            <Metric label="ROE" help="roe" value={v.ROE != null ? `${(v.ROE * 100).toFixed(1)}%` : '—'} />
+            {/* 주당배당금은 배당수익률과 같이 읽는 값이라 아래에 붙인다. */}
+            <Metric
+              label="배당수익률"
+              value={v.배당수익률 != null ? `${v.배당수익률.toFixed(2)}%` : '—'}
+              sub={v.주당배당금 != null ? `주당 ${fmtPrice(v.주당배당금, t.market)}` : undefined}
+            />
+            <Metric label="시가총액" value={fmtCap(v.시가총액, t.market)} />
+          </div>
+        ) : (
+          <Panel label="가치 지표 없음">
+            <p className="text-sm text-muted leading-relaxed">
+              ETF·ETN·리츠나 새로 상장한 종목은 PER·PBR 같은 지표가 제공되지 않아요.
+            </p>
+          </Panel>
+        )}
+      </div>
 
       {/* 애널리스트 목표주가 */}
       {(() => {
+        if (target.isLoading) return <PanelSkeleton height={150} />
         const tp = target.data?.target
-        const cur = priceQ.data?.at(-1)?.close
-        if (!tp || !cur) return null
-        const upside = (tp / cur - 1) * 100
+        const price = priceQ.data?.at(-1)?.close
+        if (!tp || !price) return null
+        const upside = (tp / price - 1) * 100
         const rec = target.data?.recomm ?? null
         const recLabel = rec == null ? '—' : rec >= 3.5 ? '매수' : rec >= 2.5 ? '중립' : '매도'
         return (
-          <Panel label="🎯 애널리스트 목표주가" help="target">
-            <div className="grid grid-cols-2 gap-2">
-              <Metric
-                label="목표주가 (평균)"
-                value={fmtPrice(tp, t.market)}
-                sub={`${upside >= 0 ? '+' : ''}${upside.toFixed(1)}% 여력`}
-                subClass={upside >= 0 ? 'text-up' : 'text-down'}
-              />
-              <Metric
-                label="투자의견"
-                value={recLabel}
-                sub={rec != null ? `${rec.toFixed(2)} / 5` : undefined}
-              />
-            </div>
-            <p className="text-label text-muted mt-2">
-              증권사 컨센서스 평균 · 현재가 {fmtPrice(cur, t.market)} 기준 · 투자조언 아님
-            </p>
+          <Panel label="애널리스트 목표주가" help="target">
+            <dl className="stat-pair">
+              <div>
+                <dt className="metric-label">목표주가 평균</dt>
+                <dd className="font-mono text-lg font-semibold tnum">{fmtPrice(tp, t.market)}</dd>
+                <dd className={`text-xs ${upside >= 0 ? 'text-up' : 'text-down'}`}>
+                  현재가보다 <span className="font-mono tnum">{`${upside >= 0 ? '+' : '−'}${Math.abs(upside).toFixed(1)}%`}</span>
+                </dd>
+              </div>
+              <div>
+                <dt className="metric-label">투자의견 평균</dt>
+                <dd className="text-lg font-semibold">{recLabel}</dd>
+                {rec != null && (
+                  <dd className="text-xs text-muted">
+                    <span className="font-mono tnum">{rec.toFixed(2)}</span> / 5점 (5 = 적극 매수)
+                  </dd>
+                )}
+              </div>
+            </dl>
+            <p className="text-label text-muted mt-2">증권사 컨센서스 · 현재가 {fmtPrice(price, t.market)} 기준</p>
           </Panel>
         )
       })()}
 
       {/* 미래 PER */}
-      {fpe.data && fpe.data.forward.length > 0 && (
-        <Panel label="미래 PER · 애널리스트 예상EPS 기준" help="fwdper">
-          <div className={`grid gap-2 ${fpe.data.forward.length >= 2 ? 'grid-cols-3' : 'grid-cols-2'}`}>
-            <Metric label="현재(실적)" value={fmtNum(cur, 1)} />
-            {fpe.data.forward.map((f) => (
-              <Metric
-                key={f.period}
-                label={f.period}
-                value={fmtNum(f.per, 1)}
-                sub={cur && f.per < cur ? '더 쌈' : ''}
-                subClass="text-up"
-              />
-            ))}
-          </div>
-          <p className="text-label text-muted mt-2">
-            현재가 ÷ 예상EPS. 컨센서스는 전망 변경에 따라 바뀝니다 · 투자조언 아님.
-          </p>
-        </Panel>
+      {fpe.isLoading ? (
+        <PanelSkeleton height={150} />
+      ) : (
+        fpe.data &&
+        fpe.data.forward.length > 0 && (
+          <Panel label="미래 PER" help="fwdper">
+            <dl className="stat-pair">
+              {fpe.data.forward.map((f) => {
+                const diff = cur ? (f.per / cur - 1) * 100 : null
+                return (
+                  <div key={f.period}>
+                    <dt className="metric-label">{f.period === '추정' ? '컨센서스 추정' : f.period}</dt>
+                    <dd className="font-mono text-lg font-semibold tnum">{fmtNum(f.per, 1)}배</dd>
+                    {diff != null && (
+                      <dd className="text-xs text-muted">
+                        현재 대비 <span className="font-mono tnum">{`${diff >= 0 ? '+' : '−'}${Math.abs(diff).toFixed(0)}%`}</span>
+                        {' · '}
+                        {diff < 0 ? '이익 증가 예상' : '이익 감소 예상'}
+                      </dd>
+                    )}
+                    <dd className="text-xs text-muted">
+                      예상 EPS <span className="font-mono tnum">{fmtEps(f.eps, t.market)}</span>
+                    </dd>
+                  </div>
+                )
+              })}
+            </dl>
+            <p className="text-label text-muted mt-2">
+              현재가 ÷ 애널리스트 예상 EPS{cur != null && ` · 현재 PER ${fmtNum(cur, 1)}배`} · 전망에 따라 바뀌어요
+            </p>
+          </Panel>
+        )
       )}
-
-      {/* 연간 실적 */}
-      {yearsData && yearsData.years?.length ? (
-        <Panel label="연간 실적 추이">
-          <RevenueBars
-            years={yearsData.years}
-            series={[
-              { label: '매출', color: '#E0B84D', values: (yearsData['매출'] as (number | null)[]) ?? [] },
-              {
-                label: '영업이익',
-                color: '#3B82F6',
-                values: (yearsData['영업이익'] as (number | null)[]) ?? [],
-              },
-              { label: '순이익', color: '#8B94A3', values: (yearsData['순이익'] as (number | null)[]) ?? [] },
-            ]}
-          />
-          <p className="text-label text-muted mt-3 text-center font-mono">
-            {yearsData.years.at(-1)} · 매출 {fmtCap(yearsData['매출']?.at(-1) ?? null, t.market)} · 영업{' '}
-            {fmtCap(yearsData['영업이익']?.at(-1) ?? null, t.market)} · 순익{' '}
-            {fmtCap(yearsData['순이익']?.at(-1) ?? null, t.market)}
-          </p>
-        </Panel>
-      ) : null}
 
       {/* 투자자별 매매동향 (국내) */}
       <DealTrendPanel t={t} />
 
       {/* 동종업종 비교 (국내) */}
-      <PeersPanel t={t} tickers={tickers} onAddTicker={onAddTicker} onOpen={onOpen} />
+      <PeersPanel
+        t={t}
+        tickers={tickers}
+        onAddTicker={onAddTicker}
+        onOpen={onOpen}
+        title={hasVal ? '동종업종 비교' : '비슷한 상품'}
+      />
+
+      {/* 연간 실적 */}
+      {trend.isLoading ? (
+        <PanelSkeleton height={240} />
+      ) : yearsData && yearsData.years?.length ? (
+        <Panel label="연간 실적 추이">
+          <AnnualResults
+            years={yearsData.years}
+            revenue={yearsData['매출'] ?? []}
+            operating={yearsData['영업이익'] ?? []}
+            net={yearsData['순이익'] ?? []}
+            market={t.market}
+          />
+        </Panel>
+      ) : null}
 
       {/* 증권사 리포트 (국내) */}
       {profile.data && profile.data.researches.length > 0 && (
-        <Panel label="📑 최근 증권사 리포트">
-          <div className="space-y-2.5">
+        <Panel label="최근 증권사 리포트">
+          <ul className="space-y-2.5">
             {profile.data.researches.map((r, i) => (
-              <div key={i} className="border-b border-border last:border-0 pb-2.5 last:pb-0">
-                <div className="text-sm font-medium leading-snug">{r.title}</div>
-                <div className="font-mono text-label text-muted mt-0.5">
-                  {r.brokerage} · {r.date}
-                </div>
-              </div>
+              <li key={i} className="border-b border-border last:border-0 pb-2.5 last:pb-0">
+                <p className="text-sm leading-snug">{r.title}</p>
+                <p className="text-label text-muted mt-0.5">
+                  {r.brokerage} · <span className="font-mono tnum">{r.date.replaceAll('-', '.')}</span>
+                </p>
+              </li>
             ))}
-          </div>
+          </ul>
           <a
             href={`https://m.stock.naver.com/domestic/stock/${t.ticker}/research`}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center justify-center min-h-[44px] text-label text-muted mt-1 active:opacity-70"
+            className="text-action w-full justify-center gap-1 mt-1"
           >
-            네이버 증권에서 리포트 더보기 →
+            네이버 증권에서 리포트 원문 보기
+            <Icon name="external" size={14} />
+            <span className="sr-only">(새 탭에서 열림)</span>
           </a>
         </Panel>
       )}
 
-      {!v && !val.isLoading && <Empty label="재무 정보를 불러오지 못했어요" />}
+      {t.market === 'US' && (
+        <p className="fund-wide text-label text-muted">
+          목표주가·투자자별 매매동향·동종업종·증권사 리포트는 국내 종목만 제공돼요.
+        </p>
+      )}
     </div>
   )
 }

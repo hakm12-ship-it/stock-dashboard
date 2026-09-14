@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createChart, type IChartApi, type UTCTimestamp } from 'lightweight-charts'
-import { chartBase, CHART_UP, CHART_DOWN } from '../lib/chartTheme'
+import { chartBase, chartColors, priceFormatFor } from '../lib/chartTheme'
+import { Empty } from './ui'
 import { getNightCandles, type NightInterval } from '../lib/api'
 
 const INTERVALS: [NightInterval, string][] = [
@@ -24,9 +25,11 @@ export default function NightCandleChart({ ticker, light }: { ticker: string; li
   useEffect(() => {
     if (!ref.current || !data?.candles.length) return
     // 분봉이라 시각까지 보여준다
+    const c = chartColors(light)
     const chart: IChartApi = createChart(ref.current, { ...chartBase(light, true), height: 220 })
     const cs = chart.addCandlestickSeries({
-      upColor: CHART_UP, downColor: CHART_DOWN, borderVisible: false, wickUpColor: CHART_UP, wickDownColor: CHART_DOWN,
+      upColor: c.up, downColor: c.down, borderVisible: false, wickUpColor: c.up, wickDownColor: c.down,
+      priceFormat: priceFormatFor('KR', 'stock'),
     })
     cs.setData(
       data.candles.map((c) => ({
@@ -46,9 +49,8 @@ export default function NightCandleChart({ ticker, light }: { ticker: string; li
           <button
             key={iv}
             onClick={() => setTf(iv)}
-            className={`font-mono text-label min-w-[44px] min-h-[44px] px-3 rounded-lg transition-colors ${
-              tf === iv ? 'bg-surface-2 text-text font-semibold' : 'text-muted/70 active:bg-surface-2'
-            }`}
+            aria-pressed={tf === iv}
+            className={`choice-button ${tf === iv ? 'is-selected' : ''}`}
           >
             {label}
           </button>
@@ -56,10 +58,12 @@ export default function NightCandleChart({ ticker, light }: { ticker: string; li
       </div>
       {data?.available && data.candles.length > 0 ? (
         <div ref={ref} className="w-full" />
+      ) : data ? (
+        <Empty label="야간 시세를 지금 불러올 수 없어요" />
       ) : (
         <div className="h-[220px] rounded bg-surface-2 animate-pulse" />
       )}
-      <p className="text-label text-muted mt-1">출처 · Hyperliquid HIP-3(xyz dex) · KRW 환산 캔들</p>
+      <p className="text-label text-muted mt-1">장 마감 뒤 해외 무기한 선물(Hyperliquid) 가격을 원화로 환산한 캔들</p>
     </div>
   )
 }

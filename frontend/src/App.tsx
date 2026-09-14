@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { TICKERS, type FocusTicker } from './data/tickers'
 import type { Period } from './lib/api'
-import IndexStrip from './components/IndexStrip'
 import TickerSwitcher from './components/TickerSwitcher'
 import StockHeader from './components/StockHeader'
 import AverageBuyCard from './components/AverageBuyCard'
@@ -237,10 +236,12 @@ export default function App() {
             스톡 인사이트<small>STOCK INSIGHT</small>
           </span>
         </button>
-        <button className="header-search" onClick={() => setSearchOpen(true)}>
+        <button className="header-search" onClick={() => setSearchOpen(true)} aria-label="종목명 또는 티커 검색">
           <Icon name="search" />
           <span>종목명 또는 티커 검색</span>
-          <span className="search-hint">한국 · 미국</span>
+          <span className="search-hint" aria-hidden="true">
+            한국 · 미국
+          </span>
         </button>
         <div className="header-actions">
           <button
@@ -268,32 +269,34 @@ export default function App() {
             {storageError}
           </p>
         )}
-        <div className="page-heading">
-          <div>
-            <p className="eyebrow">MY MARKET / {tab === 'home' ? 'OVERVIEW' : 'RESEARCH'}</p>
-            <h1>{tab === 'home' ? '나의 관심종목' : TAB_LABELS[tab]}</h1>
-            <p className="text-muted text-sm">
-              {tab === 'home'
-                ? '한국·미국 주식의 흐름을 살피고, 나만의 투자 판단을 기록하세요.'
-                : `${t.name}의 시세와 분석을 한곳에서 확인하세요.`}
-            </p>
+        {tab === 'home' ? (
+          <h1 className="sr-only" tabIndex={-1}>
+            나의 관심종목
+          </h1>
+        ) : (
+          <div className="page-heading is-research">
+            <button className="icon-button back-button" onClick={() => setTab('home')} aria-label="관심종목으로">
+              <Icon name="arrow" size={20} />
+            </button>
+            <h1 tabIndex={-1}>{TAB_LABELS[tab]}</h1>
+            <span className="data-notice">
+              지연 시세 · 참고용
+              {updatedAt && (
+                <small>
+                  {updatedAt.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 새로고침
+                </small>
+              )}
+            </span>
           </div>
-          <span className="data-notice">
-            지연 시세 · 참고용
-            {updatedAt && (
-              <small>
-                갱신 요청 완료 {updatedAt.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
-              </small>
-            )}
-          </span>
-        </div>
-        <div key={`${tab}-${t.ticker}`} className="fade-in space-y-3">
-          {tab === 'home' ? (
+        )}
+        {tab === 'home' ? (
+          <div className="fade-in">
             <HomeView
               tickers={all}
               holdings={holdings}
               trades={trades}
               light={theme === 'light'}
+              updatedAt={updatedAt}
               onSelect={(tk) => {
                 navigate('signal', tk)
               }}
@@ -304,42 +307,38 @@ export default function App() {
               onOpenJournal={() => setJournalOpen(true)}
               onCompare={() => setComparisonOpen(true)}
             />
-          ) : (
-            <>
-              <button className="button button-quiet" onClick={() => setTab('home')}>
-                <Icon name="arrow" size={16} /> 관심종목으로
-              </button>
-              <IndexStrip />
-              <div className="research-layout">
-                <aside className="research-summary">
-                  <TickerSwitcher tickers={all} selected={t} onSelect={setT} />
-                  <StockHeader t={t} period={period} light={theme === 'light'} />
-                  {(() => {
-                    const h = holdings.find((x) => x.ticker === t.ticker && x.market === t.market)
-                    return h ? <AverageBuyCard holding={h} /> : null
-                  })()}
-                  <Week52Bar t={t} />
-                </aside>
-                <section className="research-body">
-                  {tab === 'signal' && <SignalView t={t} />}
-                  {tab === 'tech' && (
-                    <TechnicalView
-                      t={t}
-                      period={period}
-                      setPeriod={setPeriod}
-                      light={theme === 'light'}
-                      holding={holdings.find((h) => h.ticker === t.ticker && h.market === t.market)}
-                    />
-                  )}
-                  {tab === 'fund' && (
-                    <FundamentalView t={t} tickers={all} onAddTicker={addTicker} onOpen={setT} />
-                  )}
-                  {tab === 'news' && <NewsView t={t} tickers={all} />}
-                </section>
-              </div>
-            </>
-          )}
-        </div>
+          </div>
+        ) : (
+          <>
+            <TickerSwitcher tickers={all} selected={t} onSelect={setT} />
+            <div className="research-layout">
+              <aside className="research-summary" aria-label={`${t.name} 요약`}>
+                <StockHeader key={`${t.market}-${t.ticker}`} t={t} period={period} light={theme === 'light'} />
+                {(() => {
+                  const h = holdings.find((x) => x.ticker === t.ticker && x.market === t.market)
+                  return h ? <AverageBuyCard holding={h} /> : null
+                })()}
+                <Week52Bar t={t} />
+              </aside>
+              <section key={`${tab}-${t.market}-${t.ticker}`} className="research-body fade-in" aria-label={TAB_LABELS[tab]}>
+                {tab === 'signal' && <SignalView t={t} />}
+                {tab === 'tech' && (
+                  <TechnicalView
+                    t={t}
+                    period={period}
+                    setPeriod={setPeriod}
+                    light={theme === 'light'}
+                    holding={holdings.find((h) => h.ticker === t.ticker && h.market === t.market)}
+                  />
+                )}
+                {tab === 'fund' && (
+                  <FundamentalView t={t} tickers={all} onAddTicker={addTicker} onOpen={setT} onNavigate={setTab} />
+                )}
+                {tab === 'news' && <NewsView t={t} tickers={all} />}
+              </section>
+            </div>
+          </>
+        )}
 
         <footer className="app-footer">
           <span>STOCK INSIGHT</span>

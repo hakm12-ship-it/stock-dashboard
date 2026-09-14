@@ -12,7 +12,7 @@ export default function NightGapHistoryPanel({ ticker }: { ticker: string }) {
   if (!data?.available || !data.buckets?.length) return null
 
   return (
-    <Panel label="🌙 야간 갭, 다음날 시가를 맞췄나">
+    <Panel label="야간 갭, 다음날 시가를 맞췄나">
       <p className="text-label text-muted leading-relaxed mb-3">
         야간 perp 등락과, 그 다음 거래일 <strong>시가</strong>의 전일종가 대비 변화를 짝지어 봤어요.
         (최근 {data.samples}거래일)

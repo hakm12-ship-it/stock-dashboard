@@ -10,7 +10,7 @@ export function hasNightPrice(t: FocusTicker): boolean {
 
 /** 장중이면 '실시간', 장마감이면 '야간' — 같은 perp 시세라도 의미가 다르다. */
 export function nightLabel(t: FocusTicker): string {
-  return marketStatus(t.market).open ? '🌐 실시간' : '🌙 야간'
+  return marketStatus(t.market).open ? '실시간' : '야간'
 }
 
 /** 기초자산 perp로 추정가를 합성할 수 있는 종목 — 백엔드 data/synthetic.py와 맞출 것 */

@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import type { FocusTicker } from '../data/tickers'
 import { realizedPnL, type Trade } from '../lib/trades'
-import { fmtPrice, changeColor, changeSign } from '../lib/format'
+import { fmtPrice, fmtSignedPrice, changeColor } from '../lib/format'
 import { Sheet } from './ui'
-import { positive, validDate } from '../lib/validation'
+import Icon from './Icon'
+import { parseAmount, positive, validDate } from '../lib/validation'
 
 const today = () => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' }).format(new Date())
 
@@ -28,32 +29,40 @@ export default function TradeJournalSheet({
   const [date, setDate] = useState(today())
   const [memo, setMemo] = useState('')
   const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const selected = options.find((o) => `${o.market}-${o.ticker}` === selKey)
+  const currency = selected?.market === 'US' ? 'USD' : 'KRW'
 
-  const add = () => {
-    const t = options.find((o) => `${o.market}-${o.ticker}` === selKey)
-    const q = Number(qty)
-    const p = Number(price)
-    if (!t || !positive(q) || !positive(p) || !Number.isFinite(q * p) || !validDate(date) || date > today()) {
-      setMessage('수량·가격은 0보다 큰 숫자, 날짜는 오늘 이전의 실제 날짜를 입력하세요.')
+  const q = parseAmount(qty)
+  const p = parseAmount(price)
+  const qtyBad = qty !== '' && !positive(q)
+  const priceBad = price !== '' && !positive(p)
+
+  const add = (e: React.FormEvent) => {
+    e.preventDefault()
+    setMessage('')
+    if (!selected || !positive(q) || !positive(p) || !Number.isFinite(q * p) || !validDate(date) || date > today()) {
+      setError('수량과 가격은 0보다 큰 숫자로, 날짜는 오늘 또는 이전 날짜로 입력해 주세요. 쉼표는 넣어도 됩니다.')
       return
     }
     if (
       !onAdd({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         date,
-        ticker: t.ticker,
-        name: t.name,
-        market: t.market,
+        ticker: selected.ticker,
+        name: selected.name,
+        market: selected.market,
         side,
         qty: q,
         price: p,
         memo: memo.trim() || undefined,
       })
     ) {
-      setMessage('저장하지 못했습니다. 브라우저 저장 공간을 확인해 주세요.')
+      setError('저장하지 못했습니다. 브라우저 저장 공간을 확인해 주세요.')
       return
     }
-    setMessage('매매 기록을 저장했습니다.')
+    setError('')
+    setMessage(`${selected.short} ${side === 'buy' ? '매수' : '매도'} 기록을 저장했습니다.`)
     setQty('')
     setPrice('')
     setMemo('')
@@ -63,151 +72,156 @@ export default function TradeJournalSheet({
   const sorted = [...trades].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id))
 
   return (
-    <Sheet title="매매일지" onClose={onClose}>
-      {/* 실현손익 */}
+    <Sheet title="매매일지" onClose={onClose} dismissOnBackdrop={false}>
       {(pnl.KR !== 0 || pnl.US !== 0) && (
-        <div className="bg-surface border border-border rounded-xl p-3.5 card-shadow">
-          <div className="text-label font-semibold uppercase tracking-[0.07em] text-muted mb-1.5">
-            실현손익 (평균단가법)
-          </div>
-          <div className="flex gap-4">
+        <section className="form-panel">
+          <h3 className="section-label mb-1.5">실현손익 · 평균단가법</h3>
+          <div className="flex flex-wrap gap-x-5 gap-y-1">
             {pnl.KR !== 0 && (
-              <span className={`font-mono text-sm tnum ${changeColor(pnl.KR)}`}>
-                🇰🇷 {changeSign(pnl.KR)} {fmtPrice(Math.abs(pnl.KR), 'KR')}
+              <span className="text-sm">
+                <span className="text-muted mr-1.5">한국</span>
+                <span className={`font-mono tnum ${changeColor(pnl.KR)}`}>{fmtSignedPrice(pnl.KR, 'KR')}</span>
               </span>
             )}
             {pnl.US !== 0 && (
-              <span className={`font-mono text-sm tnum ${changeColor(pnl.US)}`}>
-                🇺🇸 {changeSign(pnl.US)} {fmtPrice(Math.abs(pnl.US), 'US')}
+              <span className="text-sm">
+                <span className="text-muted mr-1.5">미국</span>
+                <span className={`font-mono tnum ${changeColor(pnl.US)}`}>{fmtSignedPrice(pnl.US, 'US')}</span>
               </span>
             )}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* 기록 추가 */}
-      <div className="bg-surface border border-border rounded-xl p-3 space-y-2 card-shadow">
-        <div className="text-label font-semibold uppercase tracking-[0.07em] text-muted">기록 추가</div>
-        <div className="flex gap-2">
-          <select
-            aria-label="매매 종목"
-            value={selKey}
-            onChange={(e) => setSelKey(e.target.value)}
-            className="flex-1 bg-ink border border-border rounded-lg px-2.5 py-2 text-sm text-text min-w-0"
-          >
-            {options.map((o) => (
-              <option key={`${o.market}-${o.ticker}`} value={`${o.market}-${o.ticker}`}>
-                {o.short}
-              </option>
-            ))}
-          </select>
-          <div className="flex gap-1 bg-ink border border-border rounded-lg p-1 shrink-0">
+      <form onSubmit={add} className="form-panel space-y-3" noValidate>
+        <h3 className="section-label">기록 추가</h3>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 items-end">
+          <label className="field-label">
+            종목
+            <select className="field" value={selKey} onChange={(e) => setSelKey(e.target.value)}>
+              {options.map((o) => (
+                <option key={`${o.market}-${o.ticker}`} value={`${o.market}-${o.ticker}`}>
+                  {o.short} ({o.ticker})
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="segmented trade-side" role="group" aria-label="매매 구분">
             {(
               [
                 ['buy', '매수'],
                 ['sell', '매도'],
               ] as const
             ).map(([s, label]) => (
-              <button
-                key={s}
-                onClick={() => setSide(s)}
-                className={`px-3 min-h-[44px] rounded-md text-xs font-medium ${
-                  side === s ? (s === 'buy' ? 'bg-up/20 text-up' : 'bg-down/20 text-down') : 'text-muted'
-                }`}
-              >
+              <button type="button" key={s} onClick={() => setSide(s)} aria-pressed={side === s} className={`is-${s}`}>
                 {label}
               </button>
             ))}
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2 trade-inputs">
-          <input
-            aria-label="매매 수량"
-            value={qty}
-            onChange={(e) => setQty(e.target.value)}
-            inputMode="decimal"
-            placeholder="수량"
-            className="flex-1 bg-ink border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-accent min-w-0"
-          />
-          <input
-            aria-label="매매 가격"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            inputMode="decimal"
-            placeholder="가격"
-            className="flex-1 bg-ink border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-accent min-w-0"
-          />
-          <input
-            type="date"
-            aria-label="매매 날짜"
-            max={today()}
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="bg-ink border border-border rounded-lg px-2 py-2 text-xs text-text shrink-0"
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <label className="field-label">
+            수량 (주)
+            <input
+              className={`field ${qtyBad ? 'is-invalid' : ''}`}
+              aria-invalid={qtyBad}
+              value={qty}
+              onChange={(e) => setQty(e.target.value)}
+              inputMode="decimal"
+              placeholder="예: 10"
+            />
+          </label>
+          <label className="field-label">
+            1주당 가격 ({currency})
+            <input
+              className={`field ${priceBad ? 'is-invalid' : ''}`}
+              aria-invalid={priceBad}
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              inputMode="decimal"
+              placeholder={currency === 'KRW' ? '예: 231,000' : '예: 104.50'}
+            />
+          </label>
         </div>
-        <input
-          aria-label="매매 메모"
-          maxLength={2000}
-          value={memo}
-          onChange={(e) => setMemo(e.target.value)}
-          placeholder="메모 (선택) — 매수/매도 이유를 남겨두면 복기에 좋아요"
-          className="w-full bg-ink border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-accent"
-        />
-        <p className="text-label text-muted">매매 수량 · 1주당 가격 · 매매 날짜</p>
+        {positive(q) && positive(p) && selected && (
+          <p className="text-label text-muted tnum">
+            = {fmtPrice(p, selected.market)} × {q.toLocaleString('ko-KR')}주 · 합계 {fmtPrice(p * q, selected.market)}
+          </p>
+        )}
+        <div className="grid grid-cols-2 gap-3">
+          <label className="field-label">
+            매매 날짜
+            <input type="date" className="field" max={today()} value={date} onChange={(e) => setDate(e.target.value)} />
+          </label>
+          <label className="field-label">
+            메모 (선택)
+            <input
+              className="field"
+              maxLength={2000}
+              value={memo}
+              onChange={(e) => setMemo(e.target.value)}
+              placeholder="예: 실적 발표 전 분할 매수"
+            />
+          </label>
+        </div>
+        <button type="submit" className="button button-primary w-full">
+          기록하기
+        </button>
+        {error && (
+          <p role="alert" className="form-error">
+            {error}
+          </p>
+        )}
         {message && (
-          <p role="status" className="text-sm text-accent">
+          <p role="status" className="sheet-notice">
+            <Icon name="check" size={16} />
             {message}
           </p>
         )}
-        <button
-          onClick={add}
-          className="w-full bg-accent/15 border border-accent/50 text-accent rounded-lg min-h-[44px] text-sm font-medium active:bg-accent/25"
-        >
-          기록하기
-        </button>
-      </div>
+      </form>
 
-      {/* 기록 목록 */}
       {sorted.length === 0 ? (
-        <div className="text-muted text-sm text-center py-6">아직 기록이 없어요</div>
+        <p className="text-muted text-sm text-center py-6">아직 기록이 없어요</p>
       ) : (
-        <div className="bg-surface border border-border rounded-xl px-3.5 card-shadow">
-          {sorted.map((t) => (
-            <div key={t.id} className="py-2.5 border-b border-border last:border-0">
-              <div className="flex items-center gap-2">
-                <span
-                  className={`font-mono text-label px-1.5 py-0.5 rounded border shrink-0 ${
-                    t.side === 'buy' ? 'text-up border-up/40' : 'text-down border-down/40'
-                  }`}
-                >
+        <section>
+          <h3 className="section-label mb-2">기록 {sorted.length}건</h3>
+          <ul className="sheet-list">
+            {sorted.map((t) => (
+              <li key={t.id} className="sheet-list-row">
+                <span className={`trade-badge ${t.side === 'buy' ? 'text-up border-up/40' : 'text-down border-down/40'}`}>
                   {t.side === 'buy' ? '매수' : '매도'}
                 </span>
-                <span className="text-sm font-medium truncate flex-1">{t.name}</span>
-                <span className="font-mono text-xs tnum shrink-0">
-                  {t.qty}주 · {fmtPrice(t.price, t.market)}
-                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm font-medium truncate">{t.name}</span>
+                    <span className="font-mono text-xs tnum text-muted shrink-0 ml-auto">
+                      {t.qty.toLocaleString('ko-KR')}주 · {fmtPrice(t.price, t.market)}
+                    </span>
+                  </div>
+                  <div className="text-label text-muted">
+                    <span className="font-mono tnum">{t.date.replaceAll('-', '.')}</span>
+                    {' · '}합계 <span className="font-mono tnum">{fmtPrice(t.qty * t.price, t.market)}</span>
+                    {t.memo && <span> · {t.memo}</span>}
+                  </div>
+                </div>
                 <button
                   aria-label={`${t.name} 매매 기록 삭제`}
                   onClick={() => {
                     if (window.confirm(`${t.date} ${t.name} 매매 기록을 삭제할까요?`)) onRemove(t.id)
                   }}
-                  className="text-xs text-down px-1 min-w-[44px] min-h-[44px] shrink-0 active:opacity-70"
+                  className="icon-button danger-action"
                 >
-                  ×
+                  <Icon name="trash" size={18} />
                 </button>
-              </div>
-              <div className="font-mono text-label text-muted mt-0.5 pl-0.5">
-                {t.date}
-                {t.memo && <span className="text-muted/90 font-sans"> — {t.memo}</span>}
-              </div>
-            </div>
-          ))}
-        </div>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       <p className="text-label text-muted">
-        이 기록은 내 폰에만 저장돼요. 실현손익은 기록 기준 평균단가법 계산 — 참고용이에요.
+        기록은 이 브라우저에만 저장됩니다. 백업은 보유 관리의 전체 데이터 백업에서 할 수 있어요. 실현손익은 기록한
+        매매를 평균단가법으로 계산한 참고값이에요.
       </p>
     </Sheet>
   )

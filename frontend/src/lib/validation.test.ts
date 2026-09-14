@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { parseBackup, positive, validDate } from './validation.ts'
+import { parseAmount, parseBackup, positive, validDate } from './validation.ts'
 import { persist } from './storage.ts'
 const h = { ticker: '005930', name: '삼성전자', market: 'KR', kind: 'stock', qty: 10, avg: 100 }
 test('legacy backup remains readable without replacing missing trade history', () => {
@@ -67,4 +67,13 @@ test('failed multi-list storage restores earlier writes', () => {
   assert.equal(persist({ holdings: [h], 'trades-v1': [] }, storage), false)
   assert.equal(data.get('holdings'), 'original')
   assert.equal(data.get('trades-v1'), 'journal')
+})
+test('amounts typed in the display format are read as numbers', () => {
+  assert.equal(parseAmount('231,000'), 231000)
+  assert.equal(parseAmount('231,000원'), 231000)
+  assert.equal(parseAmount('$1,250.50'), 1250.5)
+  assert.equal(parseAmount(' 10 주 '), 10)
+  assert.ok(Number.isNaN(parseAmount('')))
+  assert.ok(Number.isNaN(parseAmount('12a')))
+  assert.ok(!positive(parseAmount('-5')))
 })

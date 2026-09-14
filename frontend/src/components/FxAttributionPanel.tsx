@@ -39,7 +39,7 @@ export default function FxAttributionPanel({
   )
 
   return (
-    <Panel label="💱 원화 수익, 얼마가 환율이었나">
+    <Panel label="원화 수익, 얼마가 환율이었나">
       <p className="text-label text-muted leading-relaxed mb-2">
         미국 자산이라 원화 수익엔 주가와 환율이 섞여 있어요. 최근 {data.days}거래일 · 환율{' '}
         {Math.round(data.fxStart ?? 0).toLocaleString()}원 →{' '}

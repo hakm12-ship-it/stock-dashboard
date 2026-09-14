@@ -1,25 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
 import { getIndex } from '../lib/api'
 import { fmtNum, fmtChange, changeColor } from '../lib/format'
-import { marketStatus } from '../lib/market'
-import type { Market } from '../data/tickers'
 
-function IndexItem({ name, market }: { name: string; market: Market }) {
+// 장 상태는 홈의 시장 요약 줄(MarketSession)이 글자로 보여준다.
+function IndexItem({ name, label }: { name: string; label: string }) {
   const { data, isError, refetch } = useQuery({ queryKey: ['index', name], queryFn: () => getIndex(name) })
-  const st = marketStatus(market)
   return (
     <div className="flex-1 min-w-0 bg-surface border border-border rounded-lg px-2.5 py-2 card-shadow">
-      <div className="flex items-center justify-between gap-1">
-        <span className="text-label uppercase tracking-[0.05em] text-muted truncate">{name}</span>
-        <span
-          className={`h-1.5 w-1.5 rounded-full shrink-0 ${st.open ? 'bg-accent animate-pulse' : 'bg-muted/50'}`}
-          title={st.label}
-        />
-      </div>
+      <span className="text-label text-muted truncate block">{label}</span>
       {data ? (
         <div className="min-w-0">
           <div className="font-mono font-semibold tnum text-caption leading-tight truncate">
-            {fmtNum(data.last, data.last >= 10000 ? 0 : 2)}
+            {fmtNum(data.last, 2)}
           </div>
           <div className={`font-mono text-label ${changeColor(data.change)}`}>
             {fmtChange(data.changePct, data.change)}
@@ -29,7 +21,7 @@ function IndexItem({ name, market }: { name: string; market: Market }) {
         <button
           className="text-label text-muted min-h-[44px]"
           onClick={() => refetch()}
-          aria-label={`${name} 다시 조회`}
+          aria-label={`${label} 다시 조회`}
         >
           조회 실패 · 재시도
         </button>
@@ -43,9 +35,9 @@ function IndexItem({ name, market }: { name: string; market: Market }) {
 export default function IndexStrip() {
   return (
     <div className="flex gap-2">
-      <IndexItem name="KOSPI" market="KR" />
-      <IndexItem name="KOSDAQ" market="KR" />
-      <IndexItem name="NASDAQ" market="US" />
+      <IndexItem name="KOSPI" label="코스피" />
+      <IndexItem name="KOSDAQ" label="코스닥" />
+      <IndexItem name="NASDAQ" label="나스닥" />
     </div>
   )
 }

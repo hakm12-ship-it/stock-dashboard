@@ -2,7 +2,7 @@ import { lazy, Suspense, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getPrices } from '../lib/api'
 import type { Holding } from '../lib/holdings'
-import { changeColor, fmtChange, fmtPrice } from '../lib/format'
+import { changeColor, fmtPct, fmtPrice, fmtSignedPrice } from '../lib/format'
 
 // 계산기는 열어봐야 필요한 화면이라 초기 번들에 넣지 않는다.
 const AverageBuySheet = lazy(() => import('./AverageBuySheet'))
@@ -22,22 +22,24 @@ export default function AverageBuyCard({ holding }: { holding: Holding }) {
 
   return (
     <>
-      <div className="bg-surface border border-border rounded-xl px-4 py-3 card-shadow flex items-center gap-3">
-        <div className="min-w-0 flex-1">
+      <div className="bg-surface border border-border rounded-xl px-4 py-3 card-shadow flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="min-w-[8.5rem] flex-1">
           <div className="text-label text-muted">내 보유</div>
-          <div className="font-mono text-caption tnum truncate">
-            {holding.qty.toLocaleString()}주 · 평단 {fmtPrice(holding.avg, holding.market)}
+          <div className="font-mono text-caption tnum flex flex-wrap gap-x-2">
+            <span className="whitespace-nowrap">{holding.qty.toLocaleString('ko-KR')}주</span>
+            <span className="whitespace-nowrap">평단 {fmtPrice(holding.avg, holding.market)}</span>
           </div>
-          <div className={`font-mono text-label ${changeColor(pl)}`}>
-            {last != null
-              ? `${fmtChange(cost ? (pl / cost) * 100 : 0, pl)} (${fmtPrice(Math.abs(pl), holding.market)})`
-              : '시세 조회 전 · 평가 대기'}
-          </div>
+          {last != null ? (
+            <div className={`font-mono text-label tnum flex flex-wrap gap-x-1.5 ${changeColor(pl)}`}>
+              <span className="text-muted font-sans">평가손익</span>
+              <span className="whitespace-nowrap">{fmtSignedPrice(pl, holding.market)}</span>
+              <span className="whitespace-nowrap">({fmtPct(cost ? (pl / cost) * 100 : 0)})</span>
+            </div>
+          ) : (
+            <div className="text-label text-muted">시세 조회 전 · 평가 대기</div>
+          )}
         </div>
-        <button
-          onClick={() => setOpen(true)}
-          className="shrink-0 min-h-[44px] px-3 rounded-lg border border-border text-label text-text active:border-accent"
-        >
+        <button onClick={() => setOpen(true)} className="button button-quiet shrink-0 px-3">
           추가 매수 계산
         </button>
       </div>

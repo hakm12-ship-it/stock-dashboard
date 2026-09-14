@@ -2,7 +2,7 @@ import { lazy, Suspense, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getPrices, getIndex, getProfile, getNightPrice, getSynthPrice, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
-import { fmtQuote, fmtChange, changeColor, changeSign } from '../lib/format'
+import { fmtQuote, fmtChange, fmtPrice, changeColor, changeSign } from '../lib/format'
 import { marketStatus } from '../lib/market'
 import { pickQuote } from '../lib/quote'
 import { ChartFallback } from './ui'
@@ -83,83 +83,96 @@ export default function StockHeader({
     }
   }
 
+  const st = marketStatus(t.market)
+  const lastTime = (isIndex ? idx.data?.series.at(-1)?.time : undefined) ?? prices.data?.at(-1)?.time
+  const sessionText = st.open
+    ? `${st.label} · 지연 시세`
+    : `${st.label}${lastTime ? ` · ${lastTime.slice(5, 10).replace('-', '.')} 종가` : ''}`
+
   return (
-    <div className="pt-1 pb-3 border-b border-border">
-      <div className="flex items-center gap-2 flex-wrap">
-        {logo && (
-          <img
-            src={logo}
-            alt=""
-            className="h-6 w-6 rounded-full border border-border bg-surface object-contain"
-            onError={(e) => {
-              ;(e.target as HTMLImageElement).style.display = 'none'
-            }}
-          />
-        )}
-        <span className="text-lg font-bold tracking-tight">{t.name}</span>
-        <span className="font-mono text-xs text-muted border border-border rounded px-1.5 py-0.5">
-          {t.ticker} · {t.market}
-        </span>
-        {t.kind === 'etf' && (
-          <span className="font-mono text-label text-accent border border-accent/40 rounded px-1.5 py-0.5">
-            {t.lev ? `${t.lev} ETF` : 'ETF'}
-          </span>
-        )}
-        {t.kind === 'index' && (
-          <span className="font-mono text-label text-muted border border-border rounded px-1.5 py-0.5">
-            지수
-          </span>
-        )}
-        {(() => {
-          const st = marketStatus(t.market)
-          return (
-            <span className={`flex items-center gap-1 text-label ${st.open ? 'text-accent' : 'text-muted'}`}>
+    <div className="stock-header">
+      <div className="stock-title-row">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            {logo && (
+              <img
+                src={logo}
+                alt=""
+                className="h-6 w-6 rounded-full border border-border bg-surface object-contain shrink-0"
+                onError={(e) => {
+                  ;(e.target as HTMLImageElement).style.display = 'none'
+                }}
+              />
+            )}
+            <h2 className="stock-name">{t.name}</h2>
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap mt-1">
+            <span className="stock-chip font-mono">
+              {t.ticker} · {t.market}
+            </span>
+            {t.kind === 'etf' && <span className="stock-chip">{t.lev ? `${t.lev} ETF` : 'ETF'}</span>}
+            {t.kind === 'index' && <span className="stock-chip">지수</span>}
+            <span className={`flex items-center gap-1 text-label whitespace-nowrap ${st.open ? 'text-accent' : 'text-muted'}`}>
               <span
                 className={`h-1.5 w-1.5 rounded-full ${st.open ? 'bg-accent animate-pulse' : 'bg-muted'}`}
+                aria-hidden="true"
               />
-              {st.label}
+              {sessionText}
             </span>
-          )
-        })()}
-        <button onClick={share} aria-label="공유" className="icon-button ml-auto">
+          </div>
+        </div>
+        <button onClick={share} aria-label={copied ? '링크 복사됨' : '공유'} className="icon-button shrink-0 -mr-2">
           {copied ? (
-            <span className="text-label text-accent">복사됨</span>
+            <span className="text-label text-accent" role="status">
+              복사됨
+            </span>
           ) : (
             <svg
               viewBox="0 0 24 24"
-              width="17"
-              height="17"
+              width="18"
+              height="18"
               fill="none"
               stroke="currentColor"
               strokeWidth="1.7"
               strokeLinecap="round"
               strokeLinejoin="round"
+              aria-hidden="true"
             >
               <path d="M12 3v12M8 7l4-4 4 4M5 12v8h14v-8" />
             </svg>
           )}
         </button>
       </div>
-      <div className="flex items-baseline flex-wrap gap-3 mt-2">
-        <span className="font-mono text-3xl font-semibold tnum tracking-tight">{fmtQuote(priceVal, t)}</span>
+      <div className="flex items-baseline flex-wrap gap-x-3 gap-y-1 mt-3">
+        <span className="font-mono text-3xl font-semibold tnum tracking-tight whitespace-nowrap">
+          {fmtQuote(priceVal, t)}
+        </span>
         {hasChange && (
-          <span className={`font-mono text-sm font-semibold ${changeColor(chg)}`}>{fmtChange(pct, chg)}</span>
+          <span className={`font-mono text-sm font-semibold tnum whitespace-nowrap ${changeColor(chg)}`}>
+            {fmtChange(pct, chg)}
+          </span>
         )}
       </div>
       {nightEnabled && night.data?.available && (
-        <div className="flex items-baseline gap-2 mt-1">
-          <span className="text-label text-muted">{nightLabel(t)}(perp)</span>
-          <span className="font-mono text-sm font-medium tnum">
-            ₩{Math.round(night.data.krw ?? 0).toLocaleString()}
+        <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-1.5">
+          <span
+            className="text-label text-muted whitespace-nowrap"
+            title="장 마감 뒤 해외 거래소의 무기한 선물 가격을 원화로 환산한 값"
+          >
+            {nightLabel(t)} 시세
           </span>
-          <span className={`font-mono text-label ${changeColor(night.data.gapPct ?? 0)}`}>
+          <span className="font-mono text-sm font-medium tnum whitespace-nowrap">
+            {fmtPrice(night.data.krw ?? 0, 'KR')}
+          </span>
+          <span className={`font-mono text-label tnum whitespace-nowrap ${changeColor(night.data.gapPct ?? 0)}`}>
             {fmtChange(night.data.gapPct ?? 0)}
           </span>
           <button
             onClick={() => setShowNightChart((v) => !v)}
-            className="relative ml-auto text-label text-muted px-2 py-0.5 rounded border border-border before:absolute before:-inset-4 before:content-['']"
+            aria-expanded={showNightChart}
+            className="text-action ml-auto whitespace-nowrap"
           >
-            {showNightChart ? '차트 닫기' : '차트 보기'}
+            {showNightChart ? '야간 차트 닫기' : '야간 차트'}
           </button>
         </div>
       )}
@@ -179,7 +192,7 @@ export default function StockHeader({
             {(synth.data.underlyingPct ?? 0).toFixed(2)}% × {synth.data.leverage}배로 계산 · 기준 정규장 종가{' '}
             {fmtQuote(synth.data.lastClose, t)}
           </div>
-          <div className="text-label text-muted/70 mt-0.5">
+          <div className="text-label text-muted mt-0.5">
             실제 체결가가 아니라 추정치예요 · 기초자산 흔들림이 {synth.data.leverage}배로 커져요
           </div>
         </div>

@@ -3,7 +3,8 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getGroups, getGroupStocks } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
-import { changeColor, changeSign } from '../lib/format'
+import { changeColor, changeSign, fmtPrice } from '../lib/format'
+import Icon from './Icon'
 
 type Kind = 'industry' | 'theme'
 
@@ -40,30 +41,31 @@ function GroupStocks({
               }
               className="min-w-0 flex-1 self-stretch text-left"
             >
-              <span className="block text-xs font-medium truncate">
-                {s.name}
-                {added && <span className="text-muted text-label ml-1">›</span>}
+              <span className="block text-sm font-medium truncate">
+                {s.name} <span className="text-muted" aria-hidden="true">›</span>
               </span>
             </button>
             <span className="font-mono text-xs tnum shrink-0">
-              {s.price != null ? `${Math.round(s.price).toLocaleString()}원` : '—'}
+              {fmtPrice(s.price, 'KR')}
             </span>
             <span
               className={`font-mono text-label w-14 text-right shrink-0 ${s.changePct != null ? changeColor(s.changePct) : 'text-muted'}`}
             >
               {s.changePct != null ? `${changeSign(s.changePct)}${Math.abs(s.changePct).toFixed(1)}%` : '—'}
             </span>
-            <button
-              disabled={added}
-              onClick={() =>
-                onAdd({ ticker: s.ticker, name: s.name, short: s.name, market: 'KR', kind: 'stock' })
-              }
-              className={`shrink-0 text-label px-1.5 min-w-[44px] min-h-[44px] rounded border ${
-                added ? 'text-muted border-border' : 'text-text border-border active:border-accent'
-              }`}
-            >
-              {added ? '✓' : '+'}
-            </button>
+            {added ? (
+              <span className="add-state" aria-label={`${s.name} 관심종목에 있음`}>
+                <Icon name="check" size={14} />
+              </span>
+            ) : (
+              <button
+                onClick={() => onAdd({ ticker: s.ticker, name: s.name, short: s.name, market: 'KR', kind: 'stock' })}
+                aria-label={`${s.name} 관심종목에 담기`}
+                className="add-button"
+              >
+                <Icon name="plus" size={14} /> 담기
+              </button>
+            )}
           </div>
         )
       })}
@@ -93,10 +95,10 @@ export default function GroupsPanel({
   return (
     <section className="bg-surface border border-border rounded-xl p-4 card-shadow">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-label font-semibold uppercase tracking-[0.08em] text-muted">
+        <span className="panel-title">
           업종·테마 시세
         </span>
-        <div className="flex gap-1">
+        <div className="segmented" role="group" aria-label="분류">
           {(
             [
               ['industry', '업종'],
@@ -105,13 +107,11 @@ export default function GroupsPanel({
           ).map(([k, label]) => (
             <button
               key={k}
+              aria-pressed={kind === k}
               onClick={() => {
                 setKind(k)
                 setOpenNo(null)
               }}
-              className={`text-label px-2 min-w-[44px] min-h-[44px] rounded-md ${
-                kind === k ? 'bg-surface-2 text-text' : 'text-muted'
-              }`}
             >
               {label}
             </button>
@@ -131,11 +131,13 @@ export default function GroupsPanel({
             <div key={g.no} className="border-b border-border last:border-0">
               <button
                 onClick={() => setOpenNo(openNo === g.no ? null : g.no)}
+                aria-expanded={openNo === g.no}
+                aria-label={`${g.name} 등락률 ${changeSign(g.changeRate)} ${Math.abs(g.changeRate).toFixed(2)}%, 상승 ${g.rise}종목 하락 ${g.fall}종목`}
                 className="w-full flex items-center gap-2 min-h-[44px] text-left"
               >
                 <span className="text-sm font-medium flex-1 truncate">{g.name}</span>
-                <span className="font-mono text-label text-muted shrink-0">
-                  <span className="text-up">▲{g.rise}</span> <span className="text-down">▼{g.fall}</span>
+                <span className="text-label text-muted shrink-0 whitespace-nowrap">
+                  상승 <span className="font-mono tnum">{g.rise}</span> · 하락 <span className="font-mono tnum">{g.fall}</span>
                 </span>
                 <span
                   className={`font-mono text-sm tnum w-16 text-right shrink-0 ${changeColor(g.changeRate)}`}
@@ -154,7 +156,7 @@ export default function GroupsPanel({
               )}
             </div>
           ))}
-          <p className="text-label text-muted mt-2">등락률 상위 순 · 탭하면 구성 종목 · 장중에 갱신돼요</p>
+          <p className="text-label text-muted mt-2">등락률 상위 순 · 누르면 구성 종목이 펼쳐져요 · 장중에 갱신돼요</p>
         </div>
       )}
     </section>

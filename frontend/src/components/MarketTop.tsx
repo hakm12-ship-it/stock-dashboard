@@ -3,7 +3,8 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getMarketTop } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
-import { changeColor, fmtChange } from '../lib/format'
+import { changeColor, fmtChange, fmtPrice } from '../lib/format'
+import Icon from './Icon'
 
 type Dir = 'up' | 'down'
 type Mkt = 'KOSPI' | 'KOSDAQ' | 'NASDAQ' | 'CRYPTO'
@@ -40,38 +41,26 @@ export default function MarketTop({
   return (
     <section className="bg-surface border border-border rounded-xl p-4 card-shadow">
       <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-        <span className="text-label font-semibold uppercase tracking-[0.08em] text-muted">
-          오늘의 시장 TOP
+        <span className="panel-title">
+          등락률 상위
         </span>
-        <div className="flex gap-0.5">
+        <div className="segmented" role="group" aria-label="시장">
           {MKTS.map((m) => (
-            <button
-              key={m}
-              onClick={() => setMkt(m)}
-              className={`font-mono text-label px-1 min-w-[44px] min-h-[44px] rounded ${
-                mkt === m ? 'bg-surface-2 text-text' : 'text-muted/70'
-              }`}
-            >
-              {m === 'NASDAQ' ? 'NAS' : m === 'KOSPI' ? '코스피' : m === 'KOSDAQ' ? '코스닥' : '코인'}
+            <button key={m} onClick={() => setMkt(m)} aria-pressed={mkt === m}>
+              {m === 'NASDAQ' ? '나스닥' : m === 'KOSPI' ? '코스피' : m === 'KOSDAQ' ? '코스닥' : '코인'}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="flex gap-1 bg-ink/40 border border-border rounded-lg p-1 mb-3">
+      <div className="segmented segmented--block mb-3" role="group" aria-label="방향">
         {(
           [
-            ['up', '🔺 급등'],
-            ['down', '🔻 급락'],
+            ['up', '▲ 급등'],
+            ['down', '▼ 급락'],
           ] as [Dir, string][]
         ).map(([d, label]) => (
-          <button
-            key={d}
-            onClick={() => setDir(d)}
-            className={`flex-1 min-h-[44px] rounded-md text-xs font-medium transition-colors ${
-              d === dir ? 'bg-surface-2 text-text' : 'text-muted'
-            }`}
-          >
+          <button key={d} onClick={() => setDir(d)} aria-pressed={d === dir} className={d === 'up' ? 'is-up' : 'is-down'}>
             {label}
           </button>
         ))}
@@ -107,8 +96,7 @@ export default function MarketTop({
                   className="min-w-0 flex-1 self-stretch text-left"
                 >
                   <div className="text-sm font-medium truncate">
-                    {s.name}
-                    {added && <span className="text-muted text-label ml-1">›</span>}
+                    {s.name} {!isCrypto && <span className="text-muted" aria-hidden="true">›</span>}
                   </div>
                   <div className="font-mono text-label text-muted">{s.ticker}</div>
                 </button>
@@ -118,9 +106,7 @@ export default function MarketTop({
                       ? '—'
                       : isCrypto
                         ? fmtCoin(s.price)
-                        : mktKr
-                          ? `${Math.round(s.price).toLocaleString()}원`
-                          : `$${s.price.toFixed(2)}`}
+                        : fmtPrice(s.price, mktKr ? 'KR' : 'US')}
                   </div>
                   <div
                     className={`font-mono text-label ${s.changePct != null ? changeColor(s.changePct) : 'text-muted'}`}
@@ -128,9 +114,10 @@ export default function MarketTop({
                     {s.changePct != null ? fmtChange(s.changePct) : '—'}
                   </div>
                 </div>
-                {!isCrypto && (
+                {!isCrypto && added && <span className="add-state">관심 종목</span>}
+                {!isCrypto && !added && (
                   <button
-                    disabled={added}
+                    aria-label={`${s.name} 관심종목에 담기`}
                     onClick={() =>
                       onAdd({
                         ticker: s.ticker,
@@ -140,11 +127,9 @@ export default function MarketTop({
                         kind: 'stock',
                       })
                     }
-                    className={`shrink-0 text-label px-2 min-w-[44px] min-h-[44px] rounded-md border ${
-                      added ? 'text-muted border-border' : 'text-text border-border active:border-accent'
-                    }`}
+                    className="add-button"
                   >
-                    {added ? '추가됨' : '+담기'}
+                    <Icon name="plus" size={14} /> 담기
                   </button>
                 )}
               </div>
@@ -153,7 +138,7 @@ export default function MarketTop({
           <p className="text-label text-muted mt-2">
             {isCrypto
               ? '업비트 KRW 마켓 · 24시간 등락 기준 · 참고용 · 투자 조언 아님'
-              : '급등락 상위는 변동성이 매우 큰 종목이에요 — 참고용 · 투자 조언 아님'}
+              : '급등락 상위는 변동성이 매우 큰 종목이에요 · 이름을 누르면 분석을 열어요'}
           </p>
         </div>
       )}

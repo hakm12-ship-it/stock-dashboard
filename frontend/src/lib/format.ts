@@ -1,8 +1,11 @@
 import type { Market, FocusTicker } from '../data/tickers'
 
+const usd = (v: number): string =>
+  `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
 export const fmtPrice = (v: number | null | undefined, market: Market): string => {
   if (v == null) return '—'
-  return market === 'KR' ? `${Math.round(v).toLocaleString()}원` : `$${v.toFixed(2)}`
+  return market === 'KR' ? `${Math.round(v).toLocaleString('ko-KR')}원` : usd(v)
 }
 
 // 지수는 통화 단위 없이 포인트로, 그 외는 통화 붙여서
@@ -17,8 +20,16 @@ export const fmtNum = (v: number | null | undefined, d = 2): string =>
     ? '—'
     : v.toLocaleString(undefined, { maximumFractionDigits: d, minimumFractionDigits: d })
 
-export const fmtPct = (v: number | null | undefined): string =>
-  v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`
+/**
+ * 부호를 붙인 비율 (예: "+4.95%", "−7.08%"). 매수가 대비 손익·기간 수익률처럼
+ * '기준점 대비' 값에 쓴다. 전일 대비는 fmtChange의 ▲/▼로 구분한다.
+ */
+export const fmtPct = (v: number | null | undefined, d = 2): string =>
+  v == null ? '—' : `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(d)}%`
+
+/** 부호를 붙인 금액 (예: "+1,148,420원", "−$120.50"). */
+export const fmtSignedPrice = (v: number | null | undefined, market: Market): string =>
+  v == null ? '—' : `${v >= 0 ? '+' : '−'}${fmtPrice(Math.abs(v), market)}`
 
 export const fmtCap = (v: number | null | undefined, market: Market): string => {
   if (v == null) return '—'
@@ -29,13 +40,13 @@ export const fmtCap = (v: number | null | undefined, market: Market): string => 
   }
   const jo = v / 1e12
   return jo >= 1
-    ? `${jo.toLocaleString(undefined, { maximumFractionDigits: 1 })}조`
+    ? `${jo.toLocaleString('ko-KR', { maximumFractionDigits: jo >= 100 ? 0 : 1 })}조`
     : `${Math.round(v / 1e8).toLocaleString()}억`
 }
 
 export const fmtEps = (v: number | null | undefined, market: Market): string => {
   if (v == null) return '—'
-  return market === 'KR' ? `${Math.round(v).toLocaleString()}원` : `$${v.toFixed(2)}`
+  return fmtPrice(v, market)
 }
 
 // 상승=빨강 / 하락=파랑 (KR 관례) 클래스
@@ -49,4 +60,16 @@ export const changeSign = (v: number): string => (v >= 0 ? '▲' : '▼')
 export const fmtChange = (pct: number | null | undefined, dir?: number): string => {
   if (pct == null) return '—'
   return `${changeSign(dir ?? pct)} ${Math.abs(pct).toFixed(2)}%`
+}
+
+/**
+ * 받침에 맞춰 조사를 붙인다 (예: josa('나스닥', '은', '는') → '나스닥은').
+ * 한글로 끝나지 않으면(영문 티커 등) '은(는)'처럼 둘 다 적는다.
+ */
+export const josa = (word: string, withBatchim: string, withoutBatchim: string): string => {
+  const code = word.trim().charCodeAt(word.trim().length - 1)
+  if (code >= 0xac00 && code <= 0xd7a3) {
+    return `${word}${(code - 0xac00) % 28 ? withBatchim : withoutBatchim}`
+  }
+  return `${word}${withBatchim}(${withoutBatchim})`
 }

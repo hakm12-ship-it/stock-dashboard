@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { getLeverageDecay, type Period } from '../lib/api'
 import { Panel } from './ui'
-import { changeColor } from '../lib/format'
+import { changeColor, josa } from '../lib/format'
 
 const pct = (v?: number) => `${(v ?? 0) >= 0 ? '+' : ''}${(v ?? 0).toFixed(1)}%`
 
@@ -37,9 +37,9 @@ export default function LeverageDecayPanel({ ticker, period }: { ticker: string;
   const worseThanUnleveraged = und > 0 && actual < und
 
   return (
-    <Panel label={`⚠️ 레버리지 감쇠 · ${data.leverage}배 상품`}>
+    <Panel label={`레버리지 감쇠 · ${data.leverage}배 상품`}>
       <p className="text-label text-muted leading-relaxed mb-3">
-        {data.underlyingName}을 {data.leverage}배로 따라가는 상품이에요. 매일 재조정돼서, 기초자산이
+        {josa(data.underlyingName ?? '기초자산', '을', '를')} {data.leverage}배로 따라가는 상품이에요. 매일 재조정돼서, 기초자산이
         출렁일수록 기대보다 덜 벌어요. (최근 {data.days}거래일 · 기초 변동성{' '}
         {(data.underlyingVol ?? 0).toFixed(0)}%)
       </p>

@@ -1,8 +1,8 @@
-import { lazy, Suspense, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getPrices, getValuation, getSignal, type Period, type Candle } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
-import { fmtQuote, fmtNum, changeColor } from '../lib/format'
+import { fmtQuote, fmtNum, fmtPct, changeColor } from '../lib/format'
 import { loadSignalConfig, cfgKey, cfgParams } from '../lib/signalConfig'
 import { ChartFallback, Sheet, Loading, ErrorState, Empty } from './ui'
 
@@ -11,8 +11,8 @@ const CompareChart = lazy(() => import('./CompareChart'))
 
 const PERIODS: Period[] = ['1m', '3m', '6m', '1y']
 const LABEL: Record<Period, string> = { '1m': '1개월', '3m': '3개월', '6m': '6개월', '1y': '1년' }
-const CA = '#249D83'
-const CB = '#3B82F6'
+// 종목 구분색은 상승·하락 색(빨강·파랑)과 겹치지 않게 청록·호박색으로 둔다.
+const colorsFor = (light: boolean) => (light ? ['#11705B', '#9A6400'] : ['#75D2BC', '#E0A33A'])
 
 function useTickerData(t: FocusTicker | undefined, period: Period) {
   const prices = useQuery({
@@ -61,27 +61,36 @@ export default function ComparisonSheet({
   const da = useTickerData(a, period)
   const db = useTickerData(b, period)
 
-  const series = [
-    { name: a?.short ?? '', color: CA, data: normalized(da.prices.data) },
-    { name: b?.short ?? '', color: CB, data: normalized(db.prices.data) },
-  ]
+  const [CA, CB] = colorsFor(light)
+  const series = useMemo(
+    () => [
+      { name: a?.short ?? '', color: CA, data: normalized(da.prices.data) },
+      { name: b?.short ?? '', color: CB, data: normalized(db.prices.data) },
+    ],
+    [a?.short, b?.short, CA, CB, da.prices.data, db.prices.data],
+  )
 
   const priceStr = (d: typeof da, t?: FocusTicker) => {
     const last = d.prices.data?.at(-1)?.close
     return last != null && t ? fmtQuote(last, t) : '—'
   }
   const retVal = (d: typeof da) => periodReturn(d.prices.data)
-  const retStr = (r: number | null) => (r == null ? '—' : `${r >= 0 ? '+' : ''}${r.toFixed(2)}%`)
+  const retStr = (r: number | null) => fmtPct(r)
 
-  const Select = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
-    <select
-      aria-label={value === aKey ? '첫 번째 비교 종목' : '두 번째 비교 종목'}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-ink border border-border rounded-lg px-2.5 py-2 text-sm text-text"
-    >
+  const Select = ({
+    value,
+    other,
+    label,
+    onChange,
+  }: {
+    value: string
+    other: string
+    label: string
+    onChange: (v: string) => void
+  }) => (
+    <select aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} className="field compare-select">
       {tickers.map((t) => (
-        <option key={key(t)} value={key(t)}>
+        <option key={key(t)} value={key(t)} disabled={key(t) === other}>
           {t.short}
         </option>
       ))}
@@ -101,23 +110,17 @@ export default function ComparisonSheet({
     <Sheet title="종목 비교" onClose={onClose}>
       {/* 종목 선택 */}
       <div className="flex items-center gap-2">
-        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: CA }} />
-        <Select value={aKey} onChange={setAKey} />
-        <span className="text-muted text-xs">vs</span>
-        <Select value={bKey} onChange={setBKey} />
-        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: CB }} />
+        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: CA }} aria-hidden="true" />
+        <Select value={aKey} other={bKey} label="첫 번째 비교 종목" onChange={setAKey} />
+        <span className="text-muted text-xs shrink-0 whitespace-nowrap">대</span>
+        <Select value={bKey} other={aKey} label="두 번째 비교 종목" onChange={setBKey} />
+        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: CB }} aria-hidden="true" />
       </div>
 
       {/* 기간 */}
-      <div className="flex gap-1 bg-surface border border-border rounded-lg p-1">
+      <div className="segmented segmented--block" role="group" aria-label="비교 기간">
         {PERIODS.map((p) => (
-          <button
-            key={p}
-            onClick={() => setPeriod(p)}
-            className={`flex-1 min-h-[44px] rounded-md text-xs font-medium ${
-              p === period ? 'bg-surface-2 text-text' : 'text-muted'
-            }`}
-          >
+          <button key={p} onClick={() => setPeriod(p)} aria-pressed={p === period}>
             {LABEL[p]}
           </button>
         ))}
@@ -148,12 +151,14 @@ export default function ComparisonSheet({
       <div className="bg-surface border border-border rounded-xl px-4 py-2 card-shadow">
         <table className="w-full text-sm table-fixed">
           <thead>
-            <tr className="text-label text-muted uppercase tracking-wide">
+            <tr className="text-label text-muted">
               <th className="text-left font-medium py-2">지표</th>
-              <th className="text-right font-medium" style={{ color: CA }}>
+              <th className="text-right font-medium text-text">
+                <span className="inline-block h-2 w-2 rounded-full mr-1.5" style={{ backgroundColor: CA }} aria-hidden="true" />
                 {a?.short}
               </th>
-              <th className="text-right font-medium" style={{ color: CB }}>
+              <th className="text-right font-medium text-text">
+                <span className="inline-block h-2 w-2 rounded-full mr-1.5" style={{ backgroundColor: CB }} aria-hidden="true" />
                 {b?.short}
               </th>
             </tr>

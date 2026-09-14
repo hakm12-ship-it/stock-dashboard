@@ -20,6 +20,7 @@ import { Panel, Loading, Empty, ErrorState, Metric, Sheet } from '../components/
 
 const RELATED_INSIGHT_TICKERS = new Set(['005930', '000660'])
 import { fmtQuote, fmtNum, fmtPct } from '../lib/format'
+import Icon from '../components/Icon'
 
 const VERDICT_STYLE: Record<string, string> = {
   '매수 우위': 'bg-up/15 border-up/50 text-up',
@@ -55,10 +56,11 @@ function ConfigSheet({
   return (
     <Sheet title="신호 규칙 설정" onClose={onClose}>
       <p className="text-label text-muted mb-4">
-        종합신호·과거성과(백테스트)에 함께 적용돼요. 판정 문턱은 최대점수의 40%로 자동 조정.
+        종합 신호와 과거 성과 계산에 함께 적용돼요. 지표를 끄거나 비중을 2배로 올릴 수 있고, 매수·매도 우위
+        판정 기준은 최대 점수의 40%로 자동으로 맞춰져요.
       </p>
 
-      <div className="text-label font-semibold uppercase tracking-[0.07em] text-muted mb-2">지표 가중치</div>
+      <div className="section-label mb-2">지표 가중치</div>
       <div className="space-y-2 mb-4">
         {IND_LABELS.map(([k, label]) => (
           <div key={k} className="flex items-center justify-between gap-2">
@@ -70,11 +72,9 @@ function ConfigSheet({
                   aria-label={`${label} ${v}배`}
                   aria-pressed={draft.w[k] === v}
                   onClick={() => setW(k, v)}
-                  className={`font-mono text-xs px-3 py-1.5 rounded-md border transition-colors ${
-                    draft.w[k] === v ? 'bg-surface-2 border-border text-text' : 'border-border text-muted'
-                  }`}
+                  className={`choice-button ${draft.w[k] === v ? 'is-selected' : ''}`}
                 >
-                  {v === 0 ? '끔' : `${v}×`}
+                  {v === 0 ? '끔' : v === 1 ? '보통' : '2배'}
                 </button>
               ))}
             </div>
@@ -82,14 +82,14 @@ function ConfigSheet({
         ))}
       </div>
 
-      <div className="text-label font-semibold uppercase tracking-[0.07em] text-muted mb-2">RSI 기준값</div>
+      <div className="section-label mb-2">RSI 기준값</div>
       <div className="flex gap-3 mb-5">
-        <label className="flex-1 text-xs text-muted">
+        <label className="flex-1 field-label">
           과매도 (반등 기대)
           <select
             value={draft.rsiLow}
             onChange={(e) => setDraft((d) => ({ ...d, rsiLow: Number(e.target.value) }))}
-            className="w-full mt-1 bg-ink border border-border rounded-lg px-2 py-2 text-sm text-text"
+            className="field"
           >
             {[20, 25, 30, 35, 40].map((v) => (
               <option key={v} value={v}>
@@ -98,12 +98,12 @@ function ConfigSheet({
             ))}
           </select>
         </label>
-        <label className="flex-1 text-xs text-muted">
+        <label className="flex-1 field-label">
           과매수 (과열)
           <select
             value={draft.rsiHigh}
             onChange={(e) => setDraft((d) => ({ ...d, rsiHigh: Number(e.target.value) }))}
-            className="w-full mt-1 bg-ink border border-border rounded-lg px-2 py-2 text-sm text-text"
+            className="field"
           >
             {[60, 65, 70, 75, 80].map((v) => (
               <option key={v} value={v}>
@@ -115,10 +115,7 @@ function ConfigSheet({
       </div>
 
       <div className="flex gap-2">
-        <button
-          onClick={() => setDraft(DEFAULT_SIGNAL_CONFIG)}
-          className="flex-1 border border-border rounded-xl py-2.5 text-sm text-muted active:bg-surface-2"
-        >
+        <button onClick={() => setDraft(DEFAULT_SIGNAL_CONFIG)} className="button button-quiet flex-1">
           기본값으로
         </button>
         <button
@@ -126,7 +123,7 @@ function ConfigSheet({
             onApply(draft)
             onClose()
           }}
-          className="flex-[2] bg-accent/15 border border-accent/50 text-accent rounded-xl py-2.5 text-sm font-semibold active:bg-accent/25"
+          className="button button-primary flex-[2]"
         >
           적용
         </button>
@@ -139,7 +136,7 @@ function PerfBox({ label, perf, horizon }: { label: string; perf: SignalPerf | n
   if (!perf) {
     return (
       <div className="bg-surface-2/60 border border-border rounded-lg p-3">
-        <div className="text-label font-semibold uppercase tracking-[0.06em] text-muted">{label}</div>
+        <div className="section-label">{label}</div>
         <div className="text-xs text-muted mt-2">신호 없음</div>
       </div>
     )
@@ -147,7 +144,7 @@ function PerfBox({ label, perf, horizon }: { label: string; perf: SignalPerf | n
   const r = perf.avgReturn
   return (
     <div className="bg-surface-2/60 border border-border rounded-lg p-3">
-      <div className="text-label font-semibold uppercase tracking-[0.06em] text-muted">{label}</div>
+      <div className="section-label">{label}</div>
       <div className={`font-mono text-lg font-semibold tnum mt-1 ${r >= 0 ? 'text-up' : 'text-down'}`}>
         {r >= 0 ? '+' : ''}
         {r.toFixed(2)}%
@@ -182,7 +179,7 @@ export default function SignalView({ t }: { t: FocusTicker }) {
   }
 
   if (sig.isLoading) return <Loading />
-  if (sig.isError) return <ErrorState onRetry={() => sig.refetch()} />
+  if (sig.isError) return <ErrorState label="종합 신호를 불러오지 못했어요. 차트·기업 가치 탭은 따로 확인할 수 있어요." onRetry={() => sig.refetch()} />
   if (!sig.data) return <Empty />
   const s = sig.data
 
@@ -192,100 +189,68 @@ export default function SignalView({ t }: { t: FocusTicker }) {
   let pos = 50
   if (b) pos = ((cur - b.lower_outer) / (b.upper_outer - b.lower_outer)) * 100
 
+  const maxScore = s.maxScore ?? 5
+  const scorePos = Math.min(100, Math.max(0, ((s.total + maxScore) / (maxScore * 2)) * 100))
+
   return (
     <div className="space-y-3">
-      <p className="text-label text-muted leading-relaxed">
-        ⚠️ 과거 가격·지표를 규칙으로 요약한 참고용 정보입니다. 예측·투자조언이 아니며 판단·책임은 본인에게
-        있습니다.
-      </p>
-
       {/* 판정 */}
-      <div
+      <section
         className={`rounded-xl border px-4 py-3.5 card-shadow ${VERDICT_STYLE[s.verdict] ?? VERDICT_STYLE['중립']}`}
+        aria-labelledby="verdict-title"
       >
-        <div className="flex items-center justify-between">
-          <span className="text-label uppercase tracking-[0.09em] opacity-70">
-            기술적 신호 종합{!isDefaultConfig(cfg) && ' · 내 규칙'}
-          </span>
-          <button
-            onClick={() => setCfgOpen(true)}
-            aria-label="신호 규칙 설정"
-            className="relative z-10 opacity-70 active:opacity-100 text-sm leading-none before:absolute before:-inset-4 before:content-['']"
-          >
-            ⚙️
+        <div className="flex items-center justify-between -my-2">
+          <h2 id="verdict-title" className="text-label opacity-80">
+            기술적 신호 종합{!isDefaultConfig(cfg) && ' · 내 규칙 적용'}
+          </h2>
+          <button onClick={() => setCfgOpen(true)} aria-label="신호 규칙 설정" className="icon-button -mr-2">
+            <Icon name="settings" size={18} />
           </button>
         </div>
-        <div className="flex items-center gap-2 mt-1">
-          <span className="h-2.5 w-2.5 rounded-full bg-current opacity-90" />
+        <div className="flex items-baseline gap-2 mt-1">
           <span className="text-xl font-bold">{s.verdict}</span>
-          <span className="ml-auto font-mono text-sm opacity-70">
-            {s.total > 0 ? '+' : ''}
-            {s.total} / ±{s.maxScore ?? 5}
+          <span className="ml-auto font-mono text-sm tnum opacity-80">
+            점수 {s.total > 0 ? '+' : s.total < 0 ? '−' : ''}
+            {Math.abs(s.total)}
           </span>
         </div>
-      </div>
+        <div className="mt-2" aria-hidden="true">
+          <div className="relative h-1.5 rounded-full bg-gradient-to-r from-down/50 via-muted/30 to-up/50">
+            <span
+              className="absolute top-1/2 h-3 w-3 -translate-y-1/2 -translate-x-1/2 rounded-full border-2 border-ink bg-text"
+              style={{ left: `${scorePos}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-label opacity-70 mt-1 font-mono tnum">
+            <span>매도 −{maxScore}</span>
+            <span>0</span>
+            <span>매수 +{maxScore}</span>
+          </div>
+        </div>
+        <p className="text-label opacity-70 mt-2 leading-relaxed">
+          과거 가격·지표를 정해진 규칙으로 요약한 참고 정보예요. 예측이나 투자 조언이 아니며 판단과 책임은 본인에게
+          있어요. 아래 패널도 모두 같은 전제예요.
+        </p>
+      </section>
 
       {cfgOpen && <ConfigSheet cfg={cfg} onApply={applyCfg} onClose={() => setCfgOpen(false)} />}
 
-      {/* 기대와 실제가 벌어지는 이유들 — 보유 중이면 손익에 직결된다 */}
-      <LeverageDecayPanel ticker={t.ticker} period="6m" />
-      <FxAttributionPanel ticker={t.ticker} market={t.market} period="3m" />
-
-      <AiBriefingPanel t={t} />
-
-      {RELATED_INSIGHT_TICKERS.has(t.ticker) && <RelatedInsightPanel ticker={t.ticker} />}
-
-      <NightGapHistoryPanel ticker={t.ticker} />
-
-      {/* 예상 변동 범위 */}
-      {b && (
-        <Panel label="🔮 예상 변동 범위 · 향후 7거래일" help="forecast">
-          <div className="grid grid-cols-3 gap-2 mb-3">
-            <Metric
-              label="예상 하단"
-              value={fmtQuote(b.lower_inner, t)}
-              sub={fmtPct((b.lower_inner / cur - 1) * 100)}
-              subClass="text-down"
-            />
-            <Metric label="현재가" value={fmtQuote(cur, t)} />
-            <Metric
-              label="예상 상단"
-              value={fmtQuote(b.upper_inner, t)}
-              sub={fmtPct((b.upper_inner / cur - 1) * 100)}
-              subClass="text-up"
-            />
-          </div>
-          <div className="relative h-3 rounded-full bg-surface-2 overflow-hidden">
-            <div
-              className="absolute inset-y-0 bg-muted/25"
-              style={{
-                left: `${((b.lower_inner - b.lower_outer) / (b.upper_outer - b.lower_outer)) * 100}%`,
-                right: `${((b.upper_outer - b.upper_inner) / (b.upper_outer - b.lower_outer)) * 100}%`,
-              }}
-            />
-            <div className="absolute top-0 bottom-0 w-0.5 bg-accent" style={{ left: `${pos}%` }} />
-          </div>
-          <div className="flex justify-between mt-1.5 font-mono text-label text-muted">
-            <span>{fmtQuote(b.lower_outer, t)}</span>
-            <span>{fmtQuote(b.upper_outer, t)}</span>
-          </div>
-          <p className="text-label text-muted mt-2">
-            변동성 {fc.data ? (fc.data.sigma * 100).toFixed(1) : '—'}% 기준 · 진한띠 ≈68% · 방향 예측 아님
-          </p>
-        </Panel>
-      )}
-
-      {/* 신호 근거 */}
+      {/* 신호 근거 — 판정 바로 아래에 둬서 왜 이런 결론인지 이어서 읽히게 한다 */}
       <Panel label="신호 근거" help="verdict">
         <ul className="space-y-2">
           {s.signals.map((it) => (
             <li key={it.name} className="flex gap-2.5 text-sm">
               <span
                 className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${it.score > 0 ? 'bg-up' : it.score < 0 ? 'bg-down' : 'bg-muted'}`}
+                aria-hidden="true"
               />
               <span>
                 <span className="font-semibold">{it.name}</span>
-                <span className="text-muted"> — {it.detail}</span>
+                <span className="text-muted">
+                  {' '}
+                  — {it.detail}
+                  <span className="sr-only">{it.score > 0 ? ' (매수 쪽)' : it.score < 0 ? ' (매도 쪽)' : ' (중립)'}</span>
+                </span>
               </span>
             </li>
           ))}
@@ -294,14 +259,61 @@ export default function SignalView({ t }: { t: FocusTicker }) {
 
       {/* 신호 과거 성과 (미니 백테스트) */}
       {hist.data && (hist.data.buy || hist.data.sell) && (
-        <Panel label="🧪 최근 1년, 이 신호의 성과" help="backtest">
+        <Panel label="최근 1년, 이 신호의 성과" help="backtest">
           <div className="grid grid-cols-2 gap-2">
             <PerfBox label="매수 우위 후" perf={hist.data.buy} horizon={hist.data.horizon} />
             <PerfBox label="매도 우위 후" perf={hist.data.sell} horizon={hist.data.horizon} />
           </div>
           <p className="text-label text-muted mt-2">
-            같은 규칙을 지난 1년에 적용한 결과 · 신호일로부터 {hist.data.horizon}거래일 뒤 기준 · 과거 성과가
-            미래를 보장하지 않아요
+            같은 규칙을 지난 1년에 적용 · 신호일로부터 {hist.data.horizon}거래일 뒤 기준 · 횟수가 적으면 우연일 수
+            있어요
+          </p>
+        </Panel>
+      )}
+
+      <AiBriefingPanel t={t} />
+
+      {/* 예상 변동 범위 */}
+      {b && (
+        <Panel label="예상 변동 범위 · 향후 7거래일" help="forecast">
+          <dl className="forecast-grid mb-3">
+            {(
+              [
+                ['예상 하단', b.lower_inner, fmtPct((b.lower_inner / cur - 1) * 100), 'text-down'],
+                ['현재가', cur, '', ''],
+                ['예상 상단', b.upper_inner, fmtPct((b.upper_inner / cur - 1) * 100), 'text-up'],
+              ] as const
+            ).map(([label, value, sub, tone]) => (
+              <div key={label} className="forecast-cell">
+                <dt className="metric-label">{label}</dt>
+                <dd className="font-mono font-semibold tnum whitespace-nowrap">{fmtQuote(value, t)}</dd>
+                <dd className={`font-mono text-xs tnum whitespace-nowrap ${tone}`}>{sub}</dd>
+              </div>
+            ))}
+          </dl>
+          <div className="relative h-3 rounded-full bg-surface-2 overflow-hidden" aria-hidden="true">
+            <div
+              className="absolute inset-y-0 bg-accent/25"
+              style={{
+                left: `${((b.lower_inner - b.lower_outer) / (b.upper_outer - b.lower_outer)) * 100}%`,
+                right: `${((b.upper_outer - b.upper_inner) / (b.upper_outer - b.lower_outer)) * 100}%`,
+              }}
+            />
+            <div className="absolute top-0 bottom-0 w-0.5 bg-text" style={{ left: `${pos}%` }} />
+          </div>
+          <div className="flex justify-between gap-3 mt-1.5 font-mono text-label tnum text-muted">
+            <span className="whitespace-nowrap">
+              <span className="font-sans">넓은 하단 </span>
+              {fmtQuote(b.lower_outer, t)}
+            </span>
+            <span className="whitespace-nowrap">
+              <span className="font-sans">넓은 상단 </span>
+              {fmtQuote(b.upper_outer, t)}
+            </span>
+          </div>
+          <p className="text-label text-muted mt-2">
+            가운데 띠 ≈68% · 양끝 ≈95% 확률 범위 · 일간 변동성 {fc.data ? (fc.data.sigma * 100).toFixed(1) : '—'}%
+            기준 · 방향 예측 아님
           </p>
         </Panel>
       )}
@@ -310,7 +322,7 @@ export default function SignalView({ t }: { t: FocusTicker }) {
       <Panel label="참고 가격대" help="sr">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <div className="text-label text-down font-semibold mb-1.5">지지 (매수 관심)</div>
+            <div className="text-label text-muted font-semibold mb-1.5">지지 · 아래쪽 가격대</div>
             {s.support.length ? (
               s.support.map((x) => (
                 <div key={x.label} className="flex justify-between text-xs py-0.5">
@@ -323,7 +335,7 @@ export default function SignalView({ t }: { t: FocusTicker }) {
             )}
           </div>
           <div>
-            <div className="text-label text-up font-semibold mb-1.5">저항 (매도 관심)</div>
+            <div className="text-label text-muted font-semibold mb-1.5">저항 · 위쪽 가격대</div>
             {s.resistance.length ? (
               s.resistance.map((x) => (
                 <div key={x.label} className="flex justify-between text-xs py-0.5">
@@ -337,6 +349,14 @@ export default function SignalView({ t }: { t: FocusTicker }) {
           </div>
         </div>
       </Panel>
+
+      {RELATED_INSIGHT_TICKERS.has(t.ticker) && <RelatedInsightPanel ticker={t.ticker} />}
+
+      <NightGapHistoryPanel ticker={t.ticker} />
+
+      {/* 기대와 실제가 벌어지는 이유들 — 같은 6개월 기간으로 맞춰 나란히 읽히게 한다 */}
+      <LeverageDecayPanel ticker={t.ticker} period="6m" />
+      <FxAttributionPanel ticker={t.ticker} market={t.market} period="6m" />
 
       {/* 밸류에이션 참고 (주식만) */}
       {t.kind === 'stock' && val.data && (

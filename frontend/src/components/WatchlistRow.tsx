@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   getPrices,
@@ -13,12 +14,12 @@ import { hasNightPrice, nightLabel, showSynthPrice } from '../lib/night'
 import { pickQuote } from '../lib/quote'
 import type { Holding } from '../lib/holdings'
 import { loadSignalConfig, cfgKey, cfgParams } from '../lib/signalConfig'
-import { fmtQuote, fmtChange, changeColor } from '../lib/format'
+import { fmtQuote, fmtChange, fmtPct, fmtPrice, changeColor } from '../lib/format'
 const UP = 'rgb(var(--up))'
 const DOWN = 'rgb(var(--down))'
 
 function Sparkline({ data, up }: { data: number[]; up: boolean }) {
-  if (!data || data.length < 2) return <div className="h-8" />
+  if (!data || data.length < 2) return <div className="spark-empty" />
   const w = 120
   const h = 32
   const min = Math.min(...data)
@@ -28,7 +29,7 @@ function Sparkline({ data, up }: { data: number[]; up: boolean }) {
     .map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * (h - 2) - 1}`)
     .join(' ')
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-8" preserveAspectRatio="none">
+    <svg viewBox={`0 0 ${w} ${h}`} className="sparkline" preserveAspectRatio="none" aria-hidden="true">
       <polyline
         points={pts}
         fill="none"
@@ -41,10 +42,12 @@ function Sparkline({ data, up }: { data: number[]; up: boolean }) {
 }
 
 const VERDICT_COLOR: Record<string, string> = {
-  '매수 우위': 'text-up',
-  '매도 우위': 'text-down',
-  중립: 'text-muted',
+  '매수 우위': 'text-up border-up/40',
+  '매도 우위': 'text-down border-down/40',
+  중립: 'text-muted border-border',
 }
+
+const PERIOD_LABEL: Partial<Record<Period, string>> = { '1m': '1개월', '3m': '3개월', '6m': '6개월', '1y': '1년' }
 
 export default function WatchlistRow({
   t,
@@ -106,92 +109,114 @@ export default function WatchlistRow({
     changePct: pct,
     hasChange,
   } = pickQuote(prices.data, isIndex ? idx.data : undefined)
-  const up = hasChange ? chg >= 0 : series.length > 1 ? series[series.length - 1] >= series[0] : true
+  // 선 색은 선이 그리는 기간의 등락을 따른다. 전일 대비 색은 가격 옆 숫자가 따로 보여준다.
+  const trendUp = series.length > 1 ? series[series.length - 1] >= series[0] : hasChange ? chg >= 0 : true
+  const periodPct = series.length > 1 && series[0] ? (series[series.length - 1] / series[0] - 1) * 100 : null
   const holdPct = holding && last ? (last.close / holding.avg - 1) * 100 : null
+  const showNight = nightEnabled && !!night.data?.available
+  const showSynth = synthEnabled && !!synth.data?.available
+  const descId = useId()
+
+  const priceText =
+    priceVal != null
+      ? fmtQuote(priceVal, t)
+      : prices.isPending
+        ? '조회 중…'
+        : prices.isError
+          ? '조회 실패'
+          : '시세 없음'
+  const description = [
+    priceText,
+    hasChange && pct != null ? `전일 대비 ${chg >= 0 ? '상승' : '하락'} ${Math.abs(pct).toFixed(2)}%` : '',
+    holding ? `보유 손익 ${holdPct != null ? fmtPct(holdPct) : '평가 대기'}` : '',
+    sig.data ? `종합 신호 ${sig.data.verdict}` : '',
+  ]
+    .filter(Boolean)
+    .join(', ')
 
   return (
-    <button onClick={onClick} className="watchlist-row" aria-label={`${t.name} 분석 열기`}>
-      <div className="quote-main">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
-            {logo && (
-              <img
-                src={logo}
-                alt=""
-                className="h-5 w-5 rounded-full border border-border bg-surface object-contain shrink-0"
-                onError={(e) => {
-                  ;(e.target as HTMLImageElement).style.display = 'none'
-                }}
-              />
-            )}
-            <span className="font-semibold truncate" title={t.name}>
-              {t.short}
-            </span>
-            {t.kind === 'etf' && <span className="font-mono text-label text-muted">{t.lev ?? 'ETF'}</span>}
-            {t.kind === 'index' && <span className="font-mono text-label text-muted">지수</span>}
-            {holding && (
-              <span
-                className={`font-mono text-label px-1 py-0.5 rounded border shrink-0 ${
-                  holdPct != null && holdPct >= 0 ? 'border-up/40 text-up' : 'border-down/40 text-down'
-                }`}
-              >
-                보유 {holdPct != null ? `${holdPct >= 0 ? '+' : ''}${holdPct.toFixed(1)}%` : ''}
-              </span>
-            )}
-          </div>
-          <div className="font-mono text-label text-muted mt-0.5">
-            {t.market} · {t.ticker}
-          </div>
+    <button
+      onClick={onClick}
+      className={`watchlist-row ${showNight || showSynth ? 'has-sub' : ''}`}
+      aria-label={`${t.name} 분석 열기`}
+      aria-describedby={descId}
+    >
+      <span id={descId} className="sr-only">
+        {description}
+      </span>
+      <div className="wl-info">
+        <div className="wl-name-line">
+          {logo && (
+            <img
+              src={logo}
+              alt=""
+              className="h-5 w-5 rounded-full border border-border bg-surface object-contain shrink-0"
+              onError={(e) => {
+                ;(e.target as HTMLImageElement).style.display = 'none'
+              }}
+            />
+          )}
+          <span className="wl-name" title={t.name}>
+            {t.short}
+          </span>
+          {t.kind === 'etf' && <span className="wl-tag">{t.lev ?? 'ETF'}</span>}
+          {t.kind === 'index' && <span className="wl-tag">지수</span>}
         </div>
-        <div className="text-right shrink-0">
-          <div className="font-mono font-semibold tnum text-body">
-            {priceVal != null
-              ? fmtQuote(priceVal, t)
-              : prices.isPending
-                ? '조회 중…'
-                : prices.isError
-                  ? '조회 실패'
-                  : '시세 없음'}
-          </div>
-          {hasChange && (
-            <div className={`font-mono text-label ${changeColor(chg)}`}>{fmtChange(pct, chg)}</div>
-          )}
-          {nightEnabled && night.data?.available && (
-            <div className="flex items-center justify-end gap-1 mt-0.5">
-              <span className="text-label text-muted">{nightLabel(t)}</span>
-              <span className="font-mono text-label tnum text-muted">
-                ₩{Math.round(night.data.krw ?? 0).toLocaleString()}
-              </span>
-              <span className={`font-mono text-label ${changeColor(night.data.gapPct ?? 0)}`}>
-                {fmtChange(night.data.gapPct ?? 0)}
-              </span>
-            </div>
-          )}
-          {synthEnabled && synth.data?.available && (
-            <div className="flex items-center justify-end gap-1 mt-0.5">
-              <span className="text-label text-accent border border-accent/40 rounded px-1">추정</span>
-              <span className="font-mono text-label tnum text-muted">{fmtQuote(synth.data.estimate, t)}</span>
-              <span className={`font-mono text-label ${changeColor(synth.data.changePct ?? 0)}`}>
-                {fmtChange(synth.data.changePct ?? 0)}
-              </span>
-            </div>
+        <div className="wl-meta">
+          <span className="font-mono">
+            <span className="wl-market">{t.market} · </span>
+            {t.ticker}
+          </span>
+          {holding && (
+            <span
+              className={`hold-badge ${holdPct == null ? 'text-muted border-border' : holdPct >= 0 ? 'text-up border-up/40' : 'text-down border-down/40'}`}
+            >
+              보유 <span className="font-mono tnum">{holdPct != null ? fmtPct(holdPct) : '—'}</span>
+            </span>
           )}
         </div>
       </div>
-      <div className="quote-trend">
-        <div className="flex-1 min-w-0">
-          <Sparkline data={series} up={up} />
+      <div className="wl-quote">
+        <div className={`font-semibold tnum text-body ${priceVal != null ? 'font-mono' : 'text-muted text-caption'}`}>
+          {priceText}
         </div>
-        {!sig.data && (
-          <span className="text-label text-muted shrink-0">{sig.isPending ? '분석 중' : '분석 없음'}</span>
-        )}
-        {sig.data && (
-          <span
-            className={`font-mono text-label font-semibold shrink-0 ${VERDICT_COLOR[sig.data.verdict] ?? 'text-muted'}`}
-          >
-            {sig.data.verdict}
+        {hasChange && <div className={`font-mono tnum text-label ${changeColor(chg)}`}>{fmtChange(pct, chg)}</div>}
+      </div>
+      {(showNight || showSynth) && (
+        <div className="wl-sub">
+          {showNight && night.data && (
+            <span className="wl-sub-line">
+              <span className="text-muted">{nightLabel(t)}</span>
+              <span className="font-mono tnum text-muted">{fmtPrice(night.data.krw ?? 0, 'KR')}</span>
+              <span className={`font-mono tnum ${changeColor(night.data.gapPct ?? 0)}`}>
+                {fmtChange(night.data.gapPct ?? 0)}
+              </span>
+            </span>
+          )}
+          {showSynth && synth.data && (
+            <span className="wl-sub-line">
+              <span className="text-muted">추정</span>
+              <span className="font-mono tnum text-muted">{fmtQuote(synth.data.estimate, t)}</span>
+              <span className={`font-mono tnum ${changeColor(synth.data.changePct ?? 0)}`}>
+                {fmtChange(synth.data.changePct ?? 0)}
+              </span>
+            </span>
+          )}
+        </div>
+      )}
+      <div className="wl-spark">
+        <Sparkline data={series} up={trendUp} />
+        {periodPct != null && (
+          <span title={`${PERIOD_LABEL[period] ?? period} 등락률`} className={`wl-period font-mono tnum ${trendUp ? 'text-up' : 'text-down'}`}>
+            {fmtPct(periodPct, 1)}
           </span>
         )}
+      </div>
+      <div className="wl-signal">
+        <span className={`signal-pill ${VERDICT_COLOR[sig.data?.verdict ?? ''] ?? 'text-muted border-border'}`}>
+          <span className="signal-prefix">신호 </span>
+          {sig.data ? sig.data.verdict : sig.isPending ? '분석 중' : '없음'}
+        </span>
       </div>
     </button>
   )

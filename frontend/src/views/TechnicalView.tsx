@@ -2,14 +2,14 @@ import { lazy, Suspense, useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getPrices, getIndicators, getSignal, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
-import { Loading, Empty, ErrorState, Metric, ChartFallback } from '../components/ui'
+import { Empty, ErrorState, ChartFallback } from '../components/ui'
+import HelpTip from '../components/HelpTip'
 
 // 차트 라이브러리가 무거워서 차트 탭에 들어올 때만 받는다.
 const TechnicalCharts = lazy(() => import('../components/TechnicalCharts'))
 import { toWeekly } from '../lib/aggregate'
 import { loadSignalConfig, cfgKey, cfgParams } from '../lib/signalConfig'
 import type { Holding } from '../lib/holdings'
-import { fmtQuote } from '../lib/format'
 
 const PERIODS: Period[] = ['1m', '3m', '6m', '1y']
 const LABEL: Record<Period, string> = { '1m': '1개월', '3m': '3개월', '6m': '6개월', '1y': '1년' }
@@ -54,106 +54,90 @@ export default function TechnicalView({
     [showSR, sig.data],
   )
 
-  const last = prices.data?.[prices.data.length - 1]
-  const rsiLast = ind.data?.rsi.filter((v) => v != null).at(-1) as number | undefined
-  const macdLast = ind.data?.macd.filter((v) => v != null).at(-1) as number | undefined
+  const chooseTf = (next: 'D' | 'W') => {
+    setTf(next)
+    // 주봉 1·3개월은 봉이 4~13개뿐이라 읽을 게 없다. 6개월로 넓힌다.
+    if (next === 'W' && (period === '1m' || period === '3m')) setPeriod('6m')
+  }
 
   return (
     <div className="space-y-3">
       {/* 기간 + 봉 간격 */}
-      <div className="flex gap-2">
-        <div className="flex flex-1 gap-1 bg-surface border border-border rounded-lg p-1">
+      <div className="tech-toolbar">
+        <div className="segmented" role="group" aria-label="차트 기간">
           {PERIODS.map((p) => (
             <button
               key={p}
+              aria-pressed={p === period}
+              disabled={weekly && (p === '1m' || p === '3m')}
               onClick={() => setPeriod(p)}
-              className={`flex-1 min-h-[44px] rounded-md text-xs font-medium transition-colors ${
-                p === period ? 'bg-surface-2 text-text' : 'text-muted'
-              }`}
             >
               {LABEL[p]}
             </button>
           ))}
         </div>
-        <div className="flex gap-1 bg-surface border border-border rounded-lg p-1">
+        <div className="segmented" role="group" aria-label="봉 간격">
           {(['D', 'W'] as const).map((iv) => (
-            <button
-              key={iv}
-              onClick={() => setTf(iv)}
-              className={`px-3 min-h-[44px] rounded-md text-xs font-medium transition-colors ${
-                iv === tf ? 'bg-surface-2 text-text' : 'text-muted'
-              }`}
-            >
+            <button key={iv} aria-pressed={iv === tf} onClick={() => chooseTf(iv)}>
               {iv === 'D' ? '일봉' : '주봉'}
             </button>
           ))}
         </div>
       </div>
 
-      {/* 요약 지표 */}
-      <div className="grid grid-cols-3 gap-2">
-        <Metric label="현재가" value={last ? fmtQuote(last.close, t) : '—'} />
-        <Metric
-          label="RSI(14)"
-          help="rsi"
-          value={rsiLast != null ? rsiLast.toFixed(1) : '—'}
-          sub={rsiLast != null ? (rsiLast >= 70 ? '과매수' : rsiLast <= 30 ? '과매도' : '중립') : undefined}
-        />
-        <Metric label="MACD" help="macd" value={macdLast != null ? macdLast.toFixed(1) : '—'} />
+      {/* 오버레이 토글 (일봉 지표라 주봉에선 안내로 바꾼다) */}
+      <div className="tech-overlays">
+        {weekly ? (
+          <p className="text-label text-muted">주봉에서는 가격·거래량만 보여요. 이동평균·지지·저항·RSI·MACD는 일봉에서 확인하세요.</p>
+        ) : (
+          <>
+            <Toggle on={showMA} onClick={() => setShowMA((v) => !v)} label="이동평균 20·60" help="ma" />
+            <Toggle on={showBB} onClick={() => setShowBB((v) => !v)} label="볼린저" help="bollinger" />
+            <Toggle on={showSR} onClick={() => setShowSR((v) => !v)} label="지지·저항" help="sr" />
+          </>
+        )}
       </div>
 
-      {/* 오버레이 토글 (일봉 지표라 주봉에선 숨김) */}
-      {!weekly && (
-        <div className="flex gap-2 text-xs">
-          <Toggle on={showMA} onClick={() => setShowMA((v) => !v)} label="이동평균 20·60" />
-          <Toggle on={showBB} onClick={() => setShowBB((v) => !v)} label="볼린저" />
-          <Toggle on={showSR} onClick={() => setShowSR((v) => !v)} label="지지·저항" />
-        </div>
-      )}
-
       {prices.isLoading || ind.isLoading ? (
-        <Loading />
+        <ChartFallback height={weekly ? 320 : 560} />
       ) : prices.isError || ind.isError ? (
         <ErrorState
+          label="차트 데이터를 불러오지 못했어요"
           onRetry={() => {
             prices.refetch()
             ind.refetch()
           }}
         />
       ) : prices.data && ind.data && prices.data.length ? (
-        <>
-          <Suspense fallback={<ChartFallback height={480} />}>
-            <TechnicalCharts
-              candles={weekly ? toWeekly(prices.data) : prices.data}
-              ind={ind.data}
-              showMA={!weekly && showMA}
-              showBB={!weekly && showBB}
-              light={light}
-              levels={weekly ? undefined : levels}
-              simple={weekly}
-              avgPrice={holding?.avg}
-            />
-          </Suspense>
-          {weekly && (
-            <p className="text-label text-muted">주봉은 가격·거래량만 표시돼요 (지표는 일봉 기준)</p>
-          )}
-        </>
+        <Suspense fallback={<ChartFallback height={weekly ? 320 : 560} />}>
+          <TechnicalCharts
+            candles={weekly ? toWeekly(prices.data) : prices.data}
+            ind={ind.data}
+            showMA={!weekly && showMA}
+            showBB={!weekly && showBB}
+            light={light}
+            levels={weekly ? undefined : levels}
+            simple={weekly}
+            avgPrice={holding?.avg}
+            market={t.market}
+            kind={t.kind}
+          />
+        </Suspense>
       ) : (
-        <Empty />
+        <Empty label="차트로 그릴 가격 데이터가 없어요" />
       )}
     </div>
   )
 }
 
-function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
+function Toggle({ on, onClick, label, help }: { on: boolean; onClick: () => void; label: string; help: string }) {
   return (
-    <button
-      onClick={onClick}
-      className={`px-3 min-h-[44px] rounded-full border font-medium transition-colors ${
-        on ? 'bg-surface-2 border-border text-text' : 'bg-surface border-border text-muted'
-      }`}
-    >
-      {label}
-    </button>
+    <span className="inline-flex items-center">
+      <button onClick={onClick} aria-pressed={on} className={`toggle-chip ${on ? 'is-on' : ''}`}>
+        <span className="toggle-check" aria-hidden="true" />
+        {label}
+      </button>
+      <HelpTip term={help} />
+    </span>
   )
 }

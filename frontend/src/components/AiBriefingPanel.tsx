@@ -3,8 +3,8 @@ import { getAiBriefing } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 
 const STANCE_STYLE: Record<string, string> = {
-  강세: 'bg-up/15 border-up/50 text-up',
-  약세: 'bg-down/15 border-down/50 text-down',
+  강세: 'bg-up/15 border-up/40 text-up',
+  약세: 'bg-down/15 border-down/40 text-down',
   중립: 'bg-surface-2 border-border text-muted',
 }
 
@@ -21,26 +21,30 @@ export default function AiBriefingPanel({ t }: { t: FocusTicker }) {
   if (!data?.available) return null
 
   return (
-    <div className={`rounded-xl border px-4 py-3.5 card-shadow ${STANCE_STYLE[data.stance ?? '중립']}`}>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-label uppercase tracking-[0.09em] opacity-70">✨ AI 브리핑</span>
-        {data.stance && <span className="text-label font-semibold px-2 py-0.5 rounded bg-current/10">{data.stance}</span>}
+    <section className="bg-surface border border-border rounded-xl p-4 card-shadow">
+      <div className="flex items-center justify-between mb-1.5">
+        <h2 className="panel-title">AI 브리핑</h2>
+        {data.stance && (
+          <span className={`text-label font-semibold px-2 py-0.5 rounded-full border ${STANCE_STYLE[data.stance] ?? STANCE_STYLE['중립']}`}>
+            AI 판단 {data.stance}
+          </span>
+        )}
       </div>
       <p className="text-caption leading-relaxed font-medium">{data.summary}</p>
       {data.bullets && data.bullets.length > 0 && (
         <ul className="mt-2 space-y-1">
           {data.bullets.map((b, i) => (
-            <li key={i} className="text-label opacity-80 flex gap-1.5">
+            <li key={i} className="text-caption text-muted flex gap-1.5">
               <span>·</span>
               <span>{b}</span>
             </li>
           ))}
         </ul>
       )}
-      <p className="text-label opacity-50 mt-2">
+      <p className="text-label text-muted mt-2">
         AI 생성 분석 — 참고용, 투자 권유 아님
         {data.stale && ' · 새 분석을 못 받아 직전 분석을 보여주고 있어요'}
       </p>
-    </div>
+    </section>
   )
 }

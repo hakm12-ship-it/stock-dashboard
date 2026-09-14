@@ -95,11 +95,12 @@ export default function PortfolioChart({ holdings, light }: { holdings: Holding[
   useEffect(() => {
     if (!ref.current || curve.length < 2) return
     const chart: IChartApi = createChart(ref.current, chartBase(light))
+    const line = light ? '17,112,91' : '117,210,188' // 테마 주요 색(--accent)
     const s = chart.addAreaSeries({
-      lineColor: '#E0A63C',
+      lineColor: `rgb(${line})`,
       lineWidth: 2,
-      topColor: 'rgba(224,166,60,0.22)',
-      bottomColor: 'rgba(224,166,60,0.02)',
+      topColor: `rgba(${line},0.2)`,
+      bottomColor: `rgba(${line},0.02)`,
       priceLineVisible: false,
       priceFormat: { type: 'custom', formatter: fmtAxis },
     })
@@ -128,7 +129,7 @@ export default function PortfolioChart({ holdings, light }: { holdings: Holding[
               key={p}
               onClick={() => setPeriod(p)}
               className={`font-mono text-label px-1.5 py-0.5 rounded ${
-                p === period ? 'bg-surface-2 text-text' : 'text-muted/70'
+                p === period ? 'bg-surface-2 text-text' : 'text-muted'
               }`}
             >
               {LABEL[p]}

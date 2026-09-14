@@ -3,12 +3,13 @@ Run: python scripts/verify_ui.py [http://localhost:5186]
 Requires an available Python Playwright installation and Chromium.
 """
 import json
+import os
 import sys
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:5186'
-OUT = Path(__file__).resolve().parents[1] / 'artifacts' / 'renewal'
+OUT = Path(os.environ.get('UI_OUT') or Path(__file__).resolve().parents[1] / 'artifacts' / 'renewal')
 OUT.mkdir(parents=True, exist_ok=True)
 results, errors = [], []
 
@@ -121,7 +122,7 @@ with sync_playwright() as p:
         for width in [360,390,768,1280,1440]:
             page.set_viewport_size({'width':width,'height':900})
             check(f'holdings modal width {width}', lambda: no_overflow(page))
-        page.get_by_role('button', name='가져오기', exact=True).click()
+        page.get_by_role('button', name='백업에서 복원', exact=True).click()
         page.get_by_label('백업 JSON').fill('{"holdings":[{"qty":-1}]}')
         page.get_by_role('button', name='복원 내용 확인').click()
         expect(page.get_by_role('alert')).to_be_visible()
@@ -139,8 +140,8 @@ with sync_playwright() as p:
 
     def journal():
         page.get_by_role('button', name='매매일지', exact=True).click()
-        page.get_by_label('매매 수량', exact=True).fill('2')
-        page.get_by_label('매매 가격', exact=True).fill('1000')
+        page.get_by_label('수량 (주)', exact=True).fill('2')
+        page.get_by_label('1주당 가격 (KRW)', exact=True).fill('1000')
         page.get_by_role('button', name='기록하기').click()
         expect(page.get_by_role('status')).to_contain_text('저장했습니다')
         page.get_by_role('button', name='기록하기').click()
@@ -164,7 +165,7 @@ with sync_playwright() as p:
     def comparison():
         page.get_by_role('button', name='비교', exact=True).click()
         expect(page.get_by_role('dialog', name='종목 비교')).to_be_visible()
-        page.get_by_role('button', name='1개월', exact=True).click()
+        page.get_by_role('dialog', name='종목 비교').get_by_role('button', name='1개월', exact=True).click()
         no_overflow(page)
         page.screenshot(path=str(OUT / 'comparison-360.png'))
         close_sheet(page)
@@ -205,6 +206,7 @@ with sync_playwright() as p:
         lp.goto(BASE,wait_until='domcontentloaded')
         expect(lp.locator('.watchlist-row')).to_have_count(67)
         no_overflow(lp)
+        lp.get_by_role('button', name='목록에서 찾기').click()
         lp.get_by_label('관심종목 검색').fill('QA0059')
         expect(lp.locator('.watchlist-row')).to_have_count(1)
         no_overflow(lp)

@@ -68,3 +68,9 @@ export function parseBackup(raw: string): Backup {
     trades: d.trades as Trade[] | undefined,
   }
 }
+
+/** 사용자가 입력한 금액·수량을 숫자로 읽는다. 앱 곳곳에 보이는 형식(쉼표, 원, $)을 그대로 붙여 넣어도 된다. */
+export const parseAmount = (s: string): number => {
+  const cleaned = s.replace(/[,\s원$₩주]/g, '')
+  return cleaned === '' ? NaN : Number(cleaned)
+}

@@ -18,8 +18,8 @@ export default function AlertInviteCard() {
 
   return (
     <div className="bg-surface border border-border rounded-xl p-3.5 card-shadow">
-      <div className="text-label font-semibold uppercase tracking-[0.08em] text-muted">
-        ✈️ 급변 알림 받기
+      <div className="panel-title">
+        급변 알림 받기
       </div>
       <p className="text-caption text-muted leading-relaxed mt-1.5">
         큰 움직임이 있을 때만 텔레그램으로 알려드려요.
@@ -37,7 +37,7 @@ export default function AlertInviteCard() {
       >
         텔레그램 그룹 참여하기
       </a>
-      <p className="text-label text-muted/70 mt-2">
+      <p className="text-label text-muted mt-2">
         참고용 정보이고 투자 권유가 아니에요 · 언제든 그룹을 나가면 알림이 멈춰요
       </p>
     </div>

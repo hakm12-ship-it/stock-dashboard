@@ -16,7 +16,7 @@ export default function DailyReportCard() {
   return (
     <div className="bg-surface border border-border rounded-xl p-3.5 card-shadow">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-label font-semibold uppercase tracking-[0.08em] text-muted">
+        <span className="panel-title">
           오늘의 시장 요약
         </span>
         <span className="font-mono text-label text-muted">{data.date.slice(5)}</span>

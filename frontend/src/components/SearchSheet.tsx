@@ -1,8 +1,10 @@
+import { josa } from '../lib/format'
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getSymbols } from '../lib/api'
 import type { FocusTicker, Market } from '../data/tickers'
 import { Sheet, ErrorState } from './ui'
+import Icon from './Icon'
 
 export default function SearchSheet({
   existing,
@@ -35,113 +37,123 @@ export default function SearchSheet({
 
   const isAdded = (ticker: string) => existing.some((x) => x.ticker === ticker && x.market === market)
 
+  // 가장 그럴듯한 결과가 먼저: 이름·티커가 정확히 같음 → 이름이 검색어로 시작 → 나머지(서버 순서).
+  const needle = dq.toLowerCase()
+  const rank = (r: { name: string; ticker: string }) =>
+    r.name.toLowerCase() === needle || r.ticker.toLowerCase() === needle
+      ? 0
+      : r.name.toLowerCase().startsWith(needle) || r.ticker.toLowerCase().startsWith(needle)
+        ? 1
+        : 2
+  const results = res.data ? res.data.map((r, i) => ({ r, i })).sort((a, b) => rank(a.r) - rank(b.r) || a.i - b.i) : []
+
   return (
-    <Sheet title="종목 추가" onClose={onClose}>
-      <div className="flex gap-1 bg-surface border border-border rounded-lg p-1">
+    <Sheet title="종목 추가" onClose={onClose} size="tall">
+      <div className="segmented segmented--block" role="group" aria-label="시장">
         {(['KR', 'US'] as Market[]).map((m) => (
-          <button
-            key={m}
-            onClick={() => setMarket(m)}
-            aria-pressed={m === market}
-            className={`flex-1 min-h-[44px] rounded-md text-sm font-medium transition-colors ${
-              m === market ? 'bg-surface-2 text-text' : 'text-muted'
-            }`}
-          >
+          <button key={m} onClick={() => setMarket(m)} aria-pressed={m === market}>
             {m === 'KR' ? '한국' : '미국'}
           </button>
         ))}
       </div>
 
-      <label className="field-label" htmlFor="symbol-search">
-        종목명 또는 티커
-      </label>
-      <input
-        id="symbol-search"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        autoFocus
-        placeholder={market === 'KR' ? '예: 카카오, 035720' : '예: Apple, NVDA'}
-        className="w-full bg-surface border border-border rounded-lg px-3 py-2.5 text-sm outline-none focus:border-accent"
-      />
+      <div>
+        <label className="field-label" htmlFor="symbol-search">
+          종목명 또는 티커
+        </label>
+        <input
+          id="symbol-search"
+          className="field"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          autoFocus
+          autoComplete="off"
+          placeholder={market === 'KR' ? '예: 카카오, 035720' : '예: Apple, NVDA'}
+        />
+      </div>
 
-      {res.isLoading && dq && <div className="text-muted text-sm text-center py-3">검색 중…</div>}
-      {!q && (
-        <p className="text-sm text-muted">
-          시장 선택 후 종목명이나 코드를 입력하세요. 추가한 종목은 관심종목 목록에서 확인할 수 있습니다.
-        </p>
-      )}
       {notice && (
-        <p role="status" className="text-sm text-accent">
+        <p role="status" className="sheet-notice">
+          <Icon name="check" size={16} />
           {notice}
         </p>
       )}
+      {res.isLoading && dq && <div className="text-muted text-sm text-center py-3">검색 중…</div>}
       {res.isError && dq && (
-        <ErrorState
-          label="검색 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
-          onRetry={() => res.refetch()}
-        />
+        <ErrorState label="검색 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요." onRetry={() => res.refetch()} />
       )}
 
-      {res.data?.map((r) => {
-        const added = isAdded(r.ticker)
-        return (
-          <div
-            key={r.ticker}
-            className="flex items-center justify-between gap-2 bg-surface border border-border rounded-lg px-3 py-2.5"
-          >
-            <div className="min-w-0">
-              <div className="text-sm font-medium truncate">{r.name}</div>
-              <div className="font-mono text-label text-muted">{r.ticker}</div>
-            </div>
-            <button
-              disabled={added}
-              onClick={() => {
-                const ok = onAdd({ ticker: r.ticker, name: r.name, short: r.name, market, kind: 'stock' })
-                setNotice(
-                  ok
-                    ? `${r.name}을 관심종목에 추가했습니다.`
-                    : '저장하지 못했습니다. 브라우저 저장 공간을 확인해 주세요.',
-                )
-              }}
-              className={`shrink-0 text-xs font-medium px-3 py-1.5 rounded-md border ${
-                added ? 'text-muted border-border' : 'text-text border-border active:border-accent'
-              }`}
-            >
-              {added ? '추가됨' : '추가'}
-            </button>
-          </div>
-        )
-      })}
+      {results.length > 0 && (
+        <ul className="sheet-list" aria-label="검색 결과">
+          {results.map(({ r }) => {
+            const added = isAdded(r.ticker)
+            return (
+              <li key={r.ticker} className="sheet-list-row">
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium truncate">{r.name}</div>
+                  <div className="font-mono text-label text-muted">{r.ticker}</div>
+                </div>
+                <button
+                  disabled={added}
+                  onClick={() => {
+                    const ok = onAdd({ ticker: r.ticker, name: r.name, short: r.name, market, kind: 'stock' })
+                    setNotice(
+                      ok
+                        ? `${josa(r.name, '을', '를')} 관심종목에 추가했습니다.`
+                        : '저장하지 못했습니다. 브라우저 저장 공간을 확인해 주세요.',
+                    )
+                  }}
+                  className={added ? 'add-done' : 'add-button'}
+                >
+                  {added ? (
+                    <>
+                      <Icon name="check" size={14} />
+                      추가됨
+                    </>
+                  ) : (
+                    '추가'
+                  )}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
 
       {dq && !res.isError && res.isSuccess && res.data.length === 0 && (
-        <div className="text-muted text-sm text-center py-4">검색 결과가 없어요</div>
+        <p className="text-muted text-sm text-center py-4">
+          검색 결과가 없어요.{' '}
+          {market === 'KR' ? '미국 종목이라면 위에서 미국을 고르세요.' : '한국 종목이라면 위에서 한국을 고르세요.'}
+        </p>
+      )}
+
+      {!q && custom.length === 0 && (
+        <p className="text-label text-muted">추가한 종목은 관심종목 목록에 바로 나타납니다.</p>
       )}
 
       {custom.length > 0 && (
-        <div className="pt-3">
-          <div className="text-label font-semibold uppercase tracking-[0.08em] text-muted mb-2">
-            내가 추가한 종목
-          </div>
-          {custom.map((t) => (
-            <div
-              key={`${t.market}-${t.ticker}`}
-              className="flex items-center justify-between py-2 border-b border-border last:border-0"
-            >
-              <span className="text-sm">
-                {t.name} <span className="font-mono text-muted text-xs">{t.ticker}</span>
-              </span>
-              <button
-                onClick={() => {
-                  if (window.confirm(`${t.name}을 관심종목에서 삭제할까요? 보유 기록은 유지됩니다.`))
-                    onRemove(t)
-                }}
-                className="text-xs text-down px-2 min-h-[44px] shrink-0 active:opacity-70"
-              >
-                삭제
-              </button>
-            </div>
-          ))}
-        </div>
+        <section>
+          <h3 className="section-label mb-2">내가 추가한 종목</h3>
+          <ul className="sheet-list">
+            {custom.map((t) => (
+              <li key={`${t.market}-${t.ticker}`} className="sheet-list-row">
+                <span className="text-sm min-w-0 flex-1 truncate">
+                  {t.name} <span className="font-mono text-muted text-xs">{t.ticker}</span>
+                </span>
+                <button
+                  onClick={() => {
+                    if (window.confirm(`${josa(t.name, '을', '를')} 관심종목에서 삭제할까요? 보유 기록은 유지됩니다.`))
+                      onRemove(t)
+                  }}
+                  aria-label={`${t.name} 관심종목에서 삭제`}
+                  className="icon-button danger-action"
+                >
+                  <Icon name="trash" size={18} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </Sheet>
   )

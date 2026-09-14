@@ -36,6 +36,13 @@ export function useNavigation() {
     const sync = () => {
       setRoute(readRoute())
       window.scrollTo(0, 0)
+      // 누른 버튼이 새 화면으로 바뀌며 사라지면 초점이 body로 떨어진다. 새 화면 제목으로 옮긴다.
+      requestAnimationFrame(() => {
+        const active = document.activeElement
+        if (!active || active === document.body || !active.isConnected) {
+          document.querySelector<HTMLElement>('main h1')?.focus({ preventScroll: true })
+        }
+      })
     }
     window.addEventListener('hashchange', sync)
     return () => window.removeEventListener('hashchange', sync)

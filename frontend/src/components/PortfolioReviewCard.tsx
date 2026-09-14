@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { postPortfolioReview } from '../lib/api'
 import type { Holding } from '../lib/holdings'
 import type { Trade } from '../lib/trades'
-import { changeColor, fmtChange } from '../lib/format'
+import { changeColor, fmtPct } from '../lib/format'
 import { Panel } from './ui'
 
 // 비중 막대 색. 앰버는 1등 하나만 — 화면당 2~3곳 원칙이라 여기서 다 써버리면
@@ -63,7 +63,7 @@ export default function PortfolioReviewCard({ holdings, trades }: { holdings: Ho
   const commentFailed = !llm.isPending && c == null
 
   return (
-    <Panel label="🔍 포트폴리오 진단">
+    <Panel label="포트폴리오 진단" className="portfolio-review">
       {/* 코멘트는 뒤늦게 도착한다. 자리를 미리 잡아둬야 도착하는 순간 아래
           내용이 밀려 내려가지 않는다. */}
       {c ? (
@@ -95,9 +95,12 @@ export default function PortfolioReviewCard({ holdings, trades }: { holdings: Ho
             <span className={`h-2 w-2 rounded-sm shrink-0 ${BAR[Math.min(i, BAR.length - 1)]}`} />
             <span className="text-label truncate flex-1">{p.name}</span>
             {p.leverage > 1 && <span className="text-label text-muted shrink-0">{p.leverage}x</span>}
-            <span className="font-mono text-label tnum shrink-0">{p.weight.toFixed(0)}%</span>
-            <span className={`font-mono text-label tnum shrink-0 w-14 text-right ${changeColor(p.plPct)}`}>
-              {fmtChange(p.plPct)}
+            <span className="font-mono text-label tnum shrink-0 whitespace-nowrap">{p.weight.toFixed(0)}%</span>
+            <span
+              className={`font-mono text-label tnum shrink-0 whitespace-nowrap min-w-[4.5rem] text-right ${changeColor(p.plPct)}`}
+              title="매수가 대비 손익률"
+            >
+              {fmtPct(p.plPct)}
             </span>
           </div>
         ))}
@@ -146,7 +149,7 @@ export default function PortfolioReviewCard({ holdings, trades }: { holdings: Ho
         </div>
       )}
 
-      <p className="text-label text-muted/70 mt-3">
+      <p className="text-label text-muted mt-3">
         보유 구성을 수치로 설명한 참고 자료예요 · 매수·매도 권유가 아니며 판단은 본인 몫입니다
         {!llm.isPending && c == null && ' · AI 코멘트를 못 받아 수치 관찰만 표시했어요'}
         {llm.data?.stale && ' · 새 코멘트를 못 받아 직전 것을 보여주고 있어요'}
