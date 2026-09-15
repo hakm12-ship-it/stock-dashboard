@@ -11,8 +11,8 @@ const CompareChart = lazy(() => import('./CompareChart'))
 
 const PERIODS: Period[] = ['1m', '3m', '6m', '1y']
 const LABEL: Record<Period, string> = { '1m': '1개월', '3m': '3개월', '6m': '6개월', '1y': '1년' }
-// 종목 구분색은 상승·하락 색(빨강·파랑)과 겹치지 않게 청록·호박색으로 둔다.
-const colorsFor = (light: boolean) => (light ? ['#11705B', '#9A6400'] : ['#75D2BC', '#E0A33A'])
+// 종목 구분색은 상승·하락 색(빨강·파랑)과 겹치지 않게 흑백·주황으로 둔다.
+const colorsFor = (light: boolean) => (light ? ['#191F28', '#E08A00'] : ['#E4E4E5', '#F5A524'])
 
 function useTickerData(t: FocusTicker | undefined, period: Period) {
   const prices = useQuery({

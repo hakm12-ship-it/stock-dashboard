@@ -56,8 +56,8 @@ export default function MarketTop({
       <div className="segmented segmented--block mb-3" role="group" aria-label="방향">
         {(
           [
-            ['up', '▲ 급등'],
-            ['down', '▼ 급락'],
+            ['up', '급등'],
+            ['down', '급락'],
           ] as [Dir, string][]
         ).map(([d, label]) => (
           <button key={d} onClick={() => setDir(d)} aria-pressed={d === dir} className={d === 'up' ? 'is-up' : 'is-down'}>

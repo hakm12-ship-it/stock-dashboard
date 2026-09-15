@@ -22,7 +22,7 @@ export const fmtNum = (v: number | null | undefined, d = 2): string =>
 
 /**
  * 부호를 붙인 비율 (예: "+4.95%", "−7.08%"). 매수가 대비 손익·기간 수익률처럼
- * '기준점 대비' 값에 쓴다. 전일 대비는 fmtChange의 ▲/▼로 구분한다.
+ * '기준점 대비' 값에 쓴다. 전일 대비(fmtChange)와 같은 부호 표기라 옆에 '평가손익' 같은 라벨을 붙인다.
  */
 export const fmtPct = (v: number | null | undefined, d = 2): string =>
   v == null ? '—' : `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(d)}%`
@@ -51,15 +51,16 @@ export const fmtEps = (v: number | null | undefined, market: Market): string => 
 
 // 상승=빨강 / 하락=파랑 (KR 관례) 클래스
 export const changeColor = (v: number): string => (v >= 0 ? 'text-up' : 'text-down')
-export const changeSign = (v: number): string => (v >= 0 ? '▲' : '▼')
+export const changeSign = (v: number): string => (v >= 0 ? '+' : '−')
 
 /**
- * 등락률을 화살표+절댓값으로 (예: "▲ 1.23%"). 부호는 화살표가 나타내므로 숫자는 절댓값.
+ * 등락률을 부호+절댓값으로 (예: "+1.23%", "−0.45%"). 토스증권처럼 화살표 없이 부호와 색으로 방향을 보인다.
  * 방향과 크기를 따로 받을 수 있다 — 등락'액'으로 방향을 정하고 등락'률'을 보여주는 자리가 많아서다.
+ * 전일 대비가 아닌 값(매수가 대비 등)은 옆에 라벨을 붙여 구분한다.
  */
 export const fmtChange = (pct: number | null | undefined, dir?: number): string => {
   if (pct == null) return '—'
-  return `${changeSign(dir ?? pct)} ${Math.abs(pct).toFixed(2)}%`
+  return `${changeSign(dir ?? pct)}${Math.abs(pct).toFixed(2)}%`
 }
 
 /**

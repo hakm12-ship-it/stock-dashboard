@@ -15,8 +15,9 @@ export default {
         down: 'rgb(var(--down) / <alpha-value>)',
       },
       fontFamily: {
-        sans: ['"IBM Plex Sans KR"', 'system-ui', 'sans-serif'],
-        mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
+        // 토스증권처럼 숫자도 본문과 같은 글꼴로 쓴다. mono 클래스는 자릿수 맞춤(tabular) 용도로만 남긴다.
+        sans: ['"Pretendard Variable"', 'Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
+        mono: ['"Pretendard Variable"', 'Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
       },
       // 타입 스케일 (design-system.md §2). 이게 없어서 화면마다 text-[0.62rem] 같은
       // 임의값이 17종까지 번졌다 — 8.8~11.5px 구간에만 10종이 몰려 위계가 안 읽혔다.
@@ -30,6 +31,7 @@ export default {
         label: ['0.72rem', { lineHeight: '1.35', letterSpacing: '0.08em' }], // uppercase 라벨
       },
       maxWidth: { app: '560px' },
+      borderRadius: { lg: '0.75rem', xl: '1rem' },
     },
   },
   plugins: [],

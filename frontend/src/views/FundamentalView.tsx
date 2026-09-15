@@ -196,18 +196,18 @@ function AnnualResults({
         {years.map((yr, i) => (
           <div key={yr} className="annual-col" aria-label={`${yr}년 매출 ${short(revenue[i])}`}>
             <span className="annual-value">{short(revenue[i])}</span>
-            <div className="annual-bars h-16">{bar(revenue[i], revMax, 'bg-muted/45', false)}</div>
+            <div className="annual-bars h-16">{bar(revenue[i], revMax, 'bg-muted/35', false)}</div>
           </div>
         ))}
       </div>
 
       <div className="annual-row-label mt-3">
         <span>
-          <span className="inline-block h-2 w-2 rounded-sm bg-accent mr-1" aria-hidden="true" />
+          <span className="inline-block h-2 w-2 rounded-sm bg-text/80 mr-1" aria-hidden="true" />
           영업이익
         </span>
         <span>
-          <span className="inline-block h-2 w-2 rounded-sm bg-accent/45 mr-1" aria-hidden="true" />
+          <span className="inline-block h-2 w-2 rounded-sm bg-muted/60 mr-1" aria-hidden="true" />
           순이익
         </span>
       </div>
@@ -226,8 +226,8 @@ function AnnualResults({
                 {op != null && op < 0 && <span className="ml-0.5">적자</span>}
               </span>
               <div className={`annual-bars ${hasLoss ? 'h-10' : 'h-16'}`}>
-                {bar(positive(op), profitMax, 'bg-accent', false)}
-                {bar(positive(net[i]), profitMax, 'bg-accent/45', false)}
+                {bar(positive(op), profitMax, 'bg-text/80', false)}
+                {bar(positive(net[i]), profitMax, 'bg-muted/60', false)}
               </div>
               {hasLoss && (
                 <div className="annual-bars h-10 border-t border-border">

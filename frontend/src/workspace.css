@@ -1,26 +1,30 @@
 /* Research workspace: restrained surfaces, readable data, contextual navigation. */
 :root {
-  --ink: 14 19 25;
-  --surface: 21 28 36;
-  --surface-2: 30 39 49;
-  --border: 47 59 71;
-  --text: 234 239 243;
-  --muted: 157 173 188;
-  --accent: 117 210 188;
-  --up: 255 111 122;
-  --down: 113 170 255;
+  --ink: 23 23 28;
+  --surface: 32 32 39;
+  --surface-2: 44 44 53;
+  --raised: 69 69 79;
+  --border: 44 44 53;
+  --text: 228 228 229;
+  --muted: 158 158 164;
+  --accent: 77 148 248;
+  --accent-fill: 34 114 235;
+  --up: 242 93 107;
+  --down: 77 148 248;
   color-scheme: dark;
 }
 :root[data-theme='light'] {
-  --ink: 245 247 249;
+  --ink: 242 244 246;
   --surface: 255 255 255;
-  --surface-2: 235 241 243;
-  --border: 210 220 227;
-  --text: 25 40 52;
-  --muted: 82 103 120;
-  --accent: 17 112 91;
-  --up: 191 39 59;
-  --down: 33 94 189;
+  --surface-2: 242 244 246;
+  --raised: 255 255 255;
+  --border: 229 232 235;
+  --text: 25 31 40;
+  --muted: 92 103 115;
+  --accent: 27 100 218;
+  --accent-fill: 27 100 218;
+  --up: 228 41 57;
+  --down: 27 100 218;
   color-scheme: light;
 }
 body {
@@ -1058,7 +1062,7 @@ h1:focus {
 }
 .wl-tag {
   flex-shrink: 0;
-  font-family: 'IBM Plex Mono', monospace;
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
   color: rgb(var(--muted));
 }
@@ -1592,7 +1596,7 @@ h1:focus {
   flex-direction: column;
   gap: 2px;
   min-height: 42px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-variant-numeric: tabular-nums;
   font-size: 12px;
   color: rgb(var(--muted));
   font-variant-numeric: tabular-nums;
@@ -1605,7 +1609,7 @@ h1:focus {
   gap: 0 12px;
 }
 .chart-legend {
-  font-family: 'IBM Plex Sans KR', system-ui, sans-serif;
+  font-family: inherit;
 }
 .chart-legend > span,
 .chart-ohlc > span {
@@ -1709,7 +1713,7 @@ h1:focus {
 .flow-table td {
   padding: 6px 0;
   text-align: right;
-  font-family: 'IBM Plex Mono', monospace;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .flow-table th:first-child {
@@ -1764,12 +1768,12 @@ h1:focus {
   font-variant-numeric: tabular-nums;
 }
 .annual-value {
-  font-family: 'IBM Plex Mono', monospace;
+  font-variant-numeric: tabular-nums;
   margin-bottom: 2px;
 }
 .annual-year {
   margin-top: 4px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-variant-numeric: tabular-nums;
   color: rgb(var(--muted));
 }
 .annual-margin {
@@ -2009,4 +2013,337 @@ h1:focus {
 }
 .segmented .is-down[aria-pressed='true'] {
   color: rgb(var(--down));
+}
+
+/* ───────── Toss-style visual language ─────────
+   토스증권을 기준으로: 테두리 대신 면의 명도 차이로 구분하고, 강조색은 파랑 하나,
+   선택 상태는 흑백 반전, 둥근 모서리, 숫자도 본문 글꼴(Pretendard)로. */
+body {
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+.text-label {
+  letter-spacing: 0;
+}
+.font-mono,
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+h1 {
+  letter-spacing: -0.03em;
+}
+.card-shadow {
+  box-shadow: none;
+  border-color: transparent;
+}
+
+/* Shell */
+.app-header {
+  background: rgb(var(--ink));
+  border-bottom-color: transparent;
+}
+.brand-mark {
+  color: rgb(var(--accent));
+  background: rgb(var(--surface-2));
+  border: 0;
+  border-radius: 12px;
+}
+.brand small {
+  letter-spacing: 0.08em;
+}
+.header-search {
+  background: rgb(var(--surface-2));
+  border: 0;
+  border-radius: 12px;
+  font-size: 14px;
+}
+.app-nav {
+  border-right-color: transparent;
+}
+.nav-item {
+  border-radius: 12px;
+  font-size: 15px;
+}
+.nav-item:hover {
+  background: rgb(var(--surface-2) / 0.6);
+  color: rgb(var(--text));
+}
+.nav-item.is-active {
+  background: rgb(var(--surface-2));
+  color: rgb(var(--text));
+  font-weight: 700;
+}
+.nav-context {
+  border-top-color: transparent;
+}
+
+/* Surfaces */
+.market-overview,
+.watchlist-section {
+  border-color: transparent;
+  border-radius: 20px;
+}
+.market-session {
+  border-bottom-color: transparent;
+  padding-bottom: 0;
+}
+.market-tiles > div > div {
+  border-right-color: transparent;
+}
+.market-tiles .text-caption {
+  font-weight: 700;
+}
+.home-aside > :first-child {
+  border-top: 0;
+}
+.form-panel {
+  border-color: transparent;
+  border-radius: 16px;
+}
+.forecast-cell {
+  border-color: transparent;
+  background: rgb(var(--surface-2));
+  border-radius: 12px;
+}
+.news-list,
+.sheet-list {
+  border-color: transparent;
+  border-radius: 16px;
+}
+.news-list li + li,
+.sheet-list-row + .sheet-list-row {
+  border-top-color: rgb(var(--border) / 0.6);
+}
+.stock-header {
+  border-bottom-color: transparent;
+  padding-bottom: 4px;
+}
+.stock-chip {
+  border: 0;
+  background: rgb(var(--surface-2));
+  border-radius: 6px;
+}
+.app-footer {
+  border-top-color: rgb(var(--border) / 0.6);
+}
+
+/* Controls */
+.button {
+  border-radius: 12px;
+  font-size: 14px;
+  padding: 8px 16px;
+}
+.button-primary,
+:root[data-theme='light'] .button-primary {
+  background: rgb(var(--accent-fill));
+  color: #fff;
+  border-color: transparent;
+}
+.button-quiet {
+  background: rgb(var(--surface-2));
+  border-color: transparent;
+  color: rgb(var(--text));
+}
+.icon-button {
+  border-radius: 12px;
+}
+.segmented {
+  background: rgb(var(--surface-2));
+  border: 0;
+  border-radius: 12px;
+  padding: 4px;
+}
+.segmented button {
+  border-radius: 9px;
+  color: rgb(var(--muted));
+  font-size: 13px;
+  font-weight: 500;
+}
+.segmented button[aria-pressed='true'] {
+  background: rgb(var(--raised));
+  color: rgb(var(--text));
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+}
+.period-controls button {
+  border-radius: 9px;
+  font-size: 13px;
+}
+.period-controls button[aria-pressed='true'] {
+  background: rgb(var(--surface-2));
+  font-weight: 700;
+}
+.sort-select {
+  border: 0;
+  border-radius: 10px;
+  background: rgb(var(--surface-2));
+  padding: 0 10px;
+  font-size: 13px;
+}
+.edit-order {
+  border-radius: 10px;
+  font-size: 13px;
+}
+.edit-order.is-editing,
+:root[data-theme='light'] .edit-order.is-editing {
+  background: rgb(var(--accent-fill));
+  color: #fff;
+}
+.list-search {
+  gap: 6px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: rgb(var(--surface-2));
+}
+.list-search:focus-within {
+  box-shadow: inset 0 0 0 1.5px rgb(var(--accent));
+}
+.list-search-toggle,
+.list-search-toggle.is-active {
+  border: 0;
+  border-radius: 12px;
+  background: rgb(var(--surface-2));
+}
+.list-search-toggle.is-active {
+  color: rgb(var(--text));
+}
+.ticker-chip,
+.toggle-chip,
+.choice-button,
+.add-button {
+  border: 0;
+  background: rgb(var(--surface-2));
+}
+.ticker-chip.is-active,
+.toggle-chip.is-on,
+.choice-button.is-selected {
+  background: rgb(var(--text));
+  color: rgb(var(--surface));
+  font-weight: 700;
+}
+.toggle-chip.is-on .toggle-check {
+  border-color: currentColor;
+  background: currentColor;
+  box-shadow: inset 0 0 0 2px rgb(var(--text));
+}
+.choice-button,
+.add-button {
+  border-radius: 10px;
+}
+.add-button:hover {
+  color: rgb(var(--accent));
+}
+.help-tip {
+  border: 0;
+  background: rgb(var(--surface-2));
+}
+.field {
+  border-color: transparent;
+  border-radius: 10px;
+  background: rgb(var(--surface-2));
+}
+.app-dialog .form-panel .field,
+.form-panel .field {
+  background: rgb(var(--ink));
+}
+.field:focus {
+  border-color: rgb(var(--accent));
+}
+.signal-pill,
+.hold-badge,
+.trade-badge {
+  border-color: transparent;
+}
+.signal-pill {
+  padding: 2px 10px;
+}
+
+/* Watchlist rows: 구분선 없이 둥근 hover 면 */
+.watchlist-columns {
+  margin-inline: 8px;
+  padding: 8px 12px;
+  background: none;
+  border-block: 0;
+}
+.watchlist-row {
+  width: calc(100% - 16px);
+  margin-inline: 8px;
+  padding: 12px;
+  border-bottom: 0;
+  border-radius: 14px;
+}
+.watchlist-rows {
+  padding-bottom: 4px;
+}
+.wl-name {
+  font-size: 15px;
+  font-weight: 700;
+}
+.wl-quote > div:first-child {
+  font-weight: 700;
+}
+.reorder-row {
+  border-bottom: 0;
+}
+
+/* Dialog */
+.app-dialog {
+  border: 0;
+  border-radius: 24px;
+}
+.dialog-header {
+  border-bottom-color: transparent;
+}
+.dialog-title {
+  font-size: 18px;
+}
+
+@media (max-width: 900px) {
+  .app-nav {
+    background: rgb(var(--surface) / 0.98);
+    border-top-color: rgb(var(--border) / 0.7);
+  }
+  .nav-item,
+  .nav-item:hover {
+    background: none;
+    color: rgb(var(--muted));
+    font-size: 11px;
+  }
+  .nav-item.is-active {
+    background: none;
+    color: rgb(var(--text));
+  }
+}
+@media (max-width: 600px) {
+  .market-overview,
+  .watchlist-section {
+    border-radius: 18px;
+  }
+  .header-search {
+    background: none;
+  }
+  .watchlist-row {
+    width: calc(100% - 8px);
+    margin-inline: 4px;
+    padding: 12px 10px;
+  }
+  .app-dialog {
+    border-radius: 24px 24px 0 0;
+  }
+  .dialog-header::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    width: 36px;
+    height: 4px;
+    margin-left: -18px;
+    border-radius: 999px;
+    background: rgb(var(--muted) / 0.4);
+  }
+  .dialog-header {
+    position: relative;
+    padding-top: 16px;
+  }
 }

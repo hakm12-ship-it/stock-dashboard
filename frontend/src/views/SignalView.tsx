@@ -215,7 +215,7 @@ export default function SignalView({ t }: { t: FocusTicker }) {
           </span>
         </div>
         <div className="mt-2" aria-hidden="true">
-          <div className="relative h-1.5 rounded-full bg-gradient-to-r from-down/50 via-muted/30 to-up/50">
+          <div className="relative h-1.5 rounded-full bg-gradient-to-r from-down/60 via-muted/25 to-up/60">
             <span
               className="absolute top-1/2 h-3 w-3 -translate-y-1/2 -translate-x-1/2 rounded-full border-2 border-ink bg-text"
               style={{ left: `${scorePos}%` }}
@@ -293,7 +293,7 @@ export default function SignalView({ t }: { t: FocusTicker }) {
           </dl>
           <div className="relative h-3 rounded-full bg-surface-2 overflow-hidden" aria-hidden="true">
             <div
-              className="absolute inset-y-0 bg-accent/25"
+              className="absolute inset-y-0 bg-muted/35"
               style={{
                 left: `${((b.lower_inner - b.lower_outer) / (b.upper_outer - b.lower_outer)) * 100}%`,
                 right: `${((b.upper_outer - b.upper_inner) / (b.upper_outer - b.lower_outer)) * 100}%`,

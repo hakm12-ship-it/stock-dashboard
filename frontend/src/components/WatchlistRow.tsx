@@ -42,9 +42,9 @@ function Sparkline({ data, up }: { data: number[]; up: boolean }) {
 }
 
 const VERDICT_COLOR: Record<string, string> = {
-  '매수 우위': 'text-up border-up/40',
-  '매도 우위': 'text-down border-down/40',
-  중립: 'text-muted border-border',
+  '매수 우위': 'text-up bg-up/10',
+  '매도 우위': 'text-down bg-down/10',
+  중립: 'text-muted bg-surface-2',
 }
 
 const PERIOD_LABEL: Partial<Record<Period, string>> = { '1m': '1개월', '3m': '3개월', '6m': '6개월', '1y': '1년' }
@@ -169,7 +169,7 @@ export default function WatchlistRow({
           </span>
           {holding && (
             <span
-              className={`hold-badge ${holdPct == null ? 'text-muted border-border' : holdPct >= 0 ? 'text-up border-up/40' : 'text-down border-down/40'}`}
+              className={`hold-badge ${holdPct == null ? 'text-muted bg-surface-2' : holdPct >= 0 ? 'text-up bg-up/10' : 'text-down bg-down/10'}`}
             >
               보유 <span className="font-mono tnum">{holdPct != null ? fmtPct(holdPct) : '—'}</span>
             </span>
@@ -213,7 +213,7 @@ export default function WatchlistRow({
         )}
       </div>
       <div className="wl-signal">
-        <span className={`signal-pill ${VERDICT_COLOR[sig.data?.verdict ?? ''] ?? 'text-muted border-border'}`}>
+        <span className={`signal-pill ${VERDICT_COLOR[sig.data?.verdict ?? ''] ?? 'text-muted bg-surface-2'}`}>
           <span className="signal-prefix">신호 </span>
           {sig.data ? sig.data.verdict : sig.isPending ? '분석 중' : '없음'}
         </span>

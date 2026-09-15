@@ -188,7 +188,7 @@ export default function TradeJournalSheet({
           <ul className="sheet-list">
             {sorted.map((t) => (
               <li key={t.id} className="sheet-list-row">
-                <span className={`trade-badge ${t.side === 'buy' ? 'text-up border-up/40' : 'text-down border-down/40'}`}>
+                <span className={`trade-badge ${t.side === 'buy' ? 'text-up bg-up/10' : 'text-down bg-down/10'}`}>
                   {t.side === 'buy' ? '매수' : '매도'}
                 </span>
                 <div className="min-w-0 flex-1">

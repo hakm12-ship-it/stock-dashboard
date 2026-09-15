@@ -2,40 +2,40 @@ import { ColorType, TickMarkType, type Time } from 'lightweight-charts'
 import type { Market } from '../data/tickers'
 
 /** 차트 공통 색 — 상승=빨강 / 하락=파랑 (KR 관례) */
-export const CHART_UP = '#F23645'
-export const CHART_DOWN = '#2E86FF'
-export const CHART_ACCENT = '#249D83'
+export const CHART_UP = '#F25D6B'
+export const CHART_DOWN = '#4D94F8'
+export const CHART_ACCENT = '#B0B8C1'
 
 /** 테마별 보조 선 색. 흰 배경에서는 어두운 테마용 금색·회색이 거의 보이지 않아 따로 둔다. */
 export function chartColors(light: boolean) {
   return light
     ? {
-        up: '#BF273B',
-        down: '#215EBD',
-        accent: '#11705B',
-        ma20: '#B7791F',
-        ma60: '#5E6B78',
-        band: 'rgba(82,103,120,0.6)',
-        volUp: 'rgba(191,39,59,0.22)',
-        volDown: 'rgba(33,94,189,0.22)',
-        histUp: 'rgba(191,39,59,0.45)',
-        histDown: 'rgba(33,94,189,0.45)',
-        neutral: '#192834',
-        border: '#D2DCE3',
+        up: '#F04452',
+        down: '#3182F6',
+        accent: '#4E5968',
+        ma20: '#F59E0B',
+        ma60: '#8B95A1',
+        band: 'rgba(107,118,132,0.55)',
+        volUp: 'rgba(240,68,82,0.22)',
+        volDown: 'rgba(49,130,246,0.22)',
+        histUp: 'rgba(240,68,82,0.45)',
+        histDown: 'rgba(49,130,246,0.45)',
+        neutral: '#191F28',
+        border: '#E5E8EB',
       }
     : {
         up: CHART_UP,
         down: CHART_DOWN,
         accent: CHART_ACCENT,
-        ma20: '#E0B84D',
-        ma60: '#8B94A3',
-        band: 'rgba(139,148,163,0.55)',
-        volUp: 'rgba(242,54,69,0.3)',
-        volDown: 'rgba(46,134,255,0.3)',
-        histUp: 'rgba(242,54,69,0.5)',
-        histDown: 'rgba(46,134,255,0.5)',
-        neutral: '#EAEFF3',
-        border: '#2F3B47',
+        ma20: '#F5A524',
+        ma60: '#8A8A94',
+        band: 'rgba(158,158,164,0.5)',
+        volUp: 'rgba(242,93,107,0.3)',
+        volDown: 'rgba(77,148,248,0.3)',
+        histUp: 'rgba(242,93,107,0.5)',
+        histDown: 'rgba(77,148,248,0.5)',
+        neutral: '#E4E4E5',
+        border: '#2C2C35',
       }
 }
 
@@ -85,13 +85,13 @@ export function fmtChartDate(time: Time, withTime = false): string {
  */
 export function chartBase(light: boolean, timeVisible = false, attribution = true) {
   const c = chartColors(light)
-  const text = light ? '#526778' : '#9DADBC'
-  const grid = light ? 'rgba(22,27,38,0.07)' : 'rgba(35,40,51,0.4)'
+  const text = light ? '#6B7684' : '#9E9EA4'
+  const grid = light ? 'rgba(25,31,40,0.05)' : 'rgba(255,255,255,0.04)'
   return {
     layout: {
       background: { type: ColorType.Solid, color: 'transparent' },
       textColor: text,
-      fontFamily: '"IBM Plex Mono", monospace',
+      fontFamily: '"Pretendard Variable", Pretendard, -apple-system, system-ui, sans-serif',
       fontSize: 11,
       attributionLogo: attribution,
     },

@@ -95,7 +95,7 @@ export default function PortfolioChart({ holdings, light }: { holdings: Holding[
   useEffect(() => {
     if (!ref.current || curve.length < 2) return
     const chart: IChartApi = createChart(ref.current, chartBase(light))
-    const line = light ? '17,112,91' : '117,210,188' // 테마 주요 색(--accent)
+    const line = light ? '27,100,218' : '77,148,248' // 테마 강조색(--accent)
     const s = chart.addAreaSeries({
       lineColor: `rgb(${line})`,
       lineWidth: 2,
