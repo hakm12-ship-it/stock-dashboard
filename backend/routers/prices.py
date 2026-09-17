@@ -7,6 +7,8 @@ from analysis.technical import bollinger, macd, rsi
 from deps import cached_symbols, load, load_with_warmup, market_name, series
 
 router = APIRouter()
+# 검색 결과 상한. 30이면 "KODEX"처럼 결과가 많은 검색에서 대부분이 잘려 나갔다.
+SYMBOL_LIMIT = 100
 
 
 @router.get("/api/health")
@@ -18,7 +20,7 @@ def health():
 def api_symbols(market: str, q: str = ""):
     df = cached_symbols(market_name(market))
     if not q:
-        return df.head(30).to_dict("records")
+        return df.head(SYMBOL_LIMIT).to_dict("records")
 
     key = q.strip().lower()
     ticker = df["ticker"].str.lower()
@@ -34,7 +36,7 @@ def api_symbols(market: str, q: str = ""):
     df.loc[t.str.startswith(key), "_rank"] = 1          # 티커가 그걸로 시작
     df.loc[t == key, "_rank"] = 0                       # 티커 정확히 일치
     df = df.sort_values(["_rank", "ticker"]).drop(columns="_rank")
-    return df.head(30).to_dict("records")
+    return df.head(SYMBOL_LIMIT).to_dict("records")
 
 
 @router.get("/api/prices")
