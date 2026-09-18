@@ -1,12 +1,54 @@
 """시세·기술지표 — 캔들, RSI/MACD/볼린저, 종목검색."""
 
+import re
+from datetime import datetime, timezone
+
 import pandas as pd
 from fastapi import APIRouter
 
 from analysis.technical import bollinger, macd, rsi
+from cache import ttl_cache
+from data.naver_index import realtime_quote
+from data.naver_stock import naver_us_quote
 from deps import cached_symbols, load, load_with_warmup, market_name, series
 
 router = APIRouter()
+
+# 목표가 알림용 현재가. 네이버 폴링 시세라 지연이 있고 공식 실시간 시세는 아니다.
+_cached_kr_quote = ttl_cache(30)(realtime_quote)
+_cached_us_quote = ttl_cache(30)(naver_us_quote)
+_KR_CODE = re.compile(r"^[A-Z0-9]{6}$")
+_US_CODE = re.compile(r"^[A-Z][A-Z0-9.-]{0,14}$")
+QUOTE_BATCH_LIMIT = 20
+
+
+@router.get("/api/quotes")
+def api_quotes(market: str, tickers: str = ""):
+    """여러 종목의 현재가. 실패한 종목은 개별 error로 표시하고 전체는 200을 돌려준다."""
+    is_kr = market.upper() == "KR"
+    pattern = _KR_CODE if is_kr else _US_CODE
+    codes = []
+    for raw in tickers.split(","):
+        code = raw.strip().upper()
+        if code and code not in codes:
+            codes.append(code)
+    out = []
+    for code in codes[:QUOTE_BATCH_LIMIT]:
+        if not pattern.match(code):
+            out.append({"ticker": code, "error": "invalid ticker"})
+            continue
+        try:
+            if is_kr:
+                q = _cached_kr_quote(code)
+                out.append({"ticker": code, "price": q["last"], "changePct": q["changePct"], "marketOpen": bool(q["marketOpen"]),
+                            "asOf": datetime.now(timezone.utc).isoformat()})
+            else:
+                q = _cached_us_quote(code)
+                out.append({"ticker": code, "price": q["close"], "changePct": q["changePct"], "marketOpen": bool(q["marketOpen"]),
+                            "asOf": q.get("tradedAt")})
+        except Exception as exc:  # noqa: BLE001 - 한 종목 실패가 배치 전체를 막으면 안 된다
+            out.append({"ticker": code, "error": str(exc)[:200]})
+    return out
 # 검색 결과 상한. 30이면 "KODEX"처럼 결과가 많은 검색에서 대부분이 잘려 나갔다.
 SYMBOL_LIMIT = 100
 
