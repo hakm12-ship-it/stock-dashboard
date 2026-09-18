@@ -7,8 +7,12 @@
 공지가 나갔는지, 설정이 빠졌는지 알 길이 없다.
 """
 
+import hashlib
 import hmac
+import json
 import os
+import re
+import urllib.request
 from collections import OrderedDict
 
 from fastapi import APIRouter, Header, HTTPException, Request
@@ -19,6 +23,12 @@ from data.telegram import send_telegram_to
 router = APIRouter()
 
 _COMMANDS = {"/announce", "/broadcast", "/공지"}
+
+# 주담(커뮤니티) 알림 연결. 봇 하나에 웹훅은 하나뿐이라 이 서버가 받은
+# /start <코드>·/stop 명령을 주담 서버로 그대로 넘긴다. 주담은 봇 토큰의
+# SHA-256 앞 32자를 웹훅 비밀로 쓰므로 같은 토큰을 가진 이 서버가 만들 수 있다.
+JUDAM_WEBHOOK_URL = os.environ.get("JUDAM_WEBHOOK_URL", "https://judam-web-production.up.railway.app/auth/webhook/telegram").strip()
+_JUDAM_COMMAND = re.compile(r"^/(start|stop)(?:@\w+)?(?:\s+[A-Za-z0-9]{6,32})?\s*$")
 _MAX_ANNOUNCEMENT_LENGTH = 3_500
 _HEADER = "📢 스톡 인사이트 공지\n\n"
 
@@ -79,6 +89,39 @@ def announcement_from_update(update: dict) -> str | None:
     return body
 
 
+def is_judam_command(update: dict) -> bool:
+    """1:1 대화의 /start [코드]·/stop 만 주담 몫이다. 공지 명령과 그룹 대화는 아니다."""
+    message = update.get("message")
+    if not isinstance(message, dict) or (message.get("chat") or {}).get("type") != "private":
+        return False
+    text = message.get("text")
+    return isinstance(text, str) and bool(_JUDAM_COMMAND.match(text.strip()))
+
+
+def judam_webhook_secret() -> str:
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()[:32] if token else ""
+
+
+def forward_to_judam(update: dict) -> bool:
+    """주담 서버에 업데이트를 그대로 전달한다. 실패해도 Telegram에는 200을 준다(재전송 방지)."""
+    secret = judam_webhook_secret()
+    if not JUDAM_WEBHOOK_URL or not secret:
+        return False
+    req = urllib.request.Request(
+        JUDAM_WEBHOOK_URL,
+        data=json.dumps(update).encode("utf-8"),
+        headers={"Content-Type": "application/json", "X-Telegram-Bot-Api-Secret-Token": secret},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return 200 <= resp.status < 300
+    except Exception as exc:  # noqa: BLE001 - 전달 실패는 로그로만
+        print(f"[telegram] 주담 전달 실패: {exc}")
+        return False
+
+
 def handle_update(update: dict) -> dict:
     """인증이 끝난 업데이트 하나를 처리한다. 동기 함수라 스레드풀에서 돈다.
 
@@ -87,6 +130,9 @@ def handle_update(update: dict) -> dict:
     """
     if _already_seen(update.get("update_id")):
         return {"ok": True, "announcement": False, "duplicate": True}
+
+    if is_judam_command(update):
+        return {"ok": True, "announcement": False, "forwarded": forward_to_judam(update)}
 
     body = announcement_from_update(update)
     if not body:
