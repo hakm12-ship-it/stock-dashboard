@@ -6,6 +6,10 @@ KOSPI/KOSDAQ 현재값을 실시간(delayTime 0)으로 가져온다.
 import json
 import urllib.request
 
+import pandas as pd
+
+from cache import ttl_cache
+
 _URL = "https://polling.finance.naver.com/api/realtime/domestic/index/{}"
 _UP_CODES = {"1", "2"}  # 상한, 상승
 
@@ -47,6 +51,9 @@ def realtime_index(code: str) -> dict:
         "changePct": sign * abs(_num(d["fluctuationsRatio"])),
         "highPct": high_pct,
         "lowPct": low_pct,
+        "asOf": d.get("localTradedAt"),
+        "marketOpen": d.get("marketStatus") == "OPEN",
+        "source": "Naver",
     }
 
 
@@ -75,4 +82,34 @@ def realtime_quote(code: str) -> dict:
         "highPct": high_pct,
         "lowPct": low_pct,
         "marketOpen": d.get("marketStatus") == "OPEN",
+        "asOf": d.get("localTradedAt"),
     }
+
+
+@ttl_cache(300)
+def daily_index(code: str) -> pd.DataFrame:
+    """최근 지수 일봉. 전체 OHLC를 사용하며 현재가 한 점으로 차트를 만들지 않는다."""
+    if code not in {"KOSPI", "KOSDAQ"}:
+        raise ValueError("unsupported index")
+    req = urllib.request.Request(
+        f"https://api.stock.naver.com/chart/domestic/index/{code}?periodType=dayCandle",
+        headers={"User-Agent": "Mozilla/5.0", "Referer": "https://m.stock.naver.com/"},
+    )
+    with urllib.request.urlopen(req, timeout=8) as resp:
+        payload = json.loads(resp.read())
+    rows = payload.get("priceInfos", [])
+    df = pd.DataFrame(rows).rename(columns={
+        "openPrice": "Open", "highPrice": "High", "lowPrice": "Low",
+        "closePrice": "Close", "accumulatedTradingVolume": "Volume",
+    })
+    if df.empty:
+        raise ValueError("empty index history")
+    df.index = pd.to_datetime(df.pop("localDate"), format="%Y%m%d")
+    df = df[["Open", "High", "Low", "Close", "Volume"]].apply(pd.to_numeric, errors="coerce")
+    # 이 차트의 지수 거래량은 천 주 단위다. FDR의 주 단위와 맞춘다.
+    df["Volume"] = df["Volume"] * 1000
+    df = df.dropna(subset=["Open", "High", "Low", "Close"]).sort_index()
+    if df.empty:
+        raise ValueError("invalid index history")
+    df.attrs["source"] = "Naver"
+    return df

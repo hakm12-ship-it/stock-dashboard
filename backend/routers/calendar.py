@@ -14,7 +14,10 @@ router = APIRouter()
 @router.get("/api/calendar")
 def api_calendar(start: date | None = None, end: date | None = None):
     first = start or datetime.now(KST).date()
-    last = end or first + timedelta(days=30)
+    try:
+        last = end or first + timedelta(days=30)
+    except OverflowError:
+        raise HTTPException(status_code=422, detail="조회 가능한 날짜 범위를 벗어났습니다.") from None
     if last < first or (last - first).days >= 93:
         raise HTTPException(status_code=422, detail="조회 기간은 시작일부터 최대 93일입니다.")
     return get_calendar(first, last)

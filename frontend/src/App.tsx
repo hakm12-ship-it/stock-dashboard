@@ -18,15 +18,23 @@ import { useNavigation, TAB_LABELS } from './lib/navigation'
 import SearchSheet from './components/SearchSheet'
 import HoldingsSheet from './components/HoldingsSheet'
 import ComparisonSheet from './components/ComparisonSheet'
-import { loadCustom, saveCustom } from './lib/customTickers'
-import { loadHoldings, saveHoldings, type Holding } from './lib/holdings'
-import { loadTrades, saveTrades, type Trade } from './lib/trades'
+import { loadCustom } from './lib/customTickers'
+import { loadHoldings, type Holding } from './lib/holdings'
+import { loadTrades, type Trade } from './lib/trades'
 import TradeJournalSheet from './components/TradeJournalSheet'
-import { persist } from './lib/storage'
-import { parseBackup, type Backup } from './lib/validation'
+import { mutateList, mutateStorage, readStoredList } from './lib/storage'
+import { isHolding, isTicker, isTrade, parseBackup, type Backup } from './lib/validation'
+import { refreshActiveQueries } from './lib/queryRefresh'
 import { marketStatus } from './lib/market'
 
-const realtimeKeys = new Set(['prices', 'index', 'ind', 'signal', 'forecast', 'fx', 'macro', 'marketTop', 'groupStocks'])
+const realtimeKeys = new Set(['prices', 'watchlist', 'index', 'ind', 'signal', 'forecast', 'fx', 'macro', 'marketTop', 'groupStocks'])
+const tkey = (x: { market: string; ticker: string }) => `${x.market}-${x.ticker}`
+const loadOrder = () => {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem('tickerOrder') || '[]')
+    return Array.isArray(value) ? value.filter((x): x is string => typeof x === 'string') : []
+  } catch { return [] }
+}
 
 export default function App() {
   const { t, tab, navigate } = useNavigation()
@@ -34,6 +42,7 @@ export default function App() {
   const setTab = (next: typeof tab) => navigate(next)
   const [period, setPeriod] = useState<Period>('3m')
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
+  const [refreshError, setRefreshError] = useState('')
   const [custom, setCustom] = useState<FocusTicker[]>(loadCustom)
   const [searchOpen, setSearchOpen] = useState(false)
   const [watchlistPreferences, setWatchlistPreferences] = useState<WatchlistPreferences>({
@@ -95,15 +104,22 @@ export default function App() {
     return () => clearInterval(id)
   }, [qc])
 
-  const [order, setOrder] = useState<string[]>(() => {
-    try {
-      const value: unknown = JSON.parse(localStorage.getItem('tickerOrder') || '[]')
-      return Array.isArray(value) ? value.filter((x): x is string => typeof x === 'string') : []
-    } catch {
-      return []
+  const [order, setOrder] = useState<string[]>(loadOrder)
+  const syncStoredData = () => {
+    setHoldings(loadHoldings())
+    setTrades(loadTrades())
+    setCustom(loadCustom())
+    setOrder(loadOrder())
+  }
+  useEffect(() => {
+    const sync = (event: StorageEvent) => {
+      if (event.storageArea === localStorage && (event.key == null || ['holdings', 'trades-v1', 'customTickers', 'tickerOrder'].includes(event.key))) {
+        syncStoredData()
+      }
     }
-  })
-  const tkey = (x: FocusTicker) => `${x.market}-${x.ticker}`
+    window.addEventListener('storage', sync)
+    return () => window.removeEventListener('storage', sync)
+  }, [])
   const all = [
     ...new Map(
       [...TICKERS, ...custom.filter((x) => !TICKERS.some((t) => tkey(t) === tkey(x)))].map((x) => [tkey(x), x]),
@@ -113,21 +129,27 @@ export default function App() {
     const ib = order.indexOf(tkey(b))
     return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib)
   })
-  const moveTicker = (k: string, dir: -1 | 1) => {
-    const keys = all.map(tkey)
-    const i = keys.indexOf(k)
-    const j = i + dir
-    if (i === -1 || j < 0 || j >= keys.length) return
-    ;[keys[i], keys[j]] = [keys[j], keys[i]]
-    if (saved(persist({ tickerOrder: keys }))) setOrder(keys)
+  const moveTicker = async (k: string, dir: -1 | 1) => {
+    const result = await mutateStorage((storage) => {
+      const latest = [...new Map([...TICKERS, ...readStoredList(storage, 'customTickers', isTicker)].map((ticker) => [tkey(ticker), ticker])).keys()]
+      const previous = readStoredList(storage, 'tickerOrder', (value): value is string => typeof value === 'string')
+      const keys = [...previous.filter((key) => latest.includes(key)), ...latest.filter((key) => !previous.includes(key))]
+      const i = keys.indexOf(k), j = i + dir
+      if (i >= 0 && j >= 0 && j < keys.length) [keys[i], keys[j]] = [keys[j], keys[i]]
+      return { entries: { tickerOrder: keys }, value: keys }
+    })
+    if (saved(result.ok)) syncStoredData()
   }
 
   const refresh = async () => {
     if (refreshing) return
     setRefreshing(true)
+    setRefreshError('')
     try {
-      await qc.invalidateQueries()
-      setUpdatedAt(new Date())
+      if (await refreshActiveQueries(qc)) setUpdatedAt(new Date())
+      else setRefreshError('일부 항목을 새로고침하지 못했습니다. 마지막으로 받은 데이터가 표시될 수 있습니다.')
+    } catch {
+      setRefreshError('새로고침하지 못했습니다. 연결 상태를 확인하고 다시 시도해 주세요.')
     } finally {
       setRefreshing(false)
     }
@@ -157,44 +179,40 @@ export default function App() {
     setPull(0)
     touch.current.active = false
   }
-  const addTicker = (tk: FocusTicker) => {
-    if (all.some((x) => x.ticker === tk.ticker && x.market === tk.market)) return true
-    const next = [...custom, tk]
-    if (!saved(saveCustom(next))) return false
-    setCustom(next)
+  const addTicker = async (tk: FocusTicker) => {
+    if (TICKERS.some((x) => tkey(x) === tkey(tk))) return true
+    const result = await mutateList('customTickers', isTicker, (latest) => latest.some((x) => tkey(x) === tkey(tk)) ? latest : [...latest, tk])
+    if (saved(result.ok)) syncStoredData()
+    return result.ok
+  }
+  const removeTicker = async (tk: FocusTicker) => {
+    const result = await mutateList('customTickers', isTicker, (latest) => latest.filter((x) => tkey(x) !== tkey(tk)))
+    if (!saved(result.ok)) return false
+    syncStoredData()
+    if (tkey(t) === tkey(tk)) setT(TICKERS[0])
     return true
   }
-  const removeTicker = (tk: FocusTicker) => {
-    const next = custom.filter((x) => !(x.ticker === tk.ticker && x.market === tk.market))
-    if (!saved(saveCustom(next))) return false
-    setCustom(next)
-    if (t.ticker === tk.ticker && t.market === tk.market) setT(TICKERS[0])
+  const saveHolding = async (h: Holding) => {
+    const result = await mutateList('holdings', isHolding, (latest) => [...latest.filter((x) => tkey(x) !== tkey(h)), h])
+    if (saved(result.ok)) syncStoredData()
+    return result.ok
   }
-  const saveHolding = (h: Holding) => {
-    const next = [...holdings.filter((x) => !(x.ticker === h.ticker && x.market === h.market)), h]
-    if (!saved(saveHoldings(next))) return false
-    setHoldings(next)
-    return true
+  const removeHolding = async (h: Holding) => {
+    const result = await mutateList('holdings', isHolding, (latest) => latest.filter((x) => tkey(x) !== tkey(h)))
+    if (saved(result.ok)) syncStoredData()
+    return result.ok
   }
-  const removeHolding = (h: Holding) => {
-    const next = holdings.filter((x) => !(x.ticker === h.ticker && x.market === h.market))
-    if (!saved(saveHoldings(next))) return false
-    setHoldings(next)
-    return true
+  const addTrade = async (trade: Trade) => {
+    const result = await mutateList('trades-v1', isTrade, (latest) => [...latest.filter((x) => x.id !== trade.id), trade])
+    if (saved(result.ok)) syncStoredData()
+    return result.ok
   }
-  const addTrade = (t: Trade) => {
-    const next = [...trades, t]
-    if (!saved(saveTrades(next))) return false
-    setTrades(next)
-    return true
+  const removeTrade = async (id: string) => {
+    const result = await mutateList('trades-v1', isTrade, (latest) => latest.filter((x) => x.id !== id))
+    if (saved(result.ok)) syncStoredData()
+    return result.ok
   }
-  const removeTrade = (id: string) => {
-    const next = trades.filter((x) => x.id !== id)
-    if (!saved(saveTrades(next))) return false
-    setTrades(next)
-    return true
-  }
-  const importData = (input: Backup) => {
+  const importData = async (input: Backup) => {
     const d = parseBackup(JSON.stringify(input))
     const values: Record<string, unknown> = {}
     if (d.holdings) values.holdings = d.holdings
@@ -203,11 +221,9 @@ export default function App() {
         (x) => !TICKERS.some((t) => t.ticker === x.ticker && t.market === x.market),
       )
     if (d.trades) values['trades-v1'] = d.trades
-    if (!saved(persist(values))) return false
-    if (d.holdings) setHoldings(d.holdings)
-    if (d.customTickers) setCustom(values.customTickers as FocusTicker[])
-    if (d.trades) setTrades(d.trades)
-    return true
+    const result = await mutateStorage(() => ({ entries: values, value: true }))
+    if (saved(result.ok)) syncStoredData()
+    return result.ok
   }
 
   return (
@@ -279,6 +295,7 @@ export default function App() {
         </div>
       </header>
       <main id="main-content" className="app-main" tabIndex={-1}>
+        {refreshError && <p role="alert" className="storage-error">{refreshError}</p>}
         {storageError && (
           <p role="alert" className="storage-error">
             {storageError}
@@ -401,6 +418,7 @@ export default function App() {
       {journalOpen && (
         <TradeJournalSheet
           trades={trades}
+          holdings={holdings}
           tickers={all}
           onAdd={addTrade}
           onRemove={removeTrade}

@@ -16,7 +16,7 @@ export default function SearchSheet({
 }: {
   existing: FocusTicker[]
   custom: FocusTicker[]
-  onAdd: (t: FocusTicker) => boolean
+  onAdd: (t: FocusTicker) => Promise<boolean>
   onRemove: (t: FocusTicker) => void
   onClose: () => void
   onSelect?: (t: FocusTicker) => void
@@ -25,6 +25,7 @@ export default function SearchSheet({
   const [q, setQ] = useState('')
   const [dq, setDq] = useState('')
   const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null)
+  const [adding, setAdding] = useState<string | null>(null)
   const input = useRef<HTMLInputElement>(null)
   const selected = useRef<FocusTicker | null>(null)
   const query = q.trim()
@@ -198,10 +199,12 @@ export default function SearchSheet({
                   <div className="min-w-0 flex-1 py-2">{label}</div>
                 )}
                 <button
-                  disabled={added}
+                  disabled={added || adding === r.ticker}
                   aria-label={added ? `${r.name} 관심종목에 추가됨` : `${r.name} 관심종목에 추가`}
-                  onClick={() => {
-                    const ok = onAdd(ticker)
+                  onClick={async () => {
+                    setAdding(r.ticker)
+                    const ok = await onAdd(ticker)
+                    setAdding(null)
                     setNotice({
                       text: ok
                         ? `${josa(r.name, '을', '를')} 관심종목에 추가했습니다.`

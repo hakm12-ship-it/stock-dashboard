@@ -16,6 +16,7 @@ function IndexItem({ name, label }: { name: string; label: string }) {
           <div className={`font-mono text-label ${changeColor(data.change)}`}>
             {fmtChange(data.changePct, data.change)}
           </div>
+          {(data.history?.stale || isError) && <div className="text-label text-muted">갱신 지연</div>}
         </div>
       ) : isError ? (
         <button

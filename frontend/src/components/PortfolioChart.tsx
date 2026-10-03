@@ -88,6 +88,12 @@ export default function PortfolioChart({ holdings, light }: { holdings: Holding[
   })
 
   const ready = qs.every((q) => q.data) && (!hasUS || fxq.data)
+  const failed = qs.some((query) => query.isError) || (hasUS && fxq.isError)
+  const loading = qs.some((query) => query.isPending) || (hasUS && fxq.isPending)
+  const refetch = () => {
+    qs.forEach((query) => void query.refetch())
+    if (hasUS) void fxq.refetch()
+  }
   const priceMap = new Map<string, Candle[]>()
   if (ready) holdings.forEach((h, i) => priceMap.set(hk(h), qs[i].data as Candle[]))
   const curve = ready ? buildCurve(holdings, priceMap, hasUS ? (fxq.data as FxPoint[]) : null) : []
@@ -138,9 +144,17 @@ export default function PortfolioChart({ holdings, light }: { holdings: Holding[
         </div>
       </div>
       {curve.length >= 2 ? (
-        <div ref={ref} className="w-full h-36" />
-      ) : (
+        <>
+          {failed && <p role="status" className="text-caption text-muted mb-2">일부 시세 갱신에 실패해 마지막 조회값을 표시합니다.</p>}
+          <div ref={ref} className="w-full h-36" />
+        </>
+      ) : loading ? (
         <div className="h-36 rounded-lg shimmer" />
+      ) : (
+        <div className="min-h-36 rounded-lg bg-surface-2 px-3 py-5 text-center text-caption text-muted" role={failed ? 'alert' : 'status'}>
+          <p>{failed ? '자산 추이를 불러오지 못했습니다.' : '차트를 그릴 만큼의 시세가 없습니다.'}</p>
+          <button className="button button-quiet mt-3" onClick={refetch}>자산 추이 다시 조회</button>
+        </div>
       )}
       <p className="text-label text-muted mt-1.5">
         현재 보유 수량으로 과거를 환산한 곡선이에요 — 실제 매수 시점·현금흐름은 반영되지 않아요.

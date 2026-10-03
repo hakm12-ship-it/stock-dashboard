@@ -21,6 +21,23 @@ export interface IndexData {
   change: number
   changePct: number
   series: { time: string; close: number }[]
+  quoteAsOf?: string | null
+  quoteSource?: string
+  history?: Freshness
+}
+
+export interface Freshness {
+  asOf?: string | null
+  source?: string
+  stale?: boolean
+  reason?: string
+}
+
+export interface WatchlistData extends Freshness {
+  ticker: string
+  candles?: Candle[]
+  signal?: SignalData
+  error?: string
 }
 
 export interface Indicators {
@@ -61,7 +78,8 @@ interface SignalItem {
   score: number
   detail: string
 }
-export interface SignalData {
+export interface SignalData extends Freshness {
+  available?: boolean
   signals: SignalItem[]
   total: number
   verdict: string
@@ -119,6 +137,8 @@ const get = <T>(url: string, params: Record<string, unknown>) =>
 
 export const getIndex = (name: string) => get<IndexData>('/api/index', { name })
 export const getPrices = (ticker: string, period: Period) => get<Candle[]>('/api/prices', { ticker, period })
+export const getWatchlist = (tickers: string[], period: Period, cfg?: Record<string, number>) =>
+  get<WatchlistData[]>('/api/watchlist', { tickers: tickers.join(','), period, ...(cfg ?? {}) })
 export const getIndicators = (ticker: string, period: Period) =>
   get<Indicators>('/api/indicators', { ticker, period })
 export const getValuation = (market: Market, ticker: string) =>
@@ -179,6 +199,7 @@ export interface AiBriefing {
   /** LLM 호출 실패(할당량 초과 등)로 직전 분석을 대신 내려준 경우 true */
   stale?: boolean
   error?: string
+  reason?: string
   stance?: '강세' | '약세' | '중립'
   summary?: string
   bullets?: string[]

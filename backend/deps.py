@@ -16,7 +16,7 @@ from analysis.fundamental import valuation
 from cache import ttl_cache
 from data.crypto import upbit_top
 from data.hyperliquid import fetch_perp_candles, fetch_perp_prices
-from data.naver_index import realtime_index
+from data.naver_index import daily_index, realtime_index
 from data.naver_stock import (
     naver_deal_trend,
     naver_group_stocks,
@@ -49,7 +49,7 @@ cached_perp_candles = ttl_cache(60)(fetch_perp_candles)
 cached_us_quote = ttl_cache(60)(naver_us_quote)
 # 재무 지표는 분 단위로 바뀌지 않는데 매 호출마다 네이버를 새로 불렀다.
 # /api/valuation과 /api/ai-briefing 양쪽에서 쓰여 호출이 두 배로 났다.
-cached_valuation = ttl_cache(60 * 60)(valuation)
+from analysis.fundamental import cached_valuation  # success 1h; empty upstream response 2m
 
 
 def market_name(code: str) -> str:
@@ -127,9 +127,37 @@ def _fill_missing_close(df: pd.DataFrame, ticker: str) -> pd.DataFrame:
 
 def _fetch(ticker: str, start: date) -> pd.DataFrame:
     """FDR 조회 → 미확정 종가 보정 → 분할 보정. load 계열의 공통 경로."""
+    if ticker in {"KS11", "KQ11"}:
+        df = _kr_index_history(ticker)
+        return df.loc[df.index.date >= start].copy()
     df = _fill_missing_close(fdr.DataReader(ticker, start), ticker)
     # 메우지 못한 미확정 행은 제거 (JSON 직렬화·지표 계산 오류 방지)
     return adjust_splits(df.dropna(subset=["Close"]))
+
+
+@ttl_cache(300)
+def _kr_index_history(ticker: str) -> pd.DataFrame:
+    """오래된 FDR 지수 일봉을 최신 네이버 OHLC로 보완. 모든 화면이 같은 이력을 사용."""
+    parts = []
+    try:
+        old = fdr.DataReader(ticker, date.today() - timedelta(days=500))
+        if not old.empty:
+            parts.append(old.dropna(subset=["Close"]))
+    except Exception:
+        pass
+    source = "FinanceDataReader"
+    try:
+        fresh = daily_index("KOSPI" if ticker == "KS11" else "KOSDAQ")
+        parts.append(fresh)
+        source = "Naver + FinanceDataReader" if len(parts) > 1 else "Naver"
+    except Exception:
+        pass
+    if not parts:
+        raise ValueError("index history unavailable")
+    result = pd.concat(parts)
+    result = result[~result.index.duplicated(keep="last")].sort_index()
+    result.attrs["source"] = source
+    return result
 
 
 @ttl_cache(60)
@@ -159,7 +187,7 @@ def load_with_warmup(ticker: str, period: str) -> tuple[pd.DataFrame, int]:
 
 @ttl_cache(60)
 def load_index(code: str) -> pd.DataFrame:
-    return fdr.DataReader(code, date.today() - timedelta(days=120))
+    return _fetch(code, date.today() - timedelta(days=120))
 
 
 @ttl_cache(60 * 30)

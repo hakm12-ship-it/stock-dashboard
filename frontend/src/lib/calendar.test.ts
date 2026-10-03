@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { koreanDate, shiftDate, shiftMonth, monthRange, monthDays, eventTime, sortedEvents, type CalendarEvent } from './calendar.ts'
+import { CALENDAR_QUERY_POLICY, calendarTimestamp, koreanDate, shiftDate, shiftMonth, monthRange, monthDays, eventTime, sortedEvents, type CalendarEvent } from './calendar.ts'
+import { QueryClient, QueryObserver, focusManager } from '@tanstack/react-query'
 
 test('한국 날짜는 UTC 자정이 아니라 한국 자정에 바뀐다', () => {
   assert.equal(koreanDate(new Date('2026-10-04T14:59:00Z')), '2026-10-04')
@@ -28,4 +29,47 @@ test('발표 시각은 한국시간으로 표시하며 현지 날짜만 주어�
 test('일정은 날짜와 실제 발표시각으로 정렬하고 시간 미정은 마지막에 둔다', () => {
   const events = [{ ...event, id: 'unknown', startAt: null }, { ...event, id: 'late', startAt: '2026-10-04T20:00:00Z' }, { ...event, id: 'early', startAt: '2026-10-05T01:00:00+09:00' }]
   assert.deepEqual(sortedEvents(events).map((item) => item.id), ['early', 'late', 'unknown'])
+})
+
+test('자료 확인 시각은 한국시간으로 표시하고 누락·잘못된 날짜는 숨긴다', () => {
+  assert.match(calendarTimestamp('2026-10-04T15:30:00Z')!, /10\. 5\. 00:30 KST/)
+  assert.equal(calendarTimestamp(undefined), null)
+  assert.equal(calendarTimestamp('unknown'), null)
+})
+
+test('오래 열린 캘린더는 화면 복귀 때 정정 일정을 받고 수동 조회도 가능하다', async (context) => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+  let now = Date.now()
+  context.mock.method(Date, 'now', () => now)
+  let calls = 0
+  const observer = new QueryObserver(client, {
+    queryKey: ['calendar', '2026-10-01', '2026-10-31'],
+    queryFn: async () => ({ date: ++calls === 1 ? '2026-10-29' : '2026-10-30' }),
+    ...CALENDAR_QUERY_POLICY,
+  })
+  const flush = () => new Promise<void>((resolve) => setImmediate(resolve))
+  client.mount()
+  const unsubscribe = observer.subscribe(() => {})
+  try {
+    await flush()
+    assert.equal(calls, 1)
+    assert.equal(observer.getCurrentResult().data?.date, '2026-10-29')
+    // A healthy calendar formerly stayed at the first value after seven hours.
+    now += 7 * 60 * 60 * 1000
+    focusManager.setFocused(false)
+    focusManager.setFocused(true)
+    await flush()
+    assert.equal(calls, 2)
+    assert.equal(observer.getCurrentResult().data?.date, '2026-10-30')
+    await observer.refetch()
+    assert.equal(calls, 3)
+    // The visible page also polls; hidden tabs must not create background load.
+    assert.equal(observer.options.refetchInterval, 30 * 60 * 1000)
+    assert.equal(observer.options.refetchIntervalInBackground, false)
+  } finally {
+    unsubscribe()
+    client.unmount()
+    client.clear()
+    focusManager.setFocused(undefined)
+  }
 })

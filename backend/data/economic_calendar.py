@@ -29,6 +29,7 @@ FED_URL = "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
 BLS_URL = "https://www.bls.gov/schedule/news_release/bls.ics"
 BEA_URL = "https://www.bea.gov/news/schedule/ics/online-calendar-subscription.ics"
 BOK_URL = "https://www.bok.or.kr/portal/singl/crncyPolicyDrcMtg/listYear.do?menuNo=200755&mtgSe=A"
+NYFED_URL = "https://www.newyorkfed.org/research/calendars/i-{month}{year}.html"
 TICKERS = {"AAPL": "애플", "MSFT": "마이크로소프트", "GOOGL": "알파벳", "AMZN": "아마존", "META": "메타", "NVDA": "엔비디아", "TSLA": "테슬라"}
 _MONTHS = {name.lower(): i for i, name in enumerate(("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"), 1)}
 _POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="calendar")
@@ -42,8 +43,8 @@ _BLOCKED_TTL = 60 * 60
 
 def _download(url: str) -> str:
     """Bound connect/read time, total streaming time, and response size."""
-    deadline = time.monotonic() + 15
-    with requests.get(url, headers={"User-Agent": "Mozilla/5.0 (compatible; StockInsightCalendar/1.0)"}, timeout=(3, 8), stream=True) as response:
+    deadline = time.monotonic() + 8
+    with requests.get(url, headers={"User-Agent": "Mozilla/5.0 (compatible; StockInsightCalendar/1.0)"}, timeout=(2, 4), stream=True) as response:
         response.raise_for_status()
         chunks, size = [], 0
         for chunk in response.iter_content(65536):
@@ -63,7 +64,8 @@ def _event(key: str, title: str, category: str, country: str, when: date | datet
     if timed and when.tzinfo is None:
         raise ValueError("A timed calendar event requires an explicit timezone")
     day = when.astimezone(KST).date() if timed else when
-    # Semantic identity remains stable if the provider's UID or clock time changes.
+    # ICS callers include the publisher UID: two different reference periods can
+    # be released on the same day and must not overwrite one another.
     identity = sha256(f"{key}:{day.isoformat()}".encode()).hexdigest()[:20]
     return {"id": f"cal-{identity}", "title": title, "category": category, "country": country,
             "startAt": when.astimezone(UTC).isoformat() if timed else None,
@@ -112,7 +114,7 @@ def _parse_ics(payload: str, source: str, url: str) -> list[dict]:
         if previous is None or sequence >= previous[0]:
             records[uid] = (sequence, fields)
     events = []
-    for _, fields in records.values():
+    for uid, (_, fields) in records.items():
         status = fields.get("STATUS", ({}, ""))[1].upper()
         if status == "CANCELLED":
             continue
@@ -120,6 +122,8 @@ def _parse_ics(payload: str, source: str, url: str) -> list[dict]:
         kind = _indicator(summary)
         if not kind:
             continue
+        if any(field in fields for field in ("RRULE", "RDATE", "RECURRENCE-ID")):
+            raise ValueError("반복 일정 형식이 변경되어 원본 캘린더 확인이 필요합니다.")
         params, value = fields["DTSTART"]
         if params.get("VALUE") == "DATE" or re.fullmatch(r"\d{8}", value):
             when = datetime.strptime(value, "%Y%m%d").date()
@@ -131,7 +135,7 @@ def _parse_ics(payload: str, source: str, url: str) -> list[dict]:
             tzid = {"US-Eastern": "America/New_York", "Eastern Standard Time": "America/New_York"}.get(tzid, tzid)
             when = when.replace(tzinfo=UTC if utc else ZoneInfo(tzid))
             time_status = "tentative" if status == "TENTATIVE" else "confirmed"
-        events.append(_event(kind[0], kind[1], "economic", "US", when, time_status, source, url, description=summary))
+        events.append(_event(f"{source}:{kind[0]}:{uid}", kind[1], "economic", "US", when, time_status, source, url, description=summary))
     if not events:
         raise ValueError("CPI·고용·PCE·GDP 등 주요 일정이 아직 공개되지 않았거나 형식이 변경되었습니다.")
     return events
@@ -211,6 +215,39 @@ def _parse_fred(payload: str, key: str, title: str, url: str) -> list[dict]:
     return events
 
 
+def _nyfed_url(year: int, month: int) -> str:
+    name = list(_MONTHS)[month - 1][:3]
+    return NYFED_URL.format(month=name, year=f"{year % 100:02}")
+
+
+def _parse_nyfed(payload: str, year: int, month: int, url: str) -> list[dict]:
+    """The NY Fed's public monthly calendar is independent of BLS/FRED hosts."""
+    plain = _text(payload)
+    month_name = list(_MONTHS)[month - 1].title()
+    if "all Eastern Time" not in plain or f"{month_name} {year}" not in plain:
+        raise ValueError("뉴욕연준 일정의 해당 월과 시간대를 확인할 수 없습니다.")
+    events = []
+    for cell in re.findall(r"<td\b[^>]*>(.*?)</td>", payload, re.S | re.I):
+        day = re.match(r"(\d{1,2})\s", _text(cell))
+        if not day:
+            continue
+        # Each anchor is followed by its own release clock. Do not borrow the
+        # next event's time when the publisher omits or cancels an event's clock.
+        for anchor in re.finditer(r"<a\b[^>]*>(.*?)</a>((?:(?!<a\b).)*)", cell, re.S | re.I):
+            summary = _text(anchor[1])
+            kind = _indicator(summary)
+            if not kind or kind[0] not in {"cpi", "employment", "ppi"}:
+                continue
+            clock = re.search(r"\((\d{2}):(\d{2})\)", _text(anchor[2]))
+            when = (datetime(year, month, int(day[1]), int(clock[1]), int(clock[2]), tzinfo=ZoneInfo("America/New_York"))
+                    if clock else date(year, month, int(day[1])))
+            events.append(_event(kind[0], kind[1], "economic", "US", when, "tentative", "Federal Reserve Bank of New York", url,
+                                 description=f"{summary}. 뉴욕연준이 공개한 예상 일정입니다. 날짜와 시각은 변경될 수 있으며 확정 발표 전 알림에는 사용하지 않습니다."))
+    if not events:
+        raise ValueError("뉴욕연준에 이달 CPI·고용·PPI 일정이 아직 공개되지 않았거나 형식이 변경되었습니다.")
+    return events
+
+
 def _load(name: str, url: str, parser: Callable[[str], list[dict]]) -> tuple[list[dict], dict, str]:
     # Striped per-source locks prevent repeated requests when the page and alert
     # scheduler refresh simultaneously, without serialising independent sources.
@@ -240,6 +277,10 @@ def _load(name: str, url: str, parser: Callable[[str], list[dict]]) -> tuple[lis
             else:
                 message = str(exc)[:180] if isinstance(exc, ValueError) else "일정 형식을 읽지 못했습니다."
             status = {"name": name, "url": url, "status": "error", "message": message}
+        status["checkedAt"] = fetched
+        status["nextRefreshAt"] = (datetime.fromisoformat(fetched) + timedelta(seconds=ttl)).isoformat()
+        if status["status"] == "ok":
+            status["dataAsOf"] = fetched
         with _LOCK:
             _CACHE[url] = (now + ttl, events, status, fetched)
             _CACHE.move_to_end(url)
@@ -261,8 +302,7 @@ def get_calendar(start: date, end: date) -> dict:
     jobs = [("Federal Reserve", FED_URL, _parse_fed),
             ("BLS", BLS_URL, lambda h: _parse_ics(h, "BLS", BLS_URL)),
             ("BEA", BEA_URL, lambda h: _parse_ics(h, "BEA", BEA_URL))]
-    # A timed US evening release can fall on the next KST date across New Year.
-    years = range((start - timedelta(days=1)).year, end.year + 1)
+    # BOK publishes date-only meetings in its own Korean calendar year.
     for year in range(start.year, end.year + 1):
         url = f"{BOK_URL}&pYear={year}"
         jobs.append(("한국은행", url, lambda h, y=year, u=url: _parse_bok(h, y, u)))
@@ -272,14 +312,37 @@ def get_calendar(start: date, end: date) -> dict:
     futures = [_POOL.submit(_load, *job) for job in jobs]
     results = [future.result() for future in futures]
     if results[1][1]["status"] == "error":
+        # One small official monthly page replaces the two annual FRED requests
+        # that can time out in a data-centre environment. No FRED call is made
+        # when the NY Fed covers the requested month successfully.
+        months = []
+        cursor = start.replace(day=1)
+        while cursor <= end:
+            year, month = cursor.year, cursor.month
+            url = _nyfed_url(year, month)
+            months.append((year, month, _POOL.submit(_load, f"뉴욕연준 · {year}-{month:02}", url,
+                          lambda h, y=year, m=month, u=url: _parse_nyfed(h, y, m, u))))
+            if (year, month) == (end.year, end.month):
+                break
+            cursor = date(year + (month == 12), month % 12 + 1, 1)
+        failed_months = set()
+        for year, month, future in months:
+            result = future.result()
+            results.append(result)
+            if result[1]["status"] == "error":
+                failed_months.add((year, month))
         fallback = []
-        for year in years:
+        for year in sorted({year for year, _ in failed_months}):
             for rid, key, title in ((10, "cpi", "미국 소비자물가지수 (CPI)"), (50, "employment", "미국 고용보고서 (비농업 고용·실업률)")):
                 url = f"https://fred.stlouisfed.org/releases/calendar?rid={rid}&y={year}"
-                fallback.append(_POOL.submit(_load, f"FRED · {key.upper()}", url, lambda h, k=key, t=title, u=url: _parse_fred(h, k, t, u)))
-        results.extend(future.result() for future in fallback)
+                fallback.append(_POOL.submit(_load, f"FRED · {key.upper()} · {year}", url, lambda h, k=key, t=title, u=url: _parse_fred(h, k, t, u)))
+        for future in fallback:
+            source_events, status, fetched = future.result()
+            # A failed November page must not duplicate/override a successful
+            # October NY Fed page when FRED returns the entire year.
+            results.append(([e for e in source_events if (int(e["date"][:4]), int(e["date"][5:7])) in failed_months], status, fetched))
     events = {event["id"]: event for source_events, _, _ in results for event in source_events if start.isoformat() <= event["date"] <= end.isoformat()}
     success_times = [fetched for _, status, fetched in results if status["status"] == "ok"]
     return {"events": sorted(events.values(), key=lambda e: (e["date"], e["startAt"] or "", e["title"])),
             "sources": [status for _, status, _ in results],
-            "fetchedAt": min(success_times) if success_times else datetime.now(UTC).isoformat(), "timezone": "Asia/Seoul"}
+            "fetchedAt": min(success_times) if success_times else min(fetched for _, _, fetched in results), "timezone": "Asia/Seoul"}

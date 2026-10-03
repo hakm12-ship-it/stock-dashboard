@@ -29,6 +29,12 @@ FRED = '''<div id="release-dates-pager"><table>
 <tr><td><span style="font-weight: bold;">Tuesday November 10, 2026</span></td></tr>
 <tr><td>7:30 am</td><td><a href="/release?rid=10">Consumer Price Index</a></td></tr>
 </table></div>All times are US Central Time.'''
+NYFED = '''<p>key economic data releases (all Eastern Time).</p><h2>October 2026</h2>
+<table><tr><td><div>02<br><a href="https://www.bls.gov">Employment Situation</a><br>(08:30)</div></td>
+<td><div>14<br><a href="https://www.bls.gov">Consumer Price Index</a><br>(08:30)</div></td>
+<td><div>15<br><a href="https://www.example.com">Other release</a><br>(10:00)<br>
+<a href="https://www.bls.gov">Producer Price Index (PPI)</a><br>(08:30)</div></td></tr></table>
+<p>Dates and times are tentative and subject to immediate change.</p>'''
 
 
 class ParsingTests(unittest.TestCase):
@@ -107,6 +113,41 @@ class ParsingTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             C._parse_fred(FRED.replace("All times are US Central Time", ""), "cpi", "CPI", "unused")
 
+    def test_distinct_ics_reference_periods_on_one_day_have_distinct_ids(self):
+        payload = ics(
+            "UID:q4\nSUMMARY:GDP (Third Estimate), 4th Quarter 2025\nDTSTART:20260430T123000Z",
+            "UID:q1\nSUMMARY:GDP (Advance Estimate), 1st Quarter 2026\nDTSTART:20260430T123000Z",
+        )
+        events = C._parse_ics(payload, "BEA", C.BEA_URL)
+        self.assertEqual(len({event["id"] for event in events}), 2)
+        # Reordering a publisher's VEVENT list does not change event identity.
+        reordered = C._parse_ics(ics(*reversed([
+            "UID:q4\nSUMMARY:GDP (Third Estimate), 4th Quarter 2025\nDTSTART:20260430T123000Z",
+            "UID:q1\nSUMMARY:GDP (Advance Estimate), 1st Quarter 2026\nDTSTART:20260430T123000Z",
+        ])), "BEA", C.BEA_URL)
+        self.assertEqual({e["id"] for e in events}, {e["id"] for e in reordered})
+
+    def test_recurring_major_events_fail_explicitly_instead_of_silently_omitting_occurrences(self):
+        with self.assertRaisesRegex(ValueError, "반복 일정"):
+            C._parse_ics(ics("UID:cpi\nSUMMARY:Consumer Price Index\nDTSTART:20261014T123000Z\nRRULE:FREQ=MONTHLY"), "BLS", C.BLS_URL)
+
+    def test_nyfed_clock_is_eastern_and_explicitly_tentative(self):
+        events = C._parse_nyfed(NYFED, 2026, 10, C._nyfed_url(2026, 10))
+        self.assertEqual(len(events), 3)
+        self.assertEqual(events[1]["startAt"], "2026-10-14T12:30:00+00:00")
+        self.assertEqual(events[2]["startAt"], "2026-10-15T12:30:00+00:00")
+        self.assertTrue(all(e["timeStatus"] == "tentative" for e in events))
+        november = NYFED.replace("October 2026", "November 2026")
+        self.assertEqual(C._parse_nyfed(november, 2026, 11, "url")[1]["startAt"], "2026-11-14T13:30:00+00:00")
+        with self.assertRaises(ValueError):
+            C._parse_nyfed(NYFED, 2027, 10, "url")
+
+    def test_nyfed_missing_clock_does_not_borrow_a_following_release_time(self):
+        payload = NYFED.replace('Consumer Price Index</a><br>(08:30)', 'Consumer Price Index</a><br><a href="/other">Other event</a><br>(10:00)')
+        event = C._parse_nyfed(payload, 2026, 10, "url")[1]
+        self.assertIsNone(event["startAt"])
+        self.assertEqual(event["date"], "2026-10-14")
+
 
 class AggregationTests(unittest.TestCase):
     def setUp(self):
@@ -149,6 +190,53 @@ class AggregationTests(unittest.TestCase):
         self.assertEqual(len([s for s in response["sources"] if s["name"].startswith("FRED")]), 2)
         self.assertTrue(any(event["source"] == "FRED · St. Louis Fed" for event in response["events"]))
         self.assertTrue(any(event.get("ticker") == "MSFT" for event in response["events"]))
+
+    def test_nyfed_recovers_blocked_bls_without_contacting_fred(self):
+        def partial(url):
+            if url == C.BLS_URL:
+                raise C.requests.Timeout("blocked")
+            if "newyorkfed.org" in url:
+                return NYFED
+            if "stlouisfed.org" in url:
+                self.fail("FRED must not be called when NY Fed succeeds")
+            return self.fixture(url)
+        with patch.object(C, "_download", side_effect=partial) as download:
+            response = C.get_calendar(date(2026, 10, 1), date(2026, 10, 31))
+            second = C.get_calendar(date(2026, 10, 14), date(2026, 10, 16))
+        self.assertEqual(download.call_count, 12)
+        self.assertTrue(any(e["source"] == "Federal Reserve Bank of New York" for e in second["events"]))
+        self.assertEqual(next(s for s in response["sources"] if s["name"] == "BLS")["status"], "error")
+        self.assertTrue(all("checkedAt" in s and "nextRefreshAt" in s for s in response["sources"]))
+        self.assertTrue(all("dataAsOf" in s for s in response["sources"] if s["status"] == "ok"))
+
+    def test_last_resort_fred_only_fills_months_nyfed_could_not_load(self):
+        def partial(url):
+            if url == C.BLS_URL or "i-nov26" in url:
+                raise C.requests.Timeout("unavailable")
+            if "newyorkfed.org" in url:
+                return NYFED
+            return self.fixture(url)
+        with patch.object(C, "_download", side_effect=partial):
+            response = C.get_calendar(date(2026, 10, 1), date(2026, 11, 30))
+        fred = [e for e in response["events"] if e["source"] == "FRED · St. Louis Fed"]
+        self.assertTrue(fred)
+        self.assertTrue(all(e["date"].startswith("2026-11") for e in fred))
+
+    def test_successful_refresh_updates_date_after_ttl_and_cached_failures_keep_original_check_time(self):
+        with patch.object(C.time, "monotonic", return_value=100) as clock:
+            with patch.object(C, "_download", side_effect=[YAHOO, YAHOO.replace("Oct 29, 2026", "Oct 30, 2026")]) as fetch:
+                parser = lambda h: C._parse_earnings(h, "AAPL", "url")
+                first = C._load("Yahoo", "url", parser)
+                clock.return_value += C._SUCCESS_TTL + 1
+                updated = C._load("Yahoo", "url", parser)
+            self.assertEqual(first[0][0]["date"], "2026-10-29")
+            self.assertEqual(updated[0][0]["date"], "2026-10-30")
+            self.assertEqual(fetch.call_count, 2)
+        C._CACHE.clear()
+        with patch.object(C, "_download", side_effect=C.requests.Timeout("offline")):
+            first = C.get_calendar(date(2026, 10, 1), date(2026, 10, 31))
+            again = C.get_calendar(date(2026, 10, 1), date(2026, 10, 31))
+        self.assertEqual(first["fetchedAt"], again["fetchedAt"])
 
     def test_overlapping_requests_for_different_ranges_download_each_source_once(self):
         started, release, second_entered = threading.Event(), threading.Event(), threading.Event()

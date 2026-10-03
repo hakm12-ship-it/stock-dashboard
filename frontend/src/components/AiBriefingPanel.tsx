@@ -9,7 +9,7 @@ const STANCE_STYLE: Record<string, string> = {
 }
 
 export default function AiBriefingPanel({ t }: { t: FocusTicker }) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['ai-briefing', t.market, t.ticker],
     queryFn: () => getAiBriefing(t.market, t.ticker, t.short),
     retry: false,
@@ -18,7 +18,22 @@ export default function AiBriefingPanel({ t }: { t: FocusTicker }) {
   })
 
   if (isLoading) return <div className="h-24 rounded-xl bg-surface-2 animate-pulse" />
-  if (!data?.available) return null
+  if (!data?.available) {
+    const messages: Record<string, string> = {
+      daily_limit: '오늘의 AI 생성 한도에 도달했습니다. 기존 분석과 시세는 계속 확인할 수 있어요.',
+      quota_cooldown: 'AI 제공처의 요청 제한으로 잠시 쉬고 있습니다. 잠시 후 다시 확인해 주세요.',
+      busy: '다른 AI 분석이 진행 중입니다. 잠시 후 다시 조회해 주세요.',
+      temporarily_unavailable: 'AI 연결을 잠시 이용할 수 없습니다. 잠시 후 다시 확인해 주세요.',
+    }
+    const message = messages[data?.reason ?? ''] ?? (data?.stale ? data.error : undefined)
+    return message ? (
+      <section className="bg-surface border border-border rounded-xl p-4" role="status">
+        <h2 className="panel-title">AI 브리핑</h2>
+        <p className="text-label text-muted mt-2">{message}</p>
+        {data?.reason !== 'daily_limit' && <button className="button button-quiet mt-2" disabled={isFetching} onClick={() => refetch()}>다시 조회</button>}
+      </section>
+    ) : null
+  }
 
   return (
     <section className="bg-surface border border-border rounded-xl p-4 card-shadow">

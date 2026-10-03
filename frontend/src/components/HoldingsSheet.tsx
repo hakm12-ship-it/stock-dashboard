@@ -24,7 +24,8 @@ function HoldingRow({ h, onEdit, onRemove }: { h: Holding; onEdit: () => void; o
         </span>
       </div>
       <div className="text-right">
-        <div className="font-mono text-sm tnum">{value == null ? '평가 대기' : fmtPrice(value, h.market)}</div>
+        <div className="font-mono text-sm tnum">{value == null ? prices.isError ? '시세 조회 실패' : '평가 대기' : fmtPrice(value, h.market)}</div>
+        {prices.isError && value != null && <p className="text-label text-muted">갱신 실패 · 마지막 조회값</p>}
         {value != null && (
           <span className={`font-mono tnum text-label ${changeColor(value - cost)}`}>
             {fmtSignedPrice(value - cost, h.market)} ({fmtPct((value / cost - 1) * 100)})
@@ -56,9 +57,9 @@ export default function HoldingsSheet({
   custom: FocusTicker[]
   trades: Trade[]
   tickers: FocusTicker[]
-  onSave: (h: Holding) => boolean
+  onSave: (h: Holding) => Promise<boolean>
   onRemove: (h: Holding) => void
-  onImport: (d: Backup) => boolean
+  onImport: (d: Backup) => Promise<boolean>
   onClose: () => void
 }) {
   const options = [...tickers.filter((t) => t.kind !== 'index')]
@@ -81,6 +82,7 @@ export default function HoldingsSheet({
   const [importOpen, setImportOpen] = useState(false),
     [importText, setImportText] = useState('')
   const [preview, setPreview] = useState<Backup | null>(null)
+  const [saving, setSaving] = useState(false)
   const selected = options.find((t) => `${t.market}-${t.ticker}` === selKey)
   const existing = holdings.find((h) => `${h.market}-${h.ticker}` === selKey)
   const choose = (k: string) => {
@@ -99,8 +101,9 @@ export default function HoldingsSheet({
       document.getElementById('holding-qty')?.focus()
     })
   }
-  const add = (e: React.FormEvent) => {
+  const add = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (saving) return
     setMessage('')
     setError('')
     const q = parseAmount(qty),
@@ -109,8 +112,8 @@ export default function HoldingsSheet({
       setError('수량과 평균 매수가는 0보다 큰 숫자로 입력해 주세요. 쉼표는 넣어도 됩니다.')
       return
     }
-    if (
-      !onSave({
+    setSaving(true)
+    const ok = await onSave({
         ticker: selected.ticker,
         name: selected.name,
         market: selected.market,
@@ -118,7 +121,8 @@ export default function HoldingsSheet({
         qty: q,
         avg: a,
       })
-    ) {
+    setSaving(false)
+    if (!ok) {
       setError('저장하지 못했습니다. 브라우저 저장 공간을 확인해 주세요.')
       return
     }
@@ -228,8 +232,8 @@ export default function HoldingsSheet({
                 닫기
               </button>
             )}
-            <button className="button button-primary flex-1" type="submit">
-              {existing ? '보유 기록 수정' : '보유종목 저장'}
+            <button className="button button-primary flex-1" type="submit" disabled={saving}>
+              {saving ? '저장 중…' : existing ? '보유 기록 수정' : '보유종목 저장'}
             </button>
           </div>
           {error && (
@@ -342,8 +346,13 @@ export default function HoldingsSheet({
                 <p>현재 기록을 보관하려면 먼저 백업을 내려받으세요.</p>
                 <button
                   className="button button-primary"
-                  onClick={() => {
-                    if (onImport(preview)) {
+                  disabled={saving}
+                  onClick={async () => {
+                    if (saving) return
+                    setSaving(true)
+                    const ok = await onImport(preview)
+                    setSaving(false)
+                    if (ok) {
                       setBackupMessage('백업을 복원했습니다.')
                       setPreview(null)
                       setImportOpen(false)

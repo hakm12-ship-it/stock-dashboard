@@ -38,6 +38,7 @@ export function usePortfolioValue(holdings: Holding[]) {
     })
 
   const hasUS = groups.US.cost > 0
+  const valuationStale = qs.some((query) => query.isError && query.data != null) || (hasUS && fx.isError && rate != null)
   const canUnify = !hasMissingPrices && (!hasUS || rate != null)
   const uniCost = groups.KR.cost + (rate ? groups.US.cost * rate : 0)
   const uniValue = groups.KR.value + (rate ? groups.US.value * rate : 0)
@@ -49,5 +50,5 @@ export function usePortfolioValue(holdings: Holding[]) {
     void fx.refetch()
   }
 
-  return { rows, rate, fx, hasMissingPrices, canUnify, uniValue, uniPL, uniPct, fetching, refetch }
+  return { rows, rate, fx, hasMissingPrices, canUnify, uniValue, uniPL, uniPct, fetching, refetch, valuationStale }
 }

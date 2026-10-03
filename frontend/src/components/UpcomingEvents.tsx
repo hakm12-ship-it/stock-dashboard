@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getCalendar } from '../lib/api'
-import { CALENDAR_CACHE_MS, CALENDAR_CATEGORIES, dateLabel, eventTime, koreanDate, shiftDate, sortedEvents } from '../lib/calendar'
+import { CALENDAR_QUERY_POLICY, CALENDAR_CATEGORIES, dateLabel, eventTime, koreanDate, shiftDate, sortedEvents } from '../lib/calendar'
 import Icon from './Icon'
 
 export default function UpcomingEvents({ onOpen }: { onOpen: () => void }) {
@@ -9,8 +9,7 @@ export default function UpcomingEvents({ onOpen }: { onOpen: () => void }) {
   const calendar = useQuery({
     queryKey: ['calendar', start, end],
     queryFn: () => getCalendar(start, end),
-    staleTime: CALENDAR_CACHE_MS,
-    refetchOnWindowFocus: false,
+    ...CALENDAR_QUERY_POLICY,
   })
   const now = Date.now()
   const events = sortedEvents(calendar.data?.events ?? []).filter((event) => !event.startAt || Date.parse(event.startAt) >= now).slice(0, 3)

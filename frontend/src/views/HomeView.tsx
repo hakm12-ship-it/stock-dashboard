@@ -2,7 +2,8 @@ import WatchlistRow from '../components/WatchlistRow'
 import Icon from '../components/Icon'
 import { useRef, useState } from 'react'
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { getIndex, getPrices, type Period } from '../lib/api'
+import { getIndex, getWatchlist, type Period } from '../lib/api'
+import { loadSignalConfig, cfgKey, cfgParams } from '../lib/signalConfig'
 import { marketStatus } from '../lib/market'
 import { fmtPct, fmtPrice, changeColor } from '../lib/format'
 import { usePortfolioValue } from '../components/usePortfolioValue'
@@ -51,8 +52,8 @@ function MarketSession({ updatedAt }: { updatedAt?: Date | null }) {
   return (
     <div className="market-session">
       <div className="session-items">
-        {item('한국', 'KR', kospi.data?.series.at(-1)?.time)}
-        {item('미국', 'US', nasdaq.data?.series.at(-1)?.time)}
+        {item('한국', 'KR', kospi.data?.quoteAsOf ?? undefined)}
+        {item('미국', 'US', nasdaq.data?.quoteAsOf ?? undefined)}
       </div>
       <span className="session-notice">
         지연 시세 · 참고용
@@ -65,7 +66,7 @@ function MarketSession({ updatedAt }: { updatedAt?: Date | null }) {
 
 /** 휴대폰에서 내 자산 카드는 관심종목 목록 아래에 있다. 목록 위에서 합계만 한 줄로 보여주고 이동시킨다. */
 function PortfolioPeek({ holdings, onManage }: { holdings: Holding[]; onManage: () => void }) {
-  const { canUnify, uniValue, uniPL, uniPct } = usePortfolioValue(holdings)
+  const { canUnify, uniValue, uniPL, uniPct, valuationStale } = usePortfolioValue(holdings)
   if (holdings.length === 0)
     return (
       <button className="portfolio-peek portfolio-peek-empty" onClick={onManage}>
@@ -89,7 +90,7 @@ function PortfolioPeek({ holdings, onManage }: { holdings: Holding[]; onManage: 
           : '내 자산 평가 대기. 내 자산 요약으로 이동'
       }
     >
-      <span className="text-label text-muted">내 자산</span>
+      <span className="text-label text-muted">내 자산{valuationStale ? ' · 마지막 조회값' : ''}</span>
       {canUnify ? (
         <>
           <span className="font-mono tnum font-semibold">{fmtPrice(uniValue, 'KR')}</span>
@@ -149,15 +150,22 @@ export default function HomeView({
   const searchInput = useRef<HTMLInputElement>(null)
   const searchToggle = useRef<HTMLButtonElement>(null)
 
-  // 정렬용 등락률 (카드와 같은 쿼리키 → 캐시 공유, 중복 요청 없음)
-  const priceQs = useQueries({
-    queries: tickers.map((t) => ({
-      queryKey: ['prices', t.ticker, sparkPeriod],
-      queryFn: () => getPrices(t.ticker, sparkPeriod),
-    })),
-  })
-  const items = tickers.map((t, i) => {
-    const d = priceQs[i].data
+  // 화면에 표시하는 종목만 요청한다. 가격·신호가 한 번의 서버 조회를 공유한다.
+  const visibleTickers = tickers.filter((t) =>
+    (filter === 'all' || (filter === 'held'
+      ? holdings.some((h) => h.ticker === t.ticker && h.market === t.market) : t.market === filter)) &&
+    `${t.name} ${t.short} ${t.ticker}`.toLowerCase().includes(query.trim().toLowerCase()))
+  const codes = [...new Set(visibleTickers.map((t) => t.ticker))].sort()
+  const chunks = Array.from({ length: Math.ceil(codes.length / 20) }, (_, i) => codes.slice(i * 20, i * 20 + 20))
+  const scfg = loadSignalConfig()
+  const batches = useQueries({ queries: chunks.map((chunk) => ({
+    queryKey: ['watchlist', chunk.join(','), sparkPeriod, cfgKey(scfg)],
+    queryFn: () => getWatchlist(chunk, sparkPeriod, cfgParams(scfg)),
+    enabled: !editing,
+  })) })
+  const rows = new Map(batches.flatMap((batch) => (batch.data ?? []).map((row) => [row.ticker, row] as const)))
+  const items = visibleTickers.map((t) => {
+    const d = rows.get(t.ticker)?.candles
     const last = d?.at(-1)
     const prev = d?.at(-2)
     const pct = last && prev && prev.close ? ((last.close - prev.close) / prev.close) * 100 : null
@@ -422,6 +430,9 @@ export default function HomeView({
                 <WatchlistRow
                   key={`${t.market}-${t.ticker}`}
                   t={t}
+                  data={rows.get(t.ticker)}
+                  pending={batches.some((batch) => batch.isPending)}
+                  failed={batches.some((batch) => batch.isError)}
                   period={sparkPeriod}
                   holding={holdings.find((h) => h.ticker === t.ticker && h.market === t.market)}
                   onClick={() => onSelect(t)}

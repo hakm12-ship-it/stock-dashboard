@@ -20,7 +20,7 @@ export default function PortfolioSummary({
   onJournal: () => void
 }) {
   const [chartOpen, setChartOpen] = useState(false)
-  const { rows, rate, fx, hasMissingPrices, canUnify, uniValue, uniPL, uniPct, fetching, refetch } =
+  const { rows, rate, fx, hasMissingPrices, canUnify, uniValue, uniPL, uniPct, fetching, refetch, valuationStale } =
     usePortfolioValue(holdings)
   const hasHoldings = rows.length > 0
 
@@ -65,6 +65,10 @@ export default function PortfolioSummary({
         </div>
       ) : (
         <>
+          {valuationStale && <div role="status" className="text-caption text-muted py-2">
+            <p>시세·환율 갱신에 실패해 마지막 조회값으로 평가한 금액입니다.</p>
+            <button className="text-action" onClick={refetch} disabled={fetching}>{fetching ? '조회 중…' : '평가액 다시 조회'}</button>
+          </div>}
           {!canUnify && (
             <div className="py-3 text-sm text-muted" role="status">
               <p>

@@ -84,7 +84,7 @@ export default function StockHeader({
   }
 
   const st = marketStatus(t.market)
-  const lastTime = (isIndex ? idx.data?.series.at(-1)?.time : undefined) ?? prices.data?.at(-1)?.time
+  const lastTime = (isIndex ? idx.data?.quoteAsOf : undefined) ?? prices.data?.at(-1)?.time
   const sessionText = st.open
     ? `${st.label} · 지연 시세`
     : `${st.label}${lastTime ? ` · ${lastTime.slice(5, 10).replace('-', '.')} 종가` : ''}`
@@ -153,6 +153,14 @@ export default function StockHeader({
           </span>
         )}
       </div>
+      {isIndex && idx.data?.history && (
+        <p className="text-label text-muted mt-1" role="status">
+          시세 {idx.data.quoteAsOf?.slice(0, 10) ?? '기준일 확인 중'} · {idx.data.quoteSource}
+          {' / '}차트·분석 {idx.data.history.asOf ?? '기준일 없음'} 기준
+          {idx.data.history.stale ? ' · 갱신 지연으로 분석 보류' : ''}
+        </p>
+      )}
+      {(prices.isError || (isIndex && idx.isError)) && <p className="text-label text-muted mt-1" role="status">시세 갱신에 실패했습니다. 표시된 데이터의 기준일을 확인해 주세요.</p>}
       {nightEnabled && night.data?.available && (
         <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-1.5">
           <span

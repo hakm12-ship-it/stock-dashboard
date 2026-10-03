@@ -182,6 +182,13 @@ export default function SignalView({ t }: { t: FocusTicker }) {
   if (sig.isError) return <ErrorState label="종합 신호를 불러오지 못했어요. 차트·기업 가치 탭은 따로 확인할 수 있어요." onRetry={() => sig.refetch()} />
   if (!sig.data) return <Empty />
   const s = sig.data
+  if (s.available === false) return (
+    <Panel label="분석 보류">
+      <p className="text-sm">{s.reason ?? '최신 거래 데이터를 확인하지 못했습니다.'}</p>
+      <p className="text-label text-muted mt-2">데이터 기준일: {s.asOf ?? '확인 불가'} · {s.source ?? ''}</p>
+      <button className="button button-quiet mt-3" onClick={() => sig.refetch()}>다시 조회</button>
+    </Panel>
+  )
 
   // 예상 변동 범위 (마지막 밴드)
   const b = fc.data?.band.at(-1)
@@ -207,6 +214,7 @@ export default function SignalView({ t }: { t: FocusTicker }) {
             <Icon name="settings" size={18} />
           </button>
         </div>
+        <p className="text-label opacity-70 mt-2">{s.asOf ?? '기준일 확인 중'} 거래 데이터 기준 · {s.source ?? ''}</p>
         <div className="flex items-baseline gap-2 mt-1">
           <span className="text-xl font-bold">{s.verdict}</span>
           <span className="ml-auto font-mono text-sm tnum opacity-80">

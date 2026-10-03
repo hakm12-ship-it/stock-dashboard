@@ -1,11 +1,10 @@
 import { useId } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getPrices, getSignal, getIndex, getProfile, getNightPrice, getSynthPrice, type Period } from '../lib/api'
+import { getIndex, getNightPrice, getSynthPrice, type Period, type WatchlistData } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import { hasNightPrice, nightLabel, showSynthPrice } from '../lib/night'
 import { pickQuote } from '../lib/quote'
 import type { Holding } from '../lib/holdings'
-import { loadSignalConfig, cfgKey, cfgParams } from '../lib/signalConfig'
 import { fmtQuote, fmtChange, fmtPct, fmtPrice, changeColor } from '../lib/format'
 import Icon from './Icon'
 const UP = 'rgb(var(--up))'
@@ -47,33 +46,26 @@ export default function WatchlistRow({
   holding,
   period,
   onClick,
+  data,
+  pending,
+  failed,
 }: {
   t: FocusTicker
   holding?: Holding
   period: Period
   onClick: () => void
+  data?: WatchlistData
+  pending: boolean
+  failed: boolean
 }) {
   const isIndex = t.kind === 'index' && !!t.indexName
-  const prices = useQuery({
-    queryKey: ['prices', t.ticker, period],
-    queryFn: () => getPrices(t.ticker, period),
-  })
-  const scfg = loadSignalConfig()
-  const sig = useQuery({
-    queryKey: ['signal', t.ticker, cfgKey(scfg)],
-    queryFn: () => getSignal(t.ticker, cfgParams(scfg)),
-  })
+  const prices = { data: data?.candles, isPending: pending, isError: failed || !!data?.error }
+  const sig = { data: data?.signal, isPending: pending }
   const idx = useQuery({
     queryKey: ['index', t.indexName],
     queryFn: () => getIndex(t.indexName as string),
     enabled: isIndex,
   })
-  const prof = useQuery({
-    queryKey: ['profile', t.market, t.ticker],
-    queryFn: () => getProfile(t.market, t.ticker),
-    enabled: t.market === 'KR' && t.kind !== 'index',
-  })
-  const logo = prof.data?.logo
 
   // 장 마감 뒤에도 흐름을 보려는 게 이 기능의 요점이라 홈에서도 바로 보여준다.
   // 상세 화면과 같은 queryKey라 캐시를 공유한다(중복 요청 없음).
@@ -140,15 +132,6 @@ export default function WatchlistRow({
       <div className="wl-info">
         <span className={`ticker-avatar ticker-avatar-${t.kind}`} aria-hidden="true">
           {t.kind === 'index' ? <Icon name="tech" size={18} /> : t.short.slice(0, 1)}
-          {logo && (
-            <img
-              src={logo}
-              alt=""
-              onError={(event) => {
-                event.currentTarget.style.display = 'none'
-              }}
-            />
-          )}
         </span>
         <div className="wl-identity">
           <div className="wl-name-line">
@@ -180,6 +163,7 @@ export default function WatchlistRow({
           {priceText}
         </div>
         {hasChange && <div className={`font-mono tnum text-label ${changeColor(chg)}`}>{fmtChange(pct, chg)}</div>}
+        {(data?.stale || failed) && <div className="text-label text-muted">{failed ? '갱신 실패' : `${data?.asOf ?? ''} 기준 · 갱신 지연`}</div>}
       </div>
       {(showNight || showSynth) && (
         <div className="wl-sub">

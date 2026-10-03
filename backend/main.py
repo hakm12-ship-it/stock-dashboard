@@ -17,7 +17,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 # 라우터가 임포트되기 전에 .env를 읽어야 API 키가 잡힌다.
@@ -81,6 +81,10 @@ for _router in (prices, fundamental, signal, market, night, ai, alerts, telegram
 # 반드시 모든 /api 라우트 뒤에 마운트해야 API가 우선한다.
 _DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 if _DIST.is_dir():
+    @app.get("/calendar/", include_in_schema=False)
+    def calendar_canonical_redirect():
+        return RedirectResponse("/calendar", status_code=308)
+
     @app.get("/calendar", response_class=HTMLResponse, include_in_schema=False)
     def calendar_page():
         html = (_DIST / "index.html").read_text(encoding="utf-8")

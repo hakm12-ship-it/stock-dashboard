@@ -1,8 +1,12 @@
 User-agent: *
-Allow: /
+# The public calendar JSON is required to render the indexable calendar page.
+# More-specific private calendar operations remain excluded.
+Disallow: /api/calendar/
+Allow: /api/calendar
 Disallow: /api/
 Disallow: /docs
 Disallow: /redoc
 Disallow: /openapi.json
+Allow: /
 
 Sitemap: https://stock-insight-zws6.onrender.com/sitemap.xml

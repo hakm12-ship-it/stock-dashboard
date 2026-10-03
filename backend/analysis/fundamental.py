@@ -4,12 +4,40 @@ yfinance 하나로 한국(.KS/.KQ)·미국을 모두 처리한다.
 yfinance가 PER/PBR을 직접 안 주는 종목(주로 국내)은 순이익·자본으로 계산한다.
 """
 
-import functools
+import threading
+import time
 
 import pandas as pd
 import yfinance as yf
 
 from data.naver_stock import naver_fundamentals
+
+_SUCCESS_TTL = 60 * 60
+_EMPTY_TTL = 120
+_CACHE_LIMIT = 256
+_resolve_cache: dict = {}
+_valuation_cache: dict = {}
+_cache_guard = threading.Lock()
+# Fixed stripes avoid accumulating a permanent lock for every public ticker.
+_cache_locks = [threading.RLock() for _ in range(32)]
+
+
+def _cached(store: dict, key: tuple, create, usable):
+    with _cache_locks[hash(key) % len(_cache_locks)]:
+        now = time.monotonic()
+        with _cache_guard:
+            hit = store.get(key)
+            if hit and hit[0] > now:
+                return hit[1]
+        value = create()
+        ttl = _SUCCESS_TTL if usable(value) else _EMPTY_TTL
+        with _cache_guard:
+            for expired in [k for k, (until, _) in store.items() if until <= now]:
+                store.pop(expired, None)
+            while len(store) >= _CACHE_LIMIT:
+                store.pop(next(iter(store)))
+            store[key] = (time.monotonic() + ttl, value)
+        return value
 
 
 def _safe_info(t: yf.Ticker) -> dict:
@@ -19,9 +47,12 @@ def _safe_info(t: yf.Ticker) -> dict:
         return {}
 
 
-@functools.lru_cache(maxsize=1024)
 def _resolve(market: str, ticker: str):
-    """(Ticker, info) 반환. 국내는 .KS(코스피)→.KQ(코스닥) 순으로 탐색."""
+    """정상 재무정보는 1시간, 일시적인 빈 응답은 2분만 재사용한다."""
+    return _cached(_resolve_cache, (market, ticker), lambda: _fetch_info(market, ticker), lambda result: bool(result[1]))
+
+
+def _fetch_info(market: str, ticker: str):
     if market != "한국":
         t = yf.Ticker(ticker)
         return t, _safe_info(t)
@@ -32,6 +63,14 @@ def _resolve(market: str, ticker: str):
             return t, info
     t = yf.Ticker(ticker + ".KS")
     return t, _safe_info(t)
+
+
+def cached_valuation(market: str, ticker: str) -> dict:
+    """Cache complete or partial financial data; retry empty results promptly."""
+    return _cached(
+        _valuation_cache, (market, ticker), lambda: valuation(market, ticker),
+        lambda value: any(value.get(key) is not None for key in ("PER", "PBR", "EPS", "ROE", "시가총액")),
+    )
 
 
 def _equity(t: yf.Ticker):

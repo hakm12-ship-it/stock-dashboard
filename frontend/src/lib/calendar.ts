@@ -20,6 +20,9 @@ export interface CalendarSource {
   url: string
   status: 'ok' | 'error'
   message?: string
+  checkedAt?: string
+  dataAsOf?: string
+  nextRefreshAt?: string
 }
 
 export interface CalendarResponse {
@@ -46,6 +49,20 @@ export const CALENDAR_CATEGORIES: Record<CalendarCategory, string> = {
   earnings: '빅테크 실적',
 }
 export const CALENDAR_CACHE_MS = 30 * 60 * 1000
+// Revalidate visible calendars without bypassing the server's per-source cache.
+export const CALENDAR_QUERY_POLICY = {
+  staleTime: CALENDAR_CACHE_MS,
+  refetchInterval: CALENDAR_CACHE_MS,
+  refetchIntervalInBackground: false,
+  refetchOnWindowFocus: true,
+} as const
+
+export function calendarTimestamp(value: string | undefined): string | null {
+  if (!value || !Number.isFinite(Date.parse(value))) return null
+  return new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).format(new Date(value)) + ' KST'
+}
 
 export function koreanDate(now = new Date()): string {
   const parts = new Intl.DateTimeFormat('en-CA', {

@@ -37,6 +37,7 @@ export const isTrade = (v: unknown): v is Trade =>
   positive(v.qty) &&
   positive(v.price) &&
   positive(v.qty * v.price) &&
+  (v.sequence === undefined || (Number.isSafeInteger(v.sequence) && positive(v.sequence))) &&
   (v.memo === undefined || (typeof v.memo === 'string' && v.memo.length <= 2000))
 export interface Backup {
   v?: number

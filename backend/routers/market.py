@@ -1,6 +1,8 @@
 """시장 전반 — 지수, 환율·유가, 급등락 TOP, 업종·테마, 뉴스."""
 
 from fastapi import APIRouter
+from data.freshness import history_freshness
+from datetime import datetime
 
 from deps import (
     INDEX_TICKERS,
@@ -62,20 +64,31 @@ def api_index(name: str):
     code = INDEX_TICKERS.get(name.upper())
     if not code:
         return None
-    close = load_index(code)["Close"].dropna()
+    df = load_index(code)
+    close = df["Close"].dropna()
     if close.empty:
         return None
     # change_of는 데이터가 하루치뿐인 경우도 처리한다 (iloc[-2] 직접 접근은 터진다).
     last, change, pct = change_of(close)
+    quote_as_of = close.index[-1].strftime("%Y-%m-%d")
+    quote_source = df.attrs.get("source", "FinanceDataReader")
+    rt = None
     # 국내 지수는 네이버 실시간으로 현재값 덮어쓰기 (FDR 지수 갱신 지연 보완)
     if name.upper() in ("KOSPI", "KOSDAQ"):
         try:
-            rt = cached_naver_index(name.upper())
-            last, change, pct = rt["last"], rt["change"], rt["changePct"]
+            candidate = cached_naver_index(name.upper())
+            # 날짜 없는 응답이나 일봉보다 오래된 호가는 최신 종가를 덮어쓰지 않는다.
+            if candidate.get("asOf") and datetime.fromisoformat(candidate["asOf"]).date() >= close.index[-1].date():
+                rt = candidate
+                last, change, pct = rt["last"], rt["change"], rt["changePct"]
+                quote_as_of = rt["asOf"]
+                quote_source = "Naver"
         except Exception:
             pass
     return {
         "name": name.upper(), "last": last, "change": change, "changePct": pct,
+        "quoteAsOf": quote_as_of, "quoteSource": quote_source,
+        "history": history_freshness(df, code, quote=rt),
         "series": [{"time": i.strftime("%Y-%m-%d"), "close": float(c)} for i, c in close.items()],
     }
 

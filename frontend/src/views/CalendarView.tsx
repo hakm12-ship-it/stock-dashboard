@@ -3,12 +3,28 @@ import { useQuery } from '@tanstack/react-query'
 import Icon from '../components/Icon'
 import { getAlertInvite, getCalendar, getCalendarNotificationStatus } from '../lib/api'
 import {
-  CALENDAR_CACHE_MS, CALENDAR_CATEGORIES, dateLabel, eventTime, koreanDate, monthDays, monthRange,
-  shiftMonth, sortedEvents, type CalendarCategory, type CalendarEvent,
+  CALENDAR_QUERY_POLICY, CALENDAR_CATEGORIES, calendarTimestamp, dateLabel, eventTime, koreanDate, monthDays, monthRange,
+  shiftMonth, sortedEvents, type CalendarCategory, type CalendarEvent, type CalendarSource,
 } from '../lib/calendar'
 
 const categories = Object.entries(CALENDAR_CATEGORIES) as [CalendarCategory, string][]
 const weekdays = ['일', '월', '화', '수', '목', '금', '토']
+
+function SourceDetails({ source }: { source: CalendarSource }) {
+  const checked = calendarTimestamp(source.status === 'ok' ? source.dataAsOf : source.checkedAt)
+  const next = calendarTimestamp(source.nextRefreshAt)
+  return (
+    <li>
+      <div className="calendar-source-heading">
+        <a href={source.url} target="_blank" rel="noreferrer">{source.name}<Icon name="external" size={13} /></a>
+        <span className={source.status === 'error' ? 'is-error' : ''}>{source.status === 'ok' ? '확인됨' : '조회 실패'}</span>
+      </div>
+      {checked && <p className="calendar-source-detail">{source.status === 'ok' ? '자료 확인' : '마지막 시도'} {checked}</p>}
+      {source.status === 'error' && source.message && <p className="calendar-source-detail">{source.message}</p>}
+      {next && <p className="calendar-source-detail">{source.status === 'ok' ? '원문 갱신 가능' : '재시도 가능'} {next} 이후</p>}
+    </li>
+  )
+}
 
 function EventCard({ event }: { event: CalendarEvent }) {
   return (
@@ -36,7 +52,7 @@ function EventCard({ event }: { event: CalendarEvent }) {
 function NotificationSchedule() {
   const status = useQuery({
     queryKey: ['calendar-notification-status'], queryFn: getCalendarNotificationStatus,
-    staleTime: CALENDAR_CACHE_MS, refetchOnWindowFocus: false,
+    ...CALENDAR_QUERY_POLICY,
   })
   const invite = useQuery({
     queryKey: ['alert-invite'], queryFn: getAlertInvite, staleTime: 60 * 60 * 1000, refetchOnWindowFocus: false,
@@ -72,7 +88,7 @@ export default function CalendarView() {
   const { start, end } = monthRange(month)
   const calendar = useQuery({
     queryKey: ['calendar', start, end], queryFn: () => getCalendar(start, end),
-    staleTime: CALENDAR_CACHE_MS, refetchOnWindowFocus: false,
+    ...CALENDAR_QUERY_POLICY,
   })
   const events = sortedEvents(calendar.data?.events ?? []).filter((event) => category === 'all' || event.category === category)
   const eventsByDay = new Map<string, CalendarEvent[]>()
@@ -98,7 +114,12 @@ export default function CalendarView() {
           <h1 tabIndex={-1}>경제 캘린더</h1>
           <p className="dashboard-description">주요 금리 결정, 경제 지표와 빅테크 실적 일정을 확인하세요.</p>
         </div>
-        <span className="calendar-timezone">한국시간 KST · UTC+9</span>
+        <div className="calendar-heading-actions">
+          <span className="calendar-timezone">한국시간 KST · UTC+9</span>
+          <button className="button button-quiet" onClick={() => void calendar.refetch()} disabled={calendar.isFetching}>
+            {calendar.isFetching ? '조회 중…' : '일정 새로고침'}
+          </button>
+        </div>
       </div>
       <div className="calendar-layout">
         <div className="calendar-main">
@@ -151,8 +172,9 @@ export default function CalendarView() {
           <section className="calendar-sources" aria-labelledby="calendar-sources-title">
             <h2 id="calendar-sources-title">일정 출처</h2>
             <p className="calendar-muted">발표 기관과 기업의 공식 안내를 우선 확인하세요. 일정은 변경될 수 있습니다.</p>
-            {calendar.data?.sources.length ? <ul>{calendar.data.sources.map((source) => <li key={source.name}><a href={source.url} target="_blank" rel="noreferrer">{source.name}<Icon name="external" size={13} /></a><span className={source.status === 'error' ? 'is-error' : ''}>{source.status === 'ok' ? '확인됨' : '조회 실패'}</span></li>)}</ul> : <p className="calendar-muted">일정을 불러오면 출처를 확인할 수 있어요.</p>}
-            {calendar.data?.fetchedAt && <p className="calendar-updated">최근 조회 {new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(calendar.data.fetchedAt))} KST</p>}
+            <p className="calendar-muted">열린 화면은 30분마다 갱신합니다. 원문 자료는 출처별 6시간 동안 보관하므로, 새로고침해도 아래 확인 시점이 유지될 수 있어요.</p>
+            {calendar.data?.sources.length ? <ul>{calendar.data.sources.map((source) => <SourceDetails key={source.url} source={source} />)}</ul> : <p className="calendar-muted">일정을 불러오면 출처를 확인할 수 있어요.</p>}
+            {calendar.data?.fetchedAt && calendar.data.sources.some((source) => source.status === 'ok') && <p className="calendar-updated">가장 오래된 자료 기준 {calendarTimestamp(calendar.data.fetchedAt)}</p>}
           </section>
         </aside>
       </div>
