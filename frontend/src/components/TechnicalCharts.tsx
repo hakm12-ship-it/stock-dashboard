@@ -27,9 +27,13 @@ function Swatch({ color, dashed = false }: { color: string; dashed?: boolean }) 
   )
 }
 
+const EMPTY_INDICATORS: Indicators = {
+  time: [], rsi: [], macd: [], signal: [], hist: [], bb_upper: [], bb_lower: [], ma20: [], ma60: [],
+}
+
 export default function TechnicalCharts({
   candles,
-  ind,
+  ind = EMPTY_INDICATORS,
   showMA,
   showBB,
   light,
@@ -40,7 +44,7 @@ export default function TechnicalCharts({
   kind,
 }: {
   candles: Candle[]
-  ind: Indicators
+  ind?: Indicators
   showMA: boolean
   showBB: boolean
   light: boolean

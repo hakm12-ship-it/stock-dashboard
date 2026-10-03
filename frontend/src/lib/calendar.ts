@@ -1,4 +1,45 @@
+import type { FocusTicker } from '../data/tickers.ts'
+import type { Holding } from './holdings.ts'
+
 export type CalendarCategory = 'rates' | 'economic' | 'earnings'
+export type CalendarScope = 'all' | 'watchlist' | 'holdings'
+export type CalendarTickerView = 'tech' | 'signal'
+
+// Matches the public provider's supported earnings universe. Personal filters
+// never expand this universe or send the user's watchlist/holdings to the API.
+export const CALENDAR_EARNINGS_TICKERS: readonly FocusTicker[] = [
+  ['AAPL', '애플'], ['MSFT', '마이크로소프트'], ['GOOGL', '알파벳'], ['AMZN', '아마존'],
+  ['META', '메타'], ['NVDA', '엔비디아'], ['TSLA', '테슬라'],
+].map(([ticker, name]) => ({ ticker, name, short: name, market: 'US', kind: 'stock' }))
+
+export const CALENDAR_SCOPES: Record<CalendarScope, string> = {
+  all: '전체 일정', watchlist: '관심종목', holdings: '보유종목',
+}
+
+export function calendarScopeTickers(scope: CalendarScope, watchlist: readonly FocusTicker[], holdings: readonly Holding[]): readonly FocusTicker[] {
+  if (scope === 'all') return CALENDAR_EARNINGS_TICKERS
+  const members = scope === 'watchlist' ? watchlist : holdings.filter((holding) => holding.qty > 0)
+  return CALENDAR_EARNINGS_TICKERS.filter((ticker) => members.some((member) =>
+    member.market === ticker.market && member.kind === 'stock' && member.ticker.toUpperCase() === ticker.ticker,
+  ))
+}
+
+export function filterCalendarEvents(events: readonly CalendarEvent[], scope: CalendarScope, tickers: readonly FocusTicker[], includeMacro: boolean): CalendarEvent[] {
+  return events.filter((event) => {
+    if (scope === 'all') return true
+    if (event.category !== 'earnings') return includeMacro
+    return event.country === 'US' && Boolean(event.ticker && tickers.some((ticker) => ticker.ticker === event.ticker?.toUpperCase()))
+  })
+}
+
+export function calendarEventTicker(event: CalendarEvent): FocusTicker | undefined {
+  return event.category === 'earnings' && event.country === 'US'
+    ? CALENDAR_EARNINGS_TICKERS.find((ticker) => ticker.ticker === event.ticker?.toUpperCase()) : undefined
+}
+
+export function calendarTickerHref(ticker: FocusTicker, view: CalendarTickerView): string {
+  return '/#' + new URLSearchParams({ tab: view, ticker: ticker.ticker, market: ticker.market, name: ticker.name, kind: ticker.kind }).toString()
+}
 
 export interface CalendarEvent {
   id: string

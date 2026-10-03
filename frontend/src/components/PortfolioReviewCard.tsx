@@ -41,8 +41,8 @@ export default function PortfolioReviewCard({ holdings, trades }: { holdings: Ho
   const llm = useQuery({
     queryKey: ['portfolio-comment', key],
     queryFn: () => postPortfolioReview(...payload(), true),
-    // 수치가 먼저 자리를 잡은 뒤에 코멘트를 부른다.
-    enabled: holdings.length > 0 && nums.isSuccess,
+    // 수치 진단은 자동 조회하고 AI 코멘트는 버튼으로만 요청한다.
+    enabled: false,
     retry: false,
     staleTime: 2 * 60 * 60 * 1000,
   })
@@ -58,9 +58,9 @@ export default function PortfolioReviewCard({ holdings, trades }: { holdings: Ho
   const a = data.analysis
   const c = llm.data?.comment
   const hasDetail = (data.observations?.length ?? 0) > 0 || (c?.watchPoints?.length ?? 0) > 0
-  // 코멘트를 끝내 못 받았을 때만 근거를 펼쳐둔다. 기다리는 중에 펼쳐두면
-  // 코멘트가 도착하는 순간 접히면서 화면이 튄다.
-  const commentFailed = !llm.isPending && c == null
+  // 요청 전에도 AI와 무관한 수치 관찰을 확인할 수 있다.
+  const showObservations = c == null
+  const commentFailed = (llm.isError || llm.isSuccess) && c == null
 
   return (
     <Panel label="포트폴리오 진단" className="portfolio-review">
@@ -71,13 +71,24 @@ export default function PortfolioReviewCard({ holdings, trades }: { holdings: Ho
           {c.headline && <p className="text-caption font-semibold leading-snug mb-1.5">{c.headline}</p>}
           {c.summary && <p className="text-label text-muted leading-relaxed mb-3">{c.summary}</p>}
         </>
-      ) : llm.isPending ? (
+      ) : llm.isFetching ? (
         <div className="mb-3 space-y-1.5" aria-label="AI 코멘트 불러오는 중">
           <div className="h-3.5 w-3/4 rounded bg-surface-2 animate-pulse" />
           <div className="h-2.5 w-full rounded bg-surface-2 animate-pulse" />
           <div className="h-2.5 w-5/6 rounded bg-surface-2 animate-pulse" />
         </div>
       ) : null}
+      <div className="mb-3">
+        <button className="button button-quiet" disabled={llm.isFetching} onClick={() => void llm.refetch()}>
+          {llm.isFetching ? 'AI 진단 요청 중…' : c ? '포트폴리오 AI 진단 다시 확인' : '포트폴리오 AI 진단 요청'}
+        </button>
+        <p className="text-label text-muted mt-1" role="status">
+          {llm.isError && c ? '연결하지 못해 이전 AI 코멘트를 표시합니다.'
+            : llm.data?.reason === 'daily_limit' ? '오늘의 AI 생성 한도에 도달했습니다. 수치 진단은 계속 확인할 수 있습니다.'
+            : commentFailed ? 'AI 코멘트를 받지 못해 수치 관찰만 표시합니다.'
+              : 'AI 코멘트는 요청할 때만 조회하며, 저장된 분석이 있으면 재사용합니다.'}
+        </p>
+      </div>
 
       {/* 비중 — 숫자를 나열하는 것보다 한 줄 막대가 쏠림을 훨씬 빨리 보여준다 */}
       <div className="flex h-2 rounded-full overflow-hidden mb-2">
@@ -111,7 +122,7 @@ export default function PortfolioReviewCard({ holdings, trades }: { holdings: Ho
           코멘트가 없을 때(LLM 실패)는 관찰이 유일한 내용이라 펼친 채로 둔다. */}
       {hasDetail && (
         <div className="pt-3 border-t border-border">
-          {!commentFailed && (
+          {!showObservations && (
             <button
               onClick={() => setOpen((v) => !v)}
               className="w-full min-h-[44px] -my-2 flex items-center justify-center text-label text-muted active:opacity-70"
@@ -119,8 +130,8 @@ export default function PortfolioReviewCard({ holdings, trades }: { holdings: Ho
               {open ? '근거 수치 접기 ▴' : '근거 수치 보기 ▾'}
             </button>
           )}
-          {(open || commentFailed) && (
-            <div className={commentFailed ? '' : 'mt-2'}>
+          {(open || showObservations) && (
+            <div className={showObservations ? '' : 'mt-2'}>
               <ul className="space-y-1.5">
                 {data.observations?.map((o, i) => (
                   <li key={i} className="text-label text-muted leading-relaxed flex gap-1.5">
@@ -151,7 +162,6 @@ export default function PortfolioReviewCard({ holdings, trades }: { holdings: Ho
 
       <p className="text-label text-muted mt-3">
         보유 구성을 수치로 설명한 참고 자료예요 · 매수·매도 권유가 아니며 판단은 본인 몫입니다
-        {!llm.isPending && c == null && ' · AI 코멘트를 못 받아 수치 관찰만 표시했어요'}
         {llm.data?.stale && ' · 새 코멘트를 못 받아 직전 것을 보여주고 있어요'}
       </p>
     </Panel>

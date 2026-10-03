@@ -1,11 +1,20 @@
 /// <reference lib="dom" />
+export const DATA_REVISION_KEY = 'stock-insight-data-revision'
+const accountKeys = ['holdings', 'customTickers', 'trades-v1']
+
 /** Persist first. Roll back earlier keys if a multi-list restore cannot finish. */
 export function persist(entries: Record<string, unknown>, storage?: Storage): boolean {
   const previous = new Map<string, string | null>()
   try {
     storage ??= localStorage
-    for (const key of Object.keys(entries)) previous.set(key, storage.getItem(key))
-    for (const [key, value] of Object.entries(entries)) storage.setItem(key, JSON.stringify(value))
+    const writes = { ...entries }
+    if (accountKeys.some((key) => key in writes && JSON.stringify(writes[key]) !== (storage!.getItem(key) ?? '[]'))) {
+      writes[DATA_REVISION_KEY] = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+    }
+    for (const key of Object.keys(writes)) previous.set(key, storage.getItem(key))
+    for (const [key, value] of Object.entries(writes)) storage.setItem(key, JSON.stringify(value))
     return true
   } catch {
     if (!storage) return false

@@ -21,7 +21,7 @@ class PublicCalendarTests(unittest.TestCase):
     def test_search_can_render_public_calendar_but_not_private_operations(self):
         robots = RobotFileParser()
         robots.parse((FRONTEND / "public" / "robots.txt").read_text(encoding="utf-8").splitlines())
-        for path in ("/", "/calendar", "/api/calendar", "/api/calendar?start=2026-10-01&end=2026-10-31"):
+        for path in ("/", "/calendar", "/api/calendar", "/api/calendar?start=2026-10-01&end=2026-10-31", "/api/public-briefing?slot=morning"):
             self.assertTrue(robots.can_fetch("Googlebot", PUBLIC + path), path)
         for path in ("/api/calendar/briefing-preview", "/api/calendar/notification-check", "/api/calendar/notification-status", "/api/prices", "/docs", "/redoc", "/openapi.json"):
             self.assertFalse(robots.can_fetch("Googlebot", PUBLIC + path), path)

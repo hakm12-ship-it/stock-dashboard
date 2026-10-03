@@ -4,7 +4,7 @@ import { useRef, useState } from 'react'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { getIndex, getWatchlist, type Period } from '../lib/api'
 import { loadSignalConfig, cfgKey, cfgParams } from '../lib/signalConfig'
-import { marketStatus } from '../lib/market'
+import { useMarketStatus } from '../lib/useMarketStatus'
 import { fmtPct, fmtPrice, changeColor } from '../lib/format'
 import { usePortfolioValue } from '../components/usePortfolioValue'
 import type { FocusTicker } from '../data/tickers'
@@ -20,6 +20,7 @@ import type { Holding } from '../lib/holdings'
 import type { Trade } from '../lib/trades'
 import PortfolioReviewCard from '../components/PortfolioReviewCard'
 import UpcomingEvents from '../components/UpcomingEvents'
+import PublicBriefingCard from '../components/PublicBriefingCard'
 
 const PERIODS: [Period, string][] = [
   ['1m', '1개월'],
@@ -36,13 +37,15 @@ export type WatchlistPreferences = {
 
 /** 지금 보고 있는 숫자가 어느 장의 것인지 — 장 상태와 마지막 거래일을 글자로 보여준다. */
 function MarketSession({ updatedAt }: { updatedAt?: Date | null }) {
+  const krStatus = useMarketStatus('KR')
+  const usStatus = useMarketStatus('US')
   const kospi = useQuery({ queryKey: ['index', 'KOSPI'], queryFn: () => getIndex('KOSPI') })
   const nasdaq = useQuery({ queryKey: ['index', 'NASDAQ'], queryFn: () => getIndex('NASDAQ') })
   const item = (label: string, market: 'KR' | 'US', last?: string) => {
-    const st = marketStatus(market)
-    const day = !st.open && last ? ` · ${last.slice(5, 10).replace('-', '.')} 종가` : ''
+    const st = market === 'KR' ? krStatus : usStatus
+    const day = !st.open && last ? ` · ${last.slice(5, 10).replace('-', '.')} ${st.uncertain ? '기준' : '종가'}` : ''
     return (
-      <span className="session-item">
+      <span className="session-item" title={st.detail}>
         <span className={`session-dot ${st.open ? 'is-open' : ''}`} aria-hidden="true" />
         {label} {st.label}
         {day}
@@ -155,8 +158,11 @@ export default function HomeView({
     (filter === 'all' || (filter === 'held'
       ? holdings.some((h) => h.ticker === t.ticker && h.market === t.market) : t.market === filter)) &&
     `${t.name} ${t.short} ${t.ticker}`.toLowerCase().includes(query.trim().toLowerCase()))
-  const codes = [...new Set(visibleTickers.map((t) => t.ticker))].sort()
-  const chunks = Array.from({ length: Math.ceil(codes.length / 20) }, (_, i) => codes.slice(i * 20, i * 20 + 20))
+  // 시장별로 묶어 미국 장중에 휴장 중인 한국 종목까지 재조회하지 않는다.
+  const chunks = (['KR', 'US'] as const).flatMap((market) => {
+    const codes = [...new Set(visibleTickers.filter((t) => t.market === market).map((t) => t.ticker))].sort()
+    return Array.from({ length: Math.ceil(codes.length / 20) }, (_, i) => codes.slice(i * 20, i * 20 + 20))
+  })
   const scfg = loadSignalConfig()
   const batches = useQueries({ queries: chunks.map((chunk) => ({
     queryKey: ['watchlist', chunk.join(','), sparkPeriod, cfgKey(scfg)],
@@ -479,6 +485,7 @@ export default function HomeView({
         />
         <DailyReportCard />
         <UpcomingEvents onOpen={onOpenCalendar} />
+        <PublicBriefingCard />
         <PortfolioReviewCard holdings={holdings} trades={trades} />
         <AlertInviteCard />
       </aside>

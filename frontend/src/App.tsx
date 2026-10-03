@@ -25,9 +25,7 @@ import TradeJournalSheet from './components/TradeJournalSheet'
 import { mutateList, mutateStorage, readStoredList } from './lib/storage'
 import { isHolding, isTicker, isTrade, parseBackup, type Backup } from './lib/validation'
 import { refreshActiveQueries } from './lib/queryRefresh'
-import { marketStatus } from './lib/market'
-
-const realtimeKeys = new Set(['prices', 'watchlist', 'index', 'ind', 'signal', 'forecast', 'fx', 'macro', 'marketTop', 'groupStocks'])
+import { shouldRefreshMarketQuery } from './lib/marketPolling'
 const tkey = (x: { market: string; ticker: string }) => `${x.market}-${x.ticker}`
 const loadOrder = () => {
   try {
@@ -97,9 +95,7 @@ export default function App() {
   useEffect(() => {
     const id = setInterval(() => {
       if (document.visibilityState !== 'visible') return
-      if (marketStatus('KR').open || marketStatus('US').open) {
-        void qc.invalidateQueries({ predicate: (query) => query.isActive() && realtimeKeys.has(String(query.queryKey[0])) })
-      }
+      void qc.invalidateQueries({ predicate: (query) => query.isActive() && shouldRefreshMarketQuery(query.queryKey) })
     }, 60_000)
     return () => clearInterval(id)
   }, [qc])
@@ -339,7 +335,7 @@ export default function App() {
               onOpenCalendar={() => navigate('calendar')}
             />
           </div>
-        ) : tab === 'calendar' ? <CalendarView /> : (
+        ) : tab === 'calendar' ? <CalendarView tickers={all} holdings={holdings} onOpenTicker={(tk, view) => navigate(view, tk)} /> : (
           <>
             <TickerSwitcher tickers={all} selected={t} onSelect={setT} />
             <div className="research-layout">

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useMemo } from 'react'
+import { lazy, Suspense, useState, useMemo, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getPrices, getIndicators, getSignal, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
@@ -10,6 +10,7 @@ const TechnicalCharts = lazy(() => import('../components/TechnicalCharts'))
 import { toWeekly } from '../lib/aggregate'
 import { loadSignalConfig, cfgKey, cfgParams } from '../lib/signalConfig'
 import type { Holding } from '../lib/holdings'
+import { CHART_PREFERENCES_KEY, chartPeriod, loadChartPreferences, saveChartPreferences, type ChartPreferences } from '../lib/chartPreferences'
 
 const PERIODS: Period[] = ['1m', '3m', '6m', '1y']
 const LABEL: Record<Period, string> = { '1m': '1개월', '3m': '3개월', '6m': '6개월', '1y': '1년' }
@@ -27,35 +28,52 @@ export default function TechnicalView({
   light: boolean
   holding?: Holding
 }) {
-  const [showMA, setShowMA] = useState(true)
-  const [showBB, setShowBB] = useState(false)
-  const [showSR, setShowSR] = useState(true)
-  // interval/setInterval로 두면 전역 setInterval을 가려 타이머가 조용히 깨진다
-  const [tf, setTf] = useState<'D' | 'W'>('D')
+  const [preferences, setPreferences] = useState(() => loadChartPreferences())
+  const [preferenceError, setPreferenceError] = useState(false)
+  const { showMA, showBB, showSR, timeframe: tf } = preferences
   const weekly = tf === 'W'
+  const displayedPeriod = chartPeriod(period, tf)
+  const changePreferences = (change: Partial<ChartPreferences>) => {
+    const next = { ...preferences, ...change }
+    setPreferences(next)
+    setPreferenceError(!saveChartPreferences(next))
+  }
+  useEffect(() => {
+    if (displayedPeriod !== period) setPeriod(displayedPeriod)
+  }, [displayedPeriod, period, setPeriod])
+  useEffect(() => {
+    const sync = (event: StorageEvent) => {
+      if (event.storageArea === localStorage && (event.key === CHART_PREFERENCES_KEY || event.key == null)) {
+        setPreferences(loadChartPreferences())
+      }
+    }
+    window.addEventListener('storage', sync)
+    return () => window.removeEventListener('storage', sync)
+  }, [])
 
-  const prices = useQuery({ queryKey: ['prices', t.ticker, period], queryFn: () => getPrices(t.ticker, period) })
-  const ind = useQuery({ queryKey: ['ind', t.ticker, period], queryFn: () => getIndicators(t.ticker, period) })
+  const prices = useQuery({ queryKey: ['prices', t.ticker, displayedPeriod], queryFn: () => getPrices(t.ticker, displayedPeriod) })
+  const ind = useQuery({ queryKey: ['ind', t.ticker, displayedPeriod], queryFn: () => getIndicators(t.ticker, displayedPeriod), enabled: !weekly })
   const scfg = loadSignalConfig()
   const sig = useQuery({
     queryKey: ['signal', t.ticker, cfgKey(scfg)],
     queryFn: () => getSignal(t.ticker, cfgParams(scfg)),
+    enabled: !weekly && showSR,
   })
 
   // 현재가에 가까운 지지/저항 각각 2개만 (차트 어지럽지 않게)
   const levels = useMemo(
     () =>
-      showSR && sig.data
+      !weekly && showSR && sig.data
         ? {
             support: sig.data.support.slice(0, 2).map((x) => x.value),
             resistance: sig.data.resistance.slice(0, 2).map((x) => x.value),
           }
         : undefined,
-    [showSR, sig.data],
+    [weekly, showSR, sig.data],
   )
 
   const chooseTf = (next: 'D' | 'W') => {
-    setTf(next)
+    changePreferences({ timeframe: next })
     // 주봉 1·3개월은 봉이 4~13개뿐이라 읽을 게 없다. 6개월로 넓힌다.
     if (next === 'W' && (period === '1m' || period === '3m')) setPeriod('6m')
   }
@@ -68,7 +86,7 @@ export default function TechnicalView({
           {PERIODS.map((p) => (
             <button
               key={p}
-              aria-pressed={p === period}
+              aria-pressed={p === displayedPeriod}
               disabled={weekly && (p === '1m' || p === '3m')}
               onClick={() => setPeriod(p)}
             >
@@ -91,28 +109,29 @@ export default function TechnicalView({
           <p className="text-label text-muted">주봉에서는 가격·거래량만 보여요. 이동평균·지지·저항·RSI·MACD는 일봉에서 확인하세요.</p>
         ) : (
           <>
-            <Toggle on={showMA} onClick={() => setShowMA((v) => !v)} label="이동평균 20·60" help="ma" />
-            <Toggle on={showBB} onClick={() => setShowBB((v) => !v)} label="볼린저" help="bollinger" />
-            <Toggle on={showSR} onClick={() => setShowSR((v) => !v)} label="지지·저항" help="sr" />
+            <Toggle on={showMA} onClick={() => changePreferences({ showMA: !showMA })} label="이동평균 20·60" help="ma" />
+            <Toggle on={showBB} onClick={() => changePreferences({ showBB: !showBB })} label="볼린저" help="bollinger" />
+            <Toggle on={showSR} onClick={() => changePreferences({ showSR: !showSR })} label="지지·저항" help="sr" />
           </>
         )}
       </div>
+      {preferenceError && <p role="status" className="text-caption text-muted">차트 설정을 이 브라우저에 저장하지 못했습니다. 현재 화면에는 적용했습니다.</p>}
 
-      {prices.isLoading || ind.isLoading ? (
+      {prices.isLoading || (!weekly && ind.isLoading) ? (
         <ChartFallback height={weekly ? 320 : 560} />
-      ) : prices.isError || ind.isError ? (
+      ) : prices.isError || (!weekly && ind.isError) ? (
         <ErrorState
           label="차트 데이터를 불러오지 못했어요"
           onRetry={() => {
             prices.refetch()
-            ind.refetch()
+            if (!weekly) ind.refetch()
           }}
         />
-      ) : prices.data && ind.data && prices.data.length ? (
+      ) : prices.data && (weekly || ind.data) && prices.data.length ? (
         <Suspense fallback={<ChartFallback height={weekly ? 320 : 560} />}>
           <TechnicalCharts
             candles={weekly ? toWeekly(prices.data) : prices.data}
-            ind={ind.data}
+            ind={weekly ? undefined : ind.data}
             showMA={!weekly && showMA}
             showBB={!weekly && showBB}
             light={light}

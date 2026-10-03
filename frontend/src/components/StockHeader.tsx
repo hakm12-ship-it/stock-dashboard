@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getPrices, getIndex, getProfile, getNightPrice, getSynthPrice, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import { fmtQuote, fmtChange, fmtPrice, changeColor, changeSign } from '../lib/format'
-import { marketStatus } from '../lib/market'
+import { useMarketStatus } from '../lib/useMarketStatus'
 import { pickQuote } from '../lib/quote'
 import { ChartFallback } from './ui'
 import { hasNightPrice, nightLabel, showSynthPrice } from '../lib/night'
@@ -83,11 +83,11 @@ export default function StockHeader({
     }
   }
 
-  const st = marketStatus(t.market)
+  const st = useMarketStatus(t.market)
   const lastTime = (isIndex ? idx.data?.quoteAsOf : undefined) ?? prices.data?.at(-1)?.time
   const sessionText = st.open
     ? `${st.label} · 지연 시세`
-    : `${st.label}${lastTime ? ` · ${lastTime.slice(5, 10).replace('-', '.')} 종가` : ''}`
+    : `${st.label}${lastTime ? ` · ${lastTime.slice(5, 10).replace('-', '.')} ${st.uncertain ? '기준' : '종가'}` : ''}`
 
   return (
     <div className="stock-header">
@@ -112,7 +112,7 @@ export default function StockHeader({
             </span>
             {t.kind === 'etf' && <span className="stock-chip">{t.lev ? `${t.lev} ETF` : 'ETF'}</span>}
             {t.kind === 'index' && <span className="stock-chip">지수</span>}
-            <span className={`flex items-center gap-1 text-label whitespace-nowrap ${st.open ? 'text-accent' : 'text-muted'}`}>
+            <span title={st.detail} className={`flex items-center gap-1 text-label ${st.open ? 'text-accent' : 'text-muted'}`}>
               <span
                 className={`h-1.5 w-1.5 rounded-full ${st.open ? 'bg-accent animate-pulse' : 'bg-muted'}`}
                 aria-hidden="true"

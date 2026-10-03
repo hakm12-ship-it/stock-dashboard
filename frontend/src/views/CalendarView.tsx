@@ -1,14 +1,19 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import Icon from '../components/Icon'
 import { getAlertInvite, getCalendar, getCalendarNotificationStatus } from '../lib/api'
+import type { FocusTicker } from '../data/tickers'
+import type { Holding } from '../lib/holdings'
 import {
   CALENDAR_QUERY_POLICY, CALENDAR_CATEGORIES, calendarTimestamp, dateLabel, eventTime, koreanDate, monthDays, monthRange,
-  shiftMonth, sortedEvents, type CalendarCategory, type CalendarEvent, type CalendarSource,
+  CALENDAR_SCOPES, CALENDAR_EARNINGS_TICKERS, calendarScopeTickers, filterCalendarEvents, calendarEventTicker, calendarTickerHref,
+  shiftMonth, sortedEvents, type CalendarCategory, type CalendarEvent, type CalendarSource, type CalendarScope, type CalendarTickerView,
 } from '../lib/calendar'
 
 const categories = Object.entries(CALENDAR_CATEGORIES) as [CalendarCategory, string][]
 const weekdays = ['일', '월', '화', '수', '목', '금', '토']
+const scopes = Object.entries(CALENDAR_SCOPES) as [CalendarScope, string][]
+type OpenCalendarTicker = (ticker: FocusTicker, view: CalendarTickerView) => void
 
 function SourceDetails({ source }: { source: CalendarSource }) {
   const checked = calendarTimestamp(source.status === 'ok' ? source.dataAsOf : source.checkedAt)
@@ -26,7 +31,8 @@ function SourceDetails({ source }: { source: CalendarSource }) {
   )
 }
 
-function EventCard({ event }: { event: CalendarEvent }) {
+function EventCard({ event, onOpenTicker }: { event: CalendarEvent; onOpenTicker: OpenCalendarTicker }) {
+  const ticker = calendarEventTicker(event)
   return (
     <li className="calendar-event">
       <div className="calendar-event-time">
@@ -41,9 +47,16 @@ function EventCard({ event }: { event: CalendarEvent }) {
         </div>
         <h3>{event.title}</h3>
         {event.description && <p className="calendar-event-description">{event.description}</p>}
-        <a className="calendar-source-link" href={event.sourceUrl} target="_blank" rel="noreferrer">
-          {event.source} 원문 <Icon name="external" size={13} />
-        </a>
+        <div className="calendar-event-links">
+          {ticker && (['tech', 'signal'] as const).map((view) => <a key={view} className="calendar-ticker-link" href={calendarTickerHref(ticker, view)} onClick={(click) => {
+            if (click.ctrlKey || click.metaKey || click.shiftKey || click.altKey) return
+            click.preventDefault()
+            onOpenTicker(ticker, view)
+          }}>{ticker.ticker} {view === 'tech' ? '차트 보기' : '종합 분석'} <Icon name="arrow" size={13} /></a>)}
+          <a className="calendar-source-link" href={event.sourceUrl} target="_blank" rel="noreferrer">
+            {event.source} 원문 <Icon name="external" size={13} />
+          </a>
+        </div>
       </div>
     </li>
   )
@@ -80,17 +93,35 @@ function NotificationSchedule() {
   )
 }
 
-export default function CalendarView() {
+export default function CalendarView({ tickers, holdings, onOpenTicker }: {
+  tickers: readonly FocusTicker[]; holdings: readonly Holding[]; onOpenTicker: OpenCalendarTicker
+}) {
   const today = koreanDate()
   const [month, setMonth] = useState(() => today.slice(0, 7))
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [category, setCategory] = useState<CalendarCategory | 'all'>('all')
+  const [scope, setScope] = useState<CalendarScope>('all')
+  const [includeMacro, setIncludeMacro] = useState(true)
+  // Keep the public calendar indexable; private views have no shared URL or
+  // personalized metadata and explicitly opt out while selected.
+  useEffect(() => {
+    if (scope === 'all') return
+    const robots = document.querySelector('meta[name="robots"]')
+    const previous = robots?.getAttribute('content')
+    robots?.setAttribute('content', 'noindex, nofollow')
+    return () => {
+      if (previous != null) robots?.setAttribute('content', previous)
+      else robots?.removeAttribute('content')
+    }
+  }, [scope])
   const { start, end } = monthRange(month)
   const calendar = useQuery({
     queryKey: ['calendar', start, end], queryFn: () => getCalendar(start, end),
     ...CALENDAR_QUERY_POLICY,
   })
-  const events = sortedEvents(calendar.data?.events ?? []).filter((event) => category === 'all' || event.category === category)
+  const scopeTickers = calendarScopeTickers(scope, tickers, holdings)
+  const events = sortedEvents(filterCalendarEvents(calendar.data?.events ?? [], scope, scopeTickers, includeMacro))
+    .filter((event) => category === 'all' || event.category === category)
   const eventsByDay = new Map<string, CalendarEvent[]>()
   for (const event of events) {
     const daily = eventsByDay.get(event.date) ?? []
@@ -105,6 +136,11 @@ export default function CalendarView() {
     setSelectedDate(null)
   }
   const monthTitle = `${Number(month.slice(0, 4))}년 ${Number(month.slice(5))}월`
+  const chooseScope = (next: CalendarScope) => {
+    setScope(next)
+    setSelectedDate(null)
+    if (next !== 'all' && !includeMacro && category !== 'earnings') setCategory('all')
+  }
 
   return (
     <div className="calendar-page fade-in">
@@ -132,9 +168,31 @@ export default function CalendarView() {
               </div>
               <button className="button button-quiet" onClick={() => { setMonth(today.slice(0, 7)); setSelectedDate(today) }}>오늘</button>
             </div>
+            <div className="calendar-personalization">
+              <div className="calendar-filters calendar-scope-filters" role="group" aria-label="일정 대상">
+                {scopes.map(([key, label]) => <button key={key} aria-pressed={scope === key} onClick={() => chooseScope(key)}>{label}</button>)}
+              </div>
+              {scope !== 'all' && <>
+                <label className="calendar-macro-toggle">
+                  <input type="checkbox" checked={includeMacro} onChange={(change) => {
+                    setIncludeMacro(change.target.checked)
+                    if (!change.target.checked && category !== 'earnings') setCategory('all')
+                  }} />
+                  금리·경제지표도 함께 보기
+                </label>
+                <p className="calendar-muted" role="status">{scopeTickers.length > 0
+                  ? `${CALENDAR_SCOPES[scope]} 중 실적 지원 기업 ${scopeTickers.length}개를 선택했어요.`
+                  : `현재 ${CALENDAR_SCOPES[scope]}에는 실적 수집 대상 기업이 없어요.`} {includeMacro ? '금리·경제지표는 공통 일정으로 포함합니다.' : '해당 종목의 실적 일정만 표시합니다.'}</p>
+                <p className="calendar-muted">이 선택은 현재 기기에만 적용되며 텔레그램 공통 알림은 바뀌지 않습니다.</p>
+              </>}
+              <details className="calendar-coverage">
+                <summary>실적은 빅테크 7개 기업만 지원 · 대상 보기</summary>
+                <p>{CALENDAR_EARNINGS_TICKERS.map((ticker) => `${ticker.name} (${ticker.ticker})`).join(' · ')}. 다른 종목의 실적은 아직 지원하지 않아요.</p>
+              </details>
+            </div>
             <div className="calendar-filters" role="group" aria-label="일정 종류">
-              <button aria-pressed={category === 'all'} onClick={() => setCategory('all')}>전체</button>
-              {categories.map(([key, label]) => <button key={key} aria-pressed={category === key} onClick={() => setCategory(key)}><span className={`calendar-dot calendar-dot-${key}`} aria-hidden="true" />{label}</button>)}
+              <button aria-pressed={category === 'all'} onClick={() => setCategory('all')}>모든 종류</button>
+              {categories.map(([key, label]) => <button key={key} aria-pressed={category === key} disabled={scope !== 'all' && !includeMacro && key !== 'earnings'} onClick={() => setCategory(key)}><span className={`calendar-dot calendar-dot-${key}`} aria-hidden="true" />{label}</button>)}
             </div>
             <div className="calendar-grid" role="group" aria-label={`${monthTitle} 날짜 선택`} aria-busy={calendar.isFetching}>
               {weekdays.map((day) => <span className="calendar-weekday" key={day} aria-hidden="true">{day}</span>)}
@@ -161,8 +219,8 @@ export default function CalendarView() {
             ) : (
               <>
                 {(failed.length > 0 || calendar.isError) && <div className="calendar-source-warning" role="status"><strong>일부 출처를 확인하지 못했어요.</strong><p>{failed.map((source) => source.name).join(', ') || '최근 일정 갱신 실패'} · 아래에는 현재 확인된 일정만 표시됩니다.</p><button className="text-action" onClick={() => void calendar.refetch()} disabled={calendar.isFetching}>{calendar.isFetching ? '조회 중…' : '다시 조회'}</button></div>}
-                <p className="calendar-agenda-count" role="status">{CALENDAR_CATEGORIES[category as CalendarCategory] ?? '전체'} · 확인된 일정 {visibleCount}개</p>
-                {visibleDays.length > 0 ? visibleDays.map(([date, daily]) => <section key={date} className="calendar-agenda-day" aria-label={dateLabel(date)}><h3 className="calendar-date-heading">{dateLabel(date)}{date === today && <span>오늘</span>}</h3><ul>{daily.map((event) => <EventCard key={event.id} event={event} />)}</ul></section>) : <div className="calendar-empty"><Icon name="calendar" size={28} /><h3>확인된 일정이 없어요</h3><p>{failed.length > 0 ? '조회하지 못한 출처에 일정이 있을 수 있어요. 잠시 후 다시 확인해 주세요.' : selectedDate ? '다른 날짜나 이달 전체 일정을 살펴보세요.' : '다른 달이나 일정 종류를 선택해 보세요.'}</p></div>}
+                <p className="calendar-agenda-count" role="status">{CALENDAR_SCOPES[scope]} · {CALENDAR_CATEGORIES[category as CalendarCategory] ?? '모든 종류'} · 확인된 일정 {visibleCount}개</p>
+                {visibleDays.length > 0 ? visibleDays.map(([date, daily]) => <section key={date} className="calendar-agenda-day" aria-label={dateLabel(date)}><h3 className="calendar-date-heading">{dateLabel(date)}{date === today && <span>오늘</span>}</h3><ul>{daily.map((event) => <EventCard key={event.id} event={event} onOpenTicker={onOpenTicker} />)}</ul></section>) : <div className="calendar-empty"><Icon name="calendar" size={28} /><h3>확인된 일정이 없어요</h3><p>{failed.length > 0 ? '조회하지 못한 출처에 일정이 있을 수 있어요. 잠시 후 다시 확인해 주세요.' : selectedDate ? '다른 날짜나 이달 전체 일정을 살펴보세요.' : '다른 달이나 일정 종류를 선택해 보세요.'}</p></div>}
               </>
             )}
           </section>

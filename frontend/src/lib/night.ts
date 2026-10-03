@@ -10,7 +10,8 @@ export function hasNightPrice(t: FocusTicker): boolean {
 
 /** 장중이면 '실시간', 장마감이면 '야간' — 같은 perp 시세라도 의미가 다르다. */
 export function nightLabel(t: FocusTicker): string {
-  return marketStatus(t.market).open ? '실시간' : '야간'
+  const status = marketStatus(t.market)
+  return status.uncertain ? '참고' : status.open ? '실시간' : '야간'
 }
 
 /** 기초자산 perp로 추정가를 합성할 수 있는 종목 — 백엔드 data/synthetic.py와 맞출 것 */
@@ -22,5 +23,6 @@ function hasSynthPrice(t: FocusTicker): boolean {
 
 /** 실제 시세가 도는 정규장에는 추정가를 보여줄 이유가 없다. */
 export function showSynthPrice(t: FocusTicker): boolean {
-  return hasSynthPrice(t) && !marketStatus(t.market).open
+  const status = marketStatus(t.market)
+  return hasSynthPrice(t) && !status.uncertain && !status.open
 }

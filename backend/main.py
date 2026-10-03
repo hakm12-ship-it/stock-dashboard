@@ -24,7 +24,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
 from deps import cached_symbols  # noqa: E402
-from routers import ai, alerts, calendar, fundamental, market, night, prices, signal, telegram  # noqa: E402
+from routers import ai, alerts, calendar, fundamental, market, night, prices, public_briefing, signal, telegram  # noqa: E402
 from services.scheduler import start_scheduler, stop_scheduler  # noqa: E402
 
 @asynccontextmanager
@@ -73,7 +73,7 @@ async def private_api_headers(request, call_next):
         response.headers["Referrer-Policy"] = "no-referrer"
     return response
 
-for _router in (prices, fundamental, signal, market, night, ai, alerts, telegram, calendar):
+for _router in (prices, fundamental, signal, market, night, ai, alerts, telegram, calendar, public_briefing):
     app.include_router(_router.router)
 
 

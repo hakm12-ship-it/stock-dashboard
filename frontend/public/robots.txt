@@ -3,6 +3,8 @@ User-agent: *
 # More-specific private calendar operations remain excluded.
 Disallow: /api/calendar/
 Allow: /api/calendar
+# Public RSS data is needed to render the home briefing; JSON responses stay noindex.
+Allow: /api/public-briefing
 Disallow: /api/
 Disallow: /docs
 Disallow: /redoc
