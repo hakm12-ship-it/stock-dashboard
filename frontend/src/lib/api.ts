@@ -1,5 +1,6 @@
 import axios from 'axios'
 import type { Market } from '../data/tickers'
+import type { CalendarResponse, CalendarNotificationStatus } from './calendar'
 
 const api = axios.create({ baseURL: '', timeout: 45_000 })
 
@@ -133,6 +134,8 @@ export const getSignalHistory = (ticker: string, cfg?: Record<string, number>) =
 export const getForecast = (ticker: string) => get<Forecast>('/api/forecast', { ticker })
 export const getNews = (market: Market, name: string) => get<NewsItem[]>('/api/news', { market, name })
 export const getSymbols = (market: Market, q: string) => get<SymbolResult[]>('/api/symbols', { market, q })
+export const getCalendar = (start: string, end: string) => get<CalendarResponse>('/api/calendar', { start, end })
+export const getCalendarNotificationStatus = () => get<CalendarNotificationStatus>('/api/calendar/notification-status', {})
 export const getTarget = (market: Market, ticker: string) => get<Target>('/api/target', { market, ticker })
 
 export interface Fx {

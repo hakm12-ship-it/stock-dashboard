@@ -1,20 +1,13 @@
 import { useId } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import {
-  getPrices,
-  getSignal,
-  getIndex,
-  getProfile,
-  getNightPrice,
-  getSynthPrice,
-  type Period,
-} from '../lib/api'
+import { getPrices, getSignal, getIndex, getProfile, getNightPrice, getSynthPrice, type Period } from '../lib/api'
 import type { FocusTicker } from '../data/tickers'
 import { hasNightPrice, nightLabel, showSynthPrice } from '../lib/night'
 import { pickQuote } from '../lib/quote'
 import type { Holding } from '../lib/holdings'
 import { loadSignalConfig, cfgKey, cfgParams } from '../lib/signalConfig'
 import { fmtQuote, fmtChange, fmtPct, fmtPrice, changeColor } from '../lib/format'
+import Icon from './Icon'
 const UP = 'rgb(var(--up))'
 const DOWN = 'rgb(var(--down))'
 
@@ -145,39 +138,45 @@ export default function WatchlistRow({
         {description}
       </span>
       <div className="wl-info">
-        <div className="wl-name-line">
+        <span className={`ticker-avatar ticker-avatar-${t.kind}`} aria-hidden="true">
+          {t.kind === 'index' ? <Icon name="tech" size={18} /> : t.short.slice(0, 1)}
           {logo && (
             <img
               src={logo}
               alt=""
-              className="h-5 w-5 rounded-full border border-border bg-surface object-contain shrink-0"
-              onError={(e) => {
-                ;(e.target as HTMLImageElement).style.display = 'none'
+              onError={(event) => {
+                event.currentTarget.style.display = 'none'
               }}
             />
           )}
-          <span className="wl-name" title={t.name}>
-            {t.short}
-          </span>
-          {t.kind === 'etf' && <span className="wl-tag">{t.lev ?? 'ETF'}</span>}
-          {t.kind === 'index' && <span className="wl-tag">지수</span>}
-        </div>
-        <div className="wl-meta">
-          <span className="font-mono">
-            <span className="wl-market">{t.market} · </span>
-            {t.ticker}
-          </span>
-          {holding && (
-            <span
-              className={`hold-badge ${holdPct == null ? 'text-muted bg-surface-2' : holdPct >= 0 ? 'text-up bg-up/10' : 'text-down bg-down/10'}`}
-            >
-              보유 <span className="font-mono tnum">{holdPct != null ? fmtPct(holdPct) : '—'}</span>
+        </span>
+        <div className="wl-identity">
+          <div className="wl-name-line">
+            <span className="wl-name" title={t.name}>
+              {t.short}
             </span>
-          )}
+            {t.kind === 'etf' && <span className="wl-tag">{t.lev ?? 'ETF'}</span>}
+            {t.kind === 'index' && <span className="wl-tag">지수</span>}
+          </div>
+          <div className="wl-meta">
+            <span className="font-mono">
+              <span className="wl-market">{t.market} · </span>
+              {t.ticker}
+            </span>
+            {holding && (
+              <span
+                className={`hold-badge ${holdPct == null ? 'text-muted bg-surface-2' : holdPct >= 0 ? 'text-up bg-up/10' : 'text-down bg-down/10'}`}
+              >
+                보유 <span className="font-mono tnum">{holdPct != null ? fmtPct(holdPct) : '—'}</span>
+              </span>
+            )}
+          </div>
         </div>
       </div>
       <div className="wl-quote">
-        <div className={`font-semibold tnum text-body ${priceVal != null ? 'font-mono' : 'text-muted text-caption'}`}>
+        <div
+          className={`font-semibold tnum text-body ${priceVal != null ? 'font-mono' : 'text-muted text-caption'}`}
+        >
           {priceText}
         </div>
         {hasChange && <div className={`font-mono tnum text-label ${changeColor(chg)}`}>{fmtChange(pct, chg)}</div>}
@@ -207,7 +206,10 @@ export default function WatchlistRow({
       <div className="wl-spark">
         <Sparkline data={series} up={trendUp} />
         {periodPct != null && (
-          <span title={`${PERIOD_LABEL[period] ?? period} 등락률`} className={`wl-period font-mono tnum ${trendUp ? 'text-up' : 'text-down'}`}>
+          <span
+            title={`${PERIOD_LABEL[period] ?? period} 등락률`}
+            className={`wl-period font-mono tnum ${trendUp ? 'text-up' : 'text-down'}`}
+          >
             {fmtPct(periodPct, 1)}
           </span>
         )}

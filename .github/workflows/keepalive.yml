@@ -1,14 +1,8 @@
-# Render 무료 플랜은 15분 미사용 시 잠들어 첫 접속이 ~30초 느려짐.
-#
-# 주 방어선은 외부 핑 서비스(cron-job.org 등)다 — GitHub Actions의 scheduled
-# workflow는 활동이 적은 저장소에서 수 시간씩 밀리는 게 관찰됐다(2026-08-04,
-# 10분 간격 설정인데 실제로는 2.5~4시간 공백). 여기는 그게 놓쳤을 때의 백업이라
-# 시간대 제한 없이 24시간 돈다 — 퍼블릭 저장소라 Actions 분당 비용은 없다.
-name: Keep Render awake (backup)
+# Manual diagnostics only. Free services share 750 instance hours/month.
+# Continuous health pings exhausted the allowance in September 2026.
+name: Check Render health (manual only)
 
 on:
-  schedule:
-    - cron: '*/10 * * * *'
   workflow_dispatch: {}
 
 jobs:

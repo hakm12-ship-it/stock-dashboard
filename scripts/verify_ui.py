@@ -67,9 +67,9 @@ with sync_playwright() as p:
         page.get_by_role('button', name='종목 추가', exact=True).click()
         expect(page.get_by_role('dialog')).to_be_visible()
         page.get_by_role('textbox', name='종목명 또는 티커', exact=True).fill('카카오')
-        expect(page.get_by_role('button', name='추가', exact=True).first).to_be_visible(timeout=60000)
-        page.get_by_role('button', name='추가', exact=True).first.click()
-        expect(page.get_by_role('button', name='추가됨').first).to_be_disabled()
+        expect(page.get_by_role('button', name='카카오 관심종목에 추가', exact=True)).to_be_visible(timeout=60000)
+        page.get_by_role('button', name='카카오 관심종목에 추가', exact=True).click()
+        expect(page.get_by_role('button', name='카카오 관심종목에 추가됨', exact=True)).to_be_disabled()
         for _ in range(15):
             page.keyboard.press('Tab')
             assert page.evaluate("document.activeElement.closest('dialog') !== null"), page.evaluate("document.activeElement.outerHTML")
@@ -117,7 +117,7 @@ with sync_playwright() as p:
         assert page.evaluate("localStorage.getItem('holdings')") is None
         page.get_by_label('보유 수량 (주)', exact=True).fill('10')
         page.get_by_role('button', name='보유종목 저장', exact=True).click()
-        expect(page.get_by_role('status')).to_contain_text('저장했습니다')
+        expect(page.get_by_role('dialog').get_by_role('status')).to_contain_text('저장했습니다')
         assert len(json.loads(page.evaluate("localStorage.getItem('holdings')"))) == 1
         for width in [360,390,768,1280,1440]:
             page.set_viewport_size({'width':width,'height':900})
@@ -143,7 +143,7 @@ with sync_playwright() as p:
         page.get_by_label('수량 (주)', exact=True).fill('2')
         page.get_by_label('1주당 가격 (KRW)', exact=True).fill('1000')
         page.get_by_role('button', name='기록하기').click()
-        expect(page.get_by_role('status')).to_contain_text('저장했습니다')
+        expect(page.get_by_role('dialog').get_by_role('status')).to_contain_text('저장했습니다')
         page.get_by_role('button', name='기록하기').click()
         assert len(json.loads(page.evaluate("localStorage.getItem('trades-v1')"))) == 1
         page.set_viewport_size({'width':360,'height':900})

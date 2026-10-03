@@ -15,6 +15,17 @@ export default function BottomNav({
       <p className="nav-caption">리서치 워크스페이스</p>
       <div className="nav-items">
         {(Object.entries(TAB_LABELS) as [TabKey, string][]).map(([key, label]) => (
+          key === 'calendar' ? <a
+            key={key}
+            href="/calendar"
+            onClick={(event) => {
+              if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
+              event.preventDefault()
+              onChange(key)
+            }}
+            aria-current={active === key ? 'page' : undefined}
+            className={`nav-item ${active === key ? 'is-active' : ''}`}
+          ><Icon name={key} /><span>{label}</span></a> :
           <button
             key={key}
             onClick={() => onChange(key)}

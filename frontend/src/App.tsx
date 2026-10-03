@@ -7,11 +7,12 @@ import StockHeader from './components/StockHeader'
 import AverageBuyCard from './components/AverageBuyCard'
 import Week52Bar from './components/Week52Bar'
 import BottomNav from './components/BottomNav'
-import HomeView from './views/HomeView'
+import HomeView, { type WatchlistPreferences } from './views/HomeView'
 import SignalView from './views/SignalView'
 import TechnicalView from './views/TechnicalView'
 import FundamentalView from './views/FundamentalView'
 import NewsView from './views/NewsView'
+import CalendarView from './views/CalendarView'
 import Icon from './components/Icon'
 import { useNavigation, TAB_LABELS } from './lib/navigation'
 import SearchSheet from './components/SearchSheet'
@@ -25,6 +26,8 @@ import { persist } from './lib/storage'
 import { parseBackup, type Backup } from './lib/validation'
 import { marketStatus } from './lib/market'
 
+const realtimeKeys = new Set(['prices', 'index', 'ind', 'signal', 'forecast', 'fx', 'macro', 'marketTop', 'groupStocks'])
+
 export default function App() {
   const { t, tab, navigate } = useNavigation()
   const setT = (tk: FocusTicker) => navigate(tab, tk)
@@ -33,11 +36,31 @@ export default function App() {
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
   const [custom, setCustom] = useState<FocusTicker[]>(loadCustom)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [watchlistPreferences, setWatchlistPreferences] = useState<WatchlistPreferences>({
+    sort: 'default',
+    filter: 'all',
+    query: '',
+    sparkPeriod: '1m',
+  })
   const [holdings, setHoldings] = useState<Holding[]>(loadHoldings)
   const [holdingsOpen, setHoldingsOpen] = useState(false)
   const [comparisonOpen, setComparisonOpen] = useState(false)
   const [trades, setTrades] = useState<Trade[]>(loadTrades)
   const [journalOpen, setJournalOpen] = useState(false)
+  useEffect(() => {
+    const openSearch = (event: KeyboardEvent) => {
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        event.key.toLowerCase() === 'k' &&
+        !document.querySelector('dialog[open]')
+      ) {
+        event.preventDefault()
+        setSearchOpen(true)
+      }
+    }
+    window.addEventListener('keydown', openSearch)
+    return () => window.removeEventListener('keydown', openSearch)
+  }, [])
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     try {
       return localStorage.getItem('theme') === 'light' ? 'light' : 'dark'
@@ -61,12 +84,12 @@ export default function App() {
     }
   }, [theme])
 
-  // 장중이면 1분마다 자동 새로고침 (화면이 보일 때만)
+  // 장중에는 현재 구독 중인 시세만 갱신한다. 일정·뉴스·AI·기업 정보는 각 캐시를 유지한다.
   useEffect(() => {
     const id = setInterval(() => {
       if (document.visibilityState !== 'visible') return
       if (marketStatus('KR').open || marketStatus('US').open) {
-        void qc.invalidateQueries()
+        void qc.invalidateQueries({ predicate: (query) => query.isActive() && realtimeKeys.has(String(query.queryKey[0])) })
       }
     }, 60_000)
     return () => clearInterval(id)
@@ -83,10 +106,7 @@ export default function App() {
   const tkey = (x: FocusTicker) => `${x.market}-${x.ticker}`
   const all = [
     ...new Map(
-      [...TICKERS, ...custom.filter((x) => !TICKERS.some((t) => tkey(t) === tkey(x)))].map((x) => [
-        tkey(x),
-        x,
-      ]),
+      [...TICKERS, ...custom.filter((x) => !TICKERS.some((t) => tkey(t) === tkey(x)))].map((x) => [tkey(x), x]),
     ).values(),
   ].sort((a, b) => {
     const ia = order.indexOf(tkey(a))
@@ -191,12 +211,7 @@ export default function App() {
   }
 
   return (
-    <div
-      className="min-h-screen"
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-    >
+    <div className="min-h-screen" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
       {/* 당김 인디케이터 */}
       {(pull > 0 || refreshing) && (
         <div
@@ -240,7 +255,7 @@ export default function App() {
           <Icon name="search" />
           <span>종목명 또는 티커 검색</span>
           <span className="search-hint" aria-hidden="true">
-            한국 · 미국
+            <kbd>Ctrl K</kbd>
           </span>
         </button>
         <div className="header-actions">
@@ -269,11 +284,7 @@ export default function App() {
             {storageError}
           </p>
         )}
-        {tab === 'home' ? (
-          <h1 className="sr-only" tabIndex={-1}>
-            나의 관심종목
-          </h1>
-        ) : (
+        {tab !== 'home' && tab !== 'calendar' && (
           <div className="page-heading is-research">
             <button className="icon-button back-button" onClick={() => setTab('home')} aria-label="관심종목으로">
               <Icon name="arrow" size={20} />
@@ -297,6 +308,8 @@ export default function App() {
               trades={trades}
               light={theme === 'light'}
               updatedAt={updatedAt}
+              preferences={watchlistPreferences}
+              onPreferencesChange={(next) => setWatchlistPreferences((previous) => ({ ...previous, ...next }))}
               onSelect={(tk) => {
                 navigate('signal', tk)
               }}
@@ -306,9 +319,10 @@ export default function App() {
               onManageHoldings={() => setHoldingsOpen(true)}
               onOpenJournal={() => setJournalOpen(true)}
               onCompare={() => setComparisonOpen(true)}
+              onOpenCalendar={() => navigate('calendar')}
             />
           </div>
-        ) : (
+        ) : tab === 'calendar' ? <CalendarView /> : (
           <>
             <TickerSwitcher tickers={all} selected={t} onSelect={setT} />
             <div className="research-layout">
@@ -320,7 +334,11 @@ export default function App() {
                 })()}
                 <Week52Bar t={t} />
               </aside>
-              <section key={`${tab}-${t.market}-${t.ticker}`} className="research-body fade-in" aria-label={TAB_LABELS[tab]}>
+              <section
+                key={`${tab}-${t.market}-${t.ticker}`}
+                className="research-body fade-in"
+                aria-label={TAB_LABELS[tab]}
+              >
                 {tab === 'signal' && <SignalView t={t} />}
                 {tab === 'tech' && (
                   <TechnicalView
@@ -358,6 +376,7 @@ export default function App() {
           custom={custom}
           onAdd={addTicker}
           onRemove={removeTicker}
+          onSelect={(tk) => navigate('signal', tk)}
           onClose={() => setSearchOpen(false)}
         />
       )}

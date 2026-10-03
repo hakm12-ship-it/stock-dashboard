@@ -1,6 +1,6 @@
 import WatchlistRow from '../components/WatchlistRow'
 import Icon from '../components/Icon'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { getIndex, getPrices, type Period } from '../lib/api'
 import { marketStatus } from '../lib/market'
@@ -18,12 +18,20 @@ import AlertInviteCard from '../components/AlertInviteCard'
 import type { Holding } from '../lib/holdings'
 import type { Trade } from '../lib/trades'
 import PortfolioReviewCard from '../components/PortfolioReviewCard'
+import UpcomingEvents from '../components/UpcomingEvents'
 
 const PERIODS: [Period, string][] = [
   ['1m', '1개월'],
   ['3m', '3개월'],
   ['6m', '6개월'],
 ]
+
+export type WatchlistPreferences = {
+  sort: 'default' | 'gainers' | 'losers'
+  filter: 'all' | 'KR' | 'US' | 'held'
+  query: string
+  sparkPeriod: Period
+}
 
 /** 지금 보고 있는 숫자가 어느 장의 것인지 — 장 상태와 마지막 거래일을 글자로 보여준다. */
 function MarketSession({ updatedAt }: { updatedAt?: Date | null }) {
@@ -48,16 +56,29 @@ function MarketSession({ updatedAt }: { updatedAt?: Date | null }) {
       </div>
       <span className="session-notice">
         지연 시세 · 참고용
-        {updatedAt && ` · ${updatedAt.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 새로고침`}
+        {updatedAt &&
+          ` · ${updatedAt.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 새로고침`}
       </span>
     </div>
   )
 }
 
 /** 휴대폰에서 내 자산 카드는 관심종목 목록 아래에 있다. 목록 위에서 합계만 한 줄로 보여주고 이동시킨다. */
-function PortfolioPeek({ holdings }: { holdings: Holding[] }) {
+function PortfolioPeek({ holdings, onManage }: { holdings: Holding[]; onManage: () => void }) {
   const { canUnify, uniValue, uniPL, uniPct } = usePortfolioValue(holdings)
-  if (holdings.length === 0) return null
+  if (holdings.length === 0)
+    return (
+      <button className="portfolio-peek portfolio-peek-empty" onClick={onManage}>
+        <span className="peek-icon">
+          <Icon name="wallet" size={18} />
+        </span>
+        <span>
+          <strong>내 자산도 함께 확인하세요</strong>
+          <small>보유종목 등록하고 손익 보기</small>
+        </span>
+        <Icon name="plus" size={18} />
+      </button>
+    )
   return (
     <button
       className="portfolio-peek"
@@ -97,6 +118,9 @@ export default function HomeView({
   onOpenJournal,
   onCompare,
   updatedAt,
+  preferences,
+  onPreferencesChange,
+  onOpenCalendar,
 }: {
   tickers: FocusTicker[]
   holdings: Holding[]
@@ -110,17 +134,20 @@ export default function HomeView({
   onOpenJournal: () => void
   onCompare: () => void
   updatedAt?: Date | null
+  preferences: WatchlistPreferences
+  onPreferencesChange: (next: Partial<WatchlistPreferences>) => void
+  onOpenCalendar: () => void
 }) {
-  const [sort, setSort] = useState<'default' | 'gainers' | 'losers'>('default')
-  const [filter, setFilter] = useState<'all' | 'KR' | 'US' | 'held'>('all')
-  const [query, setQuery] = useState('')
+  const { sort, filter, query, sparkPeriod } = preferences
+  const setSort = (sort: WatchlistPreferences['sort']) => onPreferencesChange({ sort })
+  const setFilter = (filter: WatchlistPreferences['filter']) => onPreferencesChange({ filter })
+  const setQuery = (query: string) => onPreferencesChange({ query })
+  const setSparkPeriod = (sparkPeriod: Period) => onPreferencesChange({ sparkPeriod })
   const [editing, setEditing] = useState(false)
-  const [sparkPeriod, setSparkPeriod] = useState<Period>('1m')
-  const [searchOpen, setSearchOpen] = useState(false)
+  const [optionsOpen, setOptionsOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(query !== '')
   const searchInput = useRef<HTMLInputElement>(null)
-  useEffect(() => {
-    if (searchOpen) searchInput.current?.focus()
-  }, [searchOpen])
+  const searchToggle = useRef<HTMLButtonElement>(null)
 
   // 정렬용 등락률 (카드와 같은 쿼리키 → 캐시 공유, 중복 요청 없음)
   const priceQs = useQueries({
@@ -151,7 +178,7 @@ export default function HomeView({
         (filter === 'held'
           ? holdings.some((h) => h.ticker === t.ticker && h.market === t.market)
           : t.market === filter)) &&
-      `${t.name} ${t.ticker}`.toLowerCase().includes(query.trim().toLowerCase()),
+      `${t.name} ${t.short} ${t.ticker}`.toLowerCase().includes(query.trim().toLowerCase()),
   )
 
   const SORTS: [typeof sort, string][] = [
@@ -160,9 +187,39 @@ export default function HomeView({
     ['losers', '하락률 순'],
   ]
   const filtering = filter !== 'all' || query.trim() !== ''
+  const filterLabel = { all: '전체', KR: '한국', US: '미국', held: '보유' }[filter]
+  const resetFilters = () => onPreferencesChange({ filter: 'all', query: '' })
 
   return (
     <div className="home-layout">
+      <div className="dashboard-heading">
+        <div>
+          <h1 tabIndex={-1}>나의 관심종목</h1>
+          <p className="dashboard-description">시장의 흐름과 내 종목의 변화를 한눈에 살펴보세요.</p>
+        </div>
+        <div className="dashboard-shortcuts" aria-label="홈 바로가기">
+          <a
+            href="#my-assets"
+            onClick={(event) => {
+              event.preventDefault()
+              document.getElementById('my-assets')?.scrollIntoView({ block: 'start' })
+              document.getElementById('my-assets')?.focus({ preventScroll: true })
+            }}
+          >
+            <Icon name="wallet" size={16} /> 내 자산
+          </a>
+          <a
+            href="#market-discovery"
+            onClick={(event) => {
+              event.preventDefault()
+              document.getElementById('market-discovery')?.scrollIntoView({ block: 'start' })
+              document.getElementById('market-discovery')?.focus({ preventScroll: true })
+            }}
+          >
+            <Icon name="tech" size={16} /> 시장 탐색
+          </a>
+        </div>
+      </div>
       <section className="market-overview" aria-label="시장 지수와 환율">
         <MarketSession updatedAt={updatedAt} />
         <div className="market-tiles">
@@ -170,16 +227,17 @@ export default function HomeView({
           <MacroStrip />
         </div>
       </section>
-      <PortfolioPeek holdings={holdings} />
+      <PortfolioPeek holdings={holdings} onManage={onManageHoldings} />
       <section className="watchlist-section" aria-labelledby="watchlist-title">
         <div className="section-heading">
           <div>
             <h2 id="watchlist-title">
               관심종목{' '}
-              <span className="text-muted text-sm font-mono tnum">
+              <span className="watchlist-count tnum">
                 {filtering && !editing ? `${filtered.length}/${tickers.length}` : tickers.length}
               </span>
             </h2>
+            <p>종목을 선택하면 상세 분석으로 이어집니다.</p>
           </div>
           <div className="flex gap-2">
             <button className="button button-quiet" onClick={onCompare}>
@@ -190,83 +248,140 @@ export default function HomeView({
             </button>
           </div>
         </div>
-        <div className="watchlist-controls">
+        <div className="watchlist-controls watchlist-toolbar">
           {!editing && (
             <>
-              <div className="segmented" role="group" aria-label="시장 필터">
-                {(
-                  [
-                    ['all', '전체'],
-                    ['KR', '한국'],
-                    ['US', '미국'],
-                    ['held', '보유'],
-                  ] as const
-                ).map(([key, label]) => (
-                  <button key={key} aria-pressed={filter === key} onClick={() => setFilter(key)}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <button
-                className={`list-search-toggle ${searchOpen || query ? 'is-active' : ''}`}
-                aria-label="목록에서 찾기"
-                aria-expanded={searchOpen || query !== ''}
-                onClick={() => {
-                  if (searchOpen && query === '') setSearchOpen(false)
-                  else setSearchOpen(true)
-                }}
-              >
-                <Icon name="search" size={18} />
-              </button>
-              <label className={`list-search ${searchOpen || query ? 'is-open' : ''}`}>
-                <Icon name="search" size={16} />
-                <input
-                  ref={searchInput}
-                  aria-label="관심종목 검색"
-                  placeholder="목록에서 찾기"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onBlur={() => {
-                    if (query === '') setSearchOpen(false)
+              <div className="watchlist-primary-controls">
+                <div className="segmented" role="group" aria-label="시장 필터">
+                  {(
+                    [
+                      ['all', '전체'],
+                      ['KR', '한국'],
+                      ['US', '미국'],
+                      ['held', '보유'],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <button key={key} aria-pressed={filter === key} onClick={() => setFilter(key)}>
+                      {label}
+                      <span aria-hidden="true" className="filter-count">
+                        {key === 'all'
+                          ? tickers.length
+                          : tickers.filter((t) =>
+                              key === 'held'
+                                ? holdings.some((h) => h.ticker === t.ticker && h.market === t.market)
+                                : t.market === key,
+                            ).length}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <button
+                  ref={searchToggle}
+                  className={`list-search-toggle ${searchOpen || query ? 'is-active' : ''}`}
+                  aria-label="목록에서 찾기"
+                  aria-expanded={searchOpen || query !== ''}
+                  onClick={() => {
+                    if (searchOpen && query === '') setSearchOpen(false)
+                    else {
+                      setSearchOpen(true)
+                      requestAnimationFrame(() => searchInput.current?.focus())
+                    }
                   }}
-                />
-              </label>
-              <div className="period-controls" role="group" aria-label="가격 흐름 기간">
-                {PERIODS.map(([p, label]) => (
-                  <button key={p} aria-pressed={sparkPeriod === p} onClick={() => setSparkPeriod(p)}>
-                    {label}
-                  </button>
-                ))}
+                >
+                  <Icon name="search" size={18} />
+                </button>
+                <div className={`list-search ${searchOpen || query ? 'is-open' : ''}`}>
+                  <Icon name="search" size={16} />
+                  <input
+                    ref={searchInput}
+                    aria-label="관심종목 검색"
+                    placeholder="목록에서 찾기"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') {
+                        setQuery('')
+                        setSearchOpen(false)
+                        if (searchToggle.current?.offsetParent) searchToggle.current.focus()
+                      }
+                    }}
+                  />
+                  {query && (
+                    <button
+                      className="search-clear"
+                      aria-label="목록 검색어 지우기"
+                      onClick={() => {
+                        setQuery('')
+                        searchInput.current?.focus()
+                      }}
+                    >
+                      <Icon name="close" size={15} />
+                    </button>
+                  )}
+                </div>
               </div>
-              <select
-                className="sort-select"
-                aria-label="전일 대비 정렬"
-                value={sort}
-                onChange={(e) => setSort(e.target.value as typeof sort)}
+              <div className={`watchlist-result-summary ${!filtering ? 'is-unfiltered' : ''}`}>
+                <span role="status" aria-live="polite">
+                  {filterLabel} <strong className="tnum">{filtered.length}</strong>개 종목
+                  {query.trim() ? ` · “${query.trim()}” 검색 결과` : ''}
+                </span>
+                {filtering && filtered.length > 0 && (
+                  <button className="text-action" onClick={resetFilters}>
+                    필터 초기화
+                  </button>
+                )}
+                <button
+                  className="view-options-toggle"
+                  aria-expanded={optionsOpen}
+                  aria-controls="watchlist-view-options"
+                  onClick={() => setOptionsOpen((open) => !open)}
+                >
+                  <Icon name="settings" size={16} /> 보기 설정
+                </button>
+              </div>
+              <div
+                id="watchlist-view-options"
+                className={`watchlist-secondary-controls ${optionsOpen ? 'is-open' : ''}`}
               >
-                {SORTS.map(([k, label]) => (
-                  <option key={k} value={k}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+                <span className="toolbar-label">가격 흐름</span>
+                <div className="period-controls" role="group" aria-label="가격 흐름 기간">
+                  {PERIODS.map(([p, label]) => (
+                    <button key={p} aria-pressed={sparkPeriod === p} onClick={() => setSparkPeriod(p)}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <select
+                  className="sort-select"
+                  aria-label="전일 대비 정렬"
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value as typeof sort)}
+                >
+                  {SORTS.map(([k, label]) => (
+                    <option key={k} value={k}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="edit-order"
+                  onClick={() => {
+                    setEditing(true)
+                    onPreferencesChange({ sort: 'default', filter: 'all', query: '' })
+                    setSearchOpen(false)
+                  }}
+                >
+                  <Icon name="edit" size={14} /> 순서 편집
+                </button>
+              </div>
             </>
           )}
           {editing && <p className="reorder-hint">화살표로 순서를 바꾸면 바로 저장돼요.</p>}
-          <button
-            className={`edit-order ${editing ? 'is-editing' : ''}`}
-            onClick={() => {
-              setEditing(!editing)
-              if (!editing) {
-                setSort('default')
-                setFilter('all')
-                setQuery('')
-                setSearchOpen(false)
-              }
-            }}
-          >
-            {editing ? '편집 완료' : '순서 편집'}
-          </button>
+          {editing && (
+            <button className="edit-order is-editing" onClick={() => setEditing(false)}>
+              편집 완료
+            </button>
+          )}
         </div>
         {!editing && (
           <div className="watchlist-columns" aria-hidden="true">
@@ -329,8 +444,7 @@ export default function HomeView({
                 onClick={() => {
                   if (filter === 'held' && holdings.length === 0) onManageHoldings()
                   else {
-                    setFilter('all')
-                    setQuery('')
+                    resetFilters()
                   }
                 }}
               >
@@ -340,7 +454,9 @@ export default function HomeView({
           )}
         </div>
         {!editing && (
-          <p className="watchlist-footnote">가격 흐름 선과 색은 선택 기간의 등락 기준 · 종합 신호는 규칙 기반 참고 정보</p>
+          <p className="watchlist-footnote">
+            가격 흐름 선과 색은 선택 기간의 등락 기준 · 종합 신호는 규칙 기반 참고 정보
+          </p>
         )}
       </section>
       <aside className="home-aside" aria-label="내 자산과 시장 요약">
@@ -351,10 +467,11 @@ export default function HomeView({
           onJournal={onOpenJournal}
         />
         <DailyReportCard />
+        <UpcomingEvents onOpen={onOpenCalendar} />
         <PortfolioReviewCard holdings={holdings} trades={trades} />
         <AlertInviteCard />
       </aside>
-      <section className="market-discovery" aria-label="시장 탐색">
+      <section id="market-discovery" tabIndex={-1} className="market-discovery" aria-label="시장 탐색">
         <div className="section-heading">
           <div>
             <h2>시장 둘러보기</h2>

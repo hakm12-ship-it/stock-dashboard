@@ -3,6 +3,7 @@ import type { Holding } from '../lib/holdings'
 import { fmtPrice, fmtNum, fmtChange, fmtPct, fmtSignedPrice, changeColor } from '../lib/format'
 import { ChartFallback } from './ui'
 import { usePortfolioValue } from './usePortfolioValue'
+import Icon from './Icon'
 
 // 차트 라이브러리(lightweight-charts)는 무거워서 실제로 펼칠 때만 받는다.
 const PortfolioChart = lazy(() => import('./PortfolioChart'))
@@ -26,15 +27,15 @@ export default function PortfolioSummary({
   return (
     <section
       id="my-assets"
-      className="bg-surface border border-border rounded-xl p-4 card-shadow scroll-mt-24"
+      tabIndex={-1}
+      className="portfolio-card bg-surface border border-border rounded-xl p-4 card-shadow scroll-mt-24"
       aria-labelledby="my-assets-title"
     >
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 mb-3">
         <h2 id="my-assets-title" className="panel-title">
           내 자산
         </h2>
-        {/* -my-3로 탭 영역만 넓히고 줄 높이는 유지 (터치타겟 44px) */}
-        <div className="flex gap-1 -my-3 -mr-2">
+        <div className="flex shrink-0 gap-1 -my-2 -mr-2">
           <button onClick={onJournal} className="text-action">
             매매일지
           </button>
@@ -45,11 +46,20 @@ export default function PortfolioSummary({
       </div>
 
       {!hasHoldings ? (
-        <div className="pt-1">
-          <p className="text-caption text-muted leading-relaxed">
-            보유 수량과 평균 매수가를 입력하면 원화로 합친 평가액과 손익을 볼 수 있어요.
-          </p>
-          <button onClick={onManage} className="button button-quiet w-full mt-3" aria-label="보유종목 등록하기">
+        <div className="portfolio-empty-state pt-1">
+          <div className="flex items-start gap-3">
+            <span className="portfolio-empty-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-accent">
+              <Icon name="wallet" size={22} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-caption font-semibold text-text">평가액과 손익을 한눈에</p>
+              <p className="text-caption text-muted leading-relaxed mt-1">
+                보유 수량과 평균 매수가를 등록하면 원화로 합친 자산을 확인할 수 있어요.
+              </p>
+            </div>
+          </div>
+          <button onClick={onManage} className="button button-primary w-full mt-4" aria-label="보유종목 등록하기">
+            <Icon name="plus" size={16} />
             보유종목 등록하기
           </button>
         </div>
@@ -70,31 +80,46 @@ export default function PortfolioSummary({
             </div>
           )}
           {canUnify && (
-            <div className="mb-3">
-              <div className="text-label text-muted">총 평가액 · 원화 환산</div>
-              <div className="font-mono text-2xl font-semibold tnum leading-tight">{fmtPrice(uniValue, 'KR')}</div>
-              <div className="flex items-baseline gap-1.5 mt-0.5">
-                <span className="text-label text-muted">평가손익</span>
-                <span className={`font-mono text-sm tnum ${changeColor(uniPL)}`}>
-                  {fmtSignedPrice(uniPL, 'KR')} ({fmtPct(uniPct)})
-                </span>
+            <div className="portfolio-total mb-4">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <span className="text-caption text-muted">총 평가액</span>
+                <span className="text-label text-muted">원화 환산</span>
+              </div>
+              <div className="font-mono text-h1 font-semibold tnum leading-tight break-words mt-1">
+                {fmtPrice(uniValue, 'KR')}
+              </div>
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 mt-2">
+                <span className="text-caption text-muted">평가손익</span>
+                <div
+                  className={`flex flex-wrap items-baseline gap-x-1.5 font-mono text-caption font-medium tnum ${changeColor(uniPL)}`}
+                >
+                  <span>{fmtSignedPrice(uniPL, 'KR')}</span>
+                  <span>({fmtPct(uniPct)})</span>
+                </div>
               </div>
             </div>
           )}
 
           {!hasMissingPrices && (rows.length > 1 || !canUnify) && (
-            <div className="pt-2 border-t border-border">
-              <div className="flex justify-between text-label text-muted mb-1">
+            <div className="pt-3 border-t border-border">
+              <div className="flex justify-between gap-2 text-label text-muted mb-2">
                 <span>시장별</span>
                 <span>평가액 · 손익률</span>
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-3">
                 {rows.map((r) => (
-                  <div key={r.m} className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-muted">{r.m === 'KR' ? '한국' : '미국'}</span>
-                    <div className="text-right whitespace-nowrap">
-                      <span className="font-mono tnum text-sm">{fmtPrice(r.value, r.m)}</span>
-                      <span className={`font-mono tnum text-label ml-2 ${changeColor(r.pl)}`}>{fmtPct(r.pct)}</span>
+                  <div key={r.m} className="portfolio-market-row flex items-start justify-between gap-3">
+                    <div className="shrink-0 text-caption">
+                      <span>{r.m === 'KR' ? '한국' : '미국'}</span>
+                      <span className="block text-label text-muted mt-0.5">{r.m === 'KR' ? 'KRW' : 'USD'}</span>
+                    </div>
+                    <div className="min-w-0 text-right">
+                      <div className="font-mono tnum text-caption font-medium break-words">
+                        {fmtPrice(r.value, r.m)}
+                      </div>
+                      <div className={`font-mono tnum text-label mt-0.5 ${changeColor(r.pl)}`}>
+                        {fmtPct(r.pct)}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -103,12 +128,15 @@ export default function PortfolioSummary({
           )}
 
           {rate != null && (
-            <div className="text-label text-muted mt-2 flex justify-between gap-2">
+            <div className="text-label text-muted mt-3 flex flex-wrap justify-between gap-x-2 gap-y-1">
               <span>적용 환율</span>
               <span className="font-mono tnum">
-                {fmtNum(rate, 1)}원
+                1 USD = {fmtNum(rate, 1)}원
                 {fx.data && (
-                  <span className={changeColor(fx.data.change)}> {fmtChange(fx.data.changePct, fx.data.change)}</span>
+                  <span className={changeColor(fx.data.change)}>
+                    {' '}
+                    {fmtChange(fx.data.changePct, fx.data.change)}
+                  </span>
                 )}
               </span>
             </div>
@@ -117,15 +145,18 @@ export default function PortfolioSummary({
           <button
             onClick={() => setChartOpen((v) => !v)}
             aria-expanded={chartOpen}
-            className="text-action w-full justify-center mt-1"
+            aria-controls="portfolio-history-chart"
+            className="text-action w-full justify-center mt-3 border-t border-border"
           >
             {chartOpen ? '자산 추이 접기' : '자산 추이 차트 보기'}
           </button>
-          {chartOpen && (
-            <Suspense fallback={<ChartFallback height={180} />}>
-              <PortfolioChart holdings={holdings} light={light} />
-            </Suspense>
-          )}
+          <div id="portfolio-history-chart" hidden={!chartOpen}>
+            {chartOpen && (
+              <Suspense fallback={<ChartFallback height={180} />}>
+                <PortfolioChart holdings={holdings} light={light} />
+              </Suspense>
+            )}
+          </div>
         </>
       )}
     </section>
