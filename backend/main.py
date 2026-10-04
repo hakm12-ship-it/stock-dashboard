@@ -24,7 +24,8 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
 from deps import cached_symbols  # noqa: E402
-from routers import ai, alerts, calendar, fundamental, market, night, prices, public_briefing, signal, telegram  # noqa: E402
+from routers import ai, alerts, calendar, fundamental, market, night, prices, public_briefing, signal, telegram, usage  # noqa: E402
+from services.usage import record_request  # noqa: E402
 from services.scheduler import start_scheduler, stop_scheduler  # noqa: E402
 
 @asynccontextmanager
@@ -65,7 +66,12 @@ app.add_middleware(
 
 @app.middleware("http")
 async def private_api_headers(request, call_next):
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except Exception:
+        record_request(request.url.path, 500)
+        raise
+    record_request(request.url.path, response.status_code)
     if request.url.path.startswith("/api/") or request.url.path in ("/docs", "/redoc", "/openapi.json"):
         response.headers["X-Robots-Tag"] = "noindex, nofollow"
     if request.url.path.startswith("/api/kakao-"):
@@ -73,7 +79,7 @@ async def private_api_headers(request, call_next):
         response.headers["Referrer-Policy"] = "no-referrer"
     return response
 
-for _router in (prices, fundamental, signal, market, night, ai, alerts, telegram, calendar, public_briefing):
+for _router in (prices, fundamental, signal, market, night, ai, alerts, telegram, calendar, public_briefing, usage):
     app.include_router(_router.router)
 
 

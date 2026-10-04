@@ -1,6 +1,6 @@
 import axios from 'axios'
-import type { Market } from '../data/tickers'
-import type { CalendarResponse, CalendarNotificationStatus } from './calendar'
+import type { Market } from '../data/tickers.ts'
+import type { CalendarResponse, CalendarNotificationStatus } from './calendar.ts'
 
 const api = axios.create({ baseURL: '', timeout: 45_000 })
 

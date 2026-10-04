@@ -7,6 +7,7 @@ The budget is deliberately in-process (one Uvicorn worker in this deployment).
 """
 
 from copy import deepcopy
+from collections import deque
 from datetime import datetime, timedelta, timezone
 import math
 import os
@@ -27,6 +28,38 @@ _inflight: set[tuple[str, str]] = set()
 _day = ""
 _attempts = 0
 _cooldown_until = 0.0
+_metric_day = ""
+_cache_hits = 0
+_errors = deque(maxlen=5)
+
+def _roll_metrics():
+    global _metric_day, _cache_hits
+    if _metric_day != _today():
+        _metric_day = _today()
+        _cache_hits = 0
+        _errors.clear()
+
+def _record_error(kind, reason):
+    _roll_metrics()
+    _errors.append({"kind": kind if kind in {"briefing", "related", "portfolio"} else "other",
+                    "reason": reason, "at": datetime.now(KST).isoformat()})
+
+def _reject(key, reason, retry_after=0):
+    _record_error(key[0], reason)
+    raise AIUnavailable(reason, retry_after)
+
+def usage_snapshot():
+    """Read-only aggregate status. No cache identities, prompts, secrets or upstream IO."""
+    with _guard:
+        _roll_metrics()
+        now = time.monotonic()
+        used = _attempts if _day == _today() else 0
+        limit = _daily_limit()
+        return {"date": _today(), "configured": bool(os.environ.get("GEMINI_API_KEY", "").strip()),
+                "limit": limit, "attempts": used, "remaining": max(0, limit - used),
+                "cacheHits": _cache_hits, "cachedResults": sum(expires > now for expires, _ in _cache.values()),
+                "inflight": len(_inflight), "cooldownSeconds": max(0, math.ceil(_cooldown_until - now)),
+                "recentErrors": list(_errors), "resetsOnRestart": True}
 
 
 class AIUnavailable(RuntimeError):
@@ -61,9 +94,12 @@ def _trim(now: float) -> None:
 
 def cached(kind: str, identity: str):
     """Read a copy without loading prices or contacting the model."""
+    global _cache_hits
     with _guard:
         hit = _cache.get((kind, identity))
         if hit and hit[0] > time.monotonic():
+            _roll_metrics()
+            _cache_hits += 1
             return deepcopy(hit[1])
     return None
 
@@ -71,19 +107,19 @@ def cached(kind: str, identity: str):
 def _check_available(key: tuple[str, str], now: float) -> None:
     global _day, _attempts
     if not os.environ.get("GEMINI_API_KEY", "").strip():
-        raise AIUnavailable("not_configured")
+        _reject(key, "not_configured")
     failure = _failures.get(key)
     if failure and failure[0] > now:
-        raise AIUnavailable(failure[1], math.ceil(failure[0] - now))
+        _reject(key, failure[1], math.ceil(failure[0] - now))
     if _cooldown_until > now:
-        raise AIUnavailable("quota_cooldown", math.ceil(_cooldown_until - now))
+        _reject(key, "quota_cooldown", math.ceil(_cooldown_until - now))
     today = _today()
     if _day != today:
         _day, _attempts = today, 0
     if _attempts >= _daily_limit():
-        raise AIUnavailable("daily_limit")
+        _reject(key, "daily_limit")
     if key in _inflight or len(_inflight) >= MAX_CONCURRENT:
-        raise AIUnavailable("busy", 10)
+        _reject(key, "busy", 10)
 
 
 def ensure_available(kind: str, identity: str) -> None:
@@ -94,13 +130,15 @@ def ensure_available(kind: str, identity: str) -> None:
 
 def generate(kind: str, identity: str, create, *, ttl: int):
     """Generate at most once per identity/TTL under one shared daily budget."""
-    global _day, _attempts, _cooldown_until
+    global _day, _attempts, _cooldown_until, _cache_hits
     key = (kind, identity)
     with _guard:
         now = time.monotonic()
         _trim(now)
         hit = _cache.get(key)
         if hit:
+            _roll_metrics()
+            _cache_hits += 1
             return deepcopy(hit[1])
         _check_available(key, now)
         _inflight.add(key)
@@ -118,6 +156,7 @@ def generate(kind: str, identity: str, create, *, ttl: int):
             except (ValueError, TypeError, AttributeError):
                 pass
         with _guard:
+            _record_error(kind, reason)
             until = time.monotonic() + cooldown
             _failures[key] = (until, reason)
             if quota_error:

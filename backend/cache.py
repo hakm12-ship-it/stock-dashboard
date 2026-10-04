@@ -3,6 +3,7 @@
 import functools
 import threading
 import time
+from services.usage import record_cache
 
 
 # 이만큼 쌓이면 만료분을 청소한다. 매번 훑으면 낭비고, 안 훑으면 조회한
@@ -50,14 +51,21 @@ def ttl_cache(seconds: float):
         def wrap(*args):
             hit = store.get(args)
             if hit is not None and time.time() - hit[0] < seconds:
+                record_cache("hit")
                 return hit[1]
 
             with _lock_for(args):
                 # 기다리는 동안 다른 스레드가 채웠을 수 있다.
                 hit = store.get(args)
                 if hit is not None and time.time() - hit[0] < seconds:
+                    record_cache("hit")
                     return hit[1]
-                val = fn(*args)
+                record_cache("load")
+                try:
+                    val = fn(*args)
+                except Exception:
+                    record_cache("error")
+                    raise
                 now = time.time()
                 store[args] = (now, val)
                 if len(store) > _SWEEP_AT:

@@ -4,6 +4,11 @@
 // KRX: https://kind.krx.co.kr/external/dst/reference/11625/2026%20%EC%BD%94%EC%8A%A4%EB%8B%A5%EC%8B%9C%EC%9E%A5%20%EA%B3%B5%EC%8B%9C%EC%9D%BC%EC%A0%95%20%EC%BA%98%EB%A6%B0%EB%8D%94_vF.pdf
 // Election / Constitution Day: https://kind.krx.co.kr/external/2026/05/20/000110/20260520000197/32154.htm
 export const MARKET_CALENDAR_COVERAGE = { KR: [2026], US: [2026, 2027, 2028] } as const
+export const MARKET_SCHEDULE_REVIEWED_AT = '2026-10-04'
+export const MARKET_SCHEDULE_SOURCES = {
+  KR: 'https://www.krx.co.kr/contents/MKD/01/0110/01100305/MKD01100305.jsp',
+  US: 'https://www.nyse.com/markets/hours-calendars',
+} as const
 
 export const KR_HOLIDAYS: Readonly<Record<string, string>> = {
   '2026-01-01': '신정',

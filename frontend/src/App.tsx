@@ -26,6 +26,7 @@ import { mutateList, mutateStorage, readStoredList } from './lib/storage'
 import { isHolding, isTicker, isTrade, parseBackup, type Backup } from './lib/validation'
 import { refreshActiveQueries } from './lib/queryRefresh'
 import { shouldRefreshMarketQuery } from './lib/marketPolling'
+import { HOME_PREFERENCES_KEY, loadHomePreferences, saveHomePreferences } from './lib/homePreferences'
 const tkey = (x: { market: string; ticker: string }) => `${x.market}-${x.ticker}`
 const loadOrder = () => {
   try {
@@ -43,12 +44,22 @@ export default function App() {
   const [refreshError, setRefreshError] = useState('')
   const [custom, setCustom] = useState<FocusTicker[]>(loadCustom)
   const [searchOpen, setSearchOpen] = useState(false)
-  const [watchlistPreferences, setWatchlistPreferences] = useState<WatchlistPreferences>({
-    sort: 'default',
-    filter: 'all',
-    query: '',
-    sparkPeriod: '1m',
-  })
+  const [watchlistPreferences, setWatchlistPreferences] = useState<WatchlistPreferences>(loadHomePreferences)
+  const [homePreferencesError, setHomePreferencesError] = useState(false)
+  const changeHomePreferences = (change: Partial<WatchlistPreferences>) => {
+    const next = { ...watchlistPreferences, ...change }
+    setWatchlistPreferences(next)
+    setHomePreferencesError(!saveHomePreferences(next))
+  }
+  useEffect(() => {
+    const sync = (event: StorageEvent) => {
+      if (event.storageArea === localStorage && (event.key === HOME_PREFERENCES_KEY || event.key == null)) {
+        setWatchlistPreferences((previous) => ({ ...loadHomePreferences(), query: previous.query }))
+      }
+    }
+    window.addEventListener('storage', sync)
+    return () => window.removeEventListener('storage', sync)
+  }, [])
   const [holdings, setHoldings] = useState<Holding[]>(loadHoldings)
   const [holdingsOpen, setHoldingsOpen] = useState(false)
   const [comparisonOpen, setComparisonOpen] = useState(false)
@@ -322,7 +333,8 @@ export default function App() {
               light={theme === 'light'}
               updatedAt={updatedAt}
               preferences={watchlistPreferences}
-              onPreferencesChange={(next) => setWatchlistPreferences((previous) => ({ ...previous, ...next }))}
+              onPreferencesChange={changeHomePreferences}
+              preferencesError={homePreferencesError}
               onSelect={(tk) => {
                 navigate('signal', tk)
               }}

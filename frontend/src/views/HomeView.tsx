@@ -2,7 +2,9 @@ import WatchlistRow from '../components/WatchlistRow'
 import Icon from '../components/Icon'
 import { useRef, useState } from 'react'
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { getIndex, getWatchlist, type Period } from '../lib/api'
+import { getIndex, getWatchlist } from '../lib/api'
+import type { WatchlistPreferences } from '../lib/homePreferences'
+export type { WatchlistPreferences } from '../lib/homePreferences'
 import { loadSignalConfig, cfgKey, cfgParams } from '../lib/signalConfig'
 import { useMarketStatus } from '../lib/useMarketStatus'
 import { fmtPct, fmtPrice, changeColor } from '../lib/format'
@@ -21,19 +23,15 @@ import type { Trade } from '../lib/trades'
 import PortfolioReviewCard from '../components/PortfolioReviewCard'
 import UpcomingEvents from '../components/UpcomingEvents'
 import PublicBriefingCard from '../components/PublicBriefingCard'
+import MyDayCard from '../components/MyDayCard'
+import MarketReviewCard from '../components/MarketReviewCard'
+import UsageStatusCard from '../components/UsageStatusCard'
 
-const PERIODS: [Period, string][] = [
+const PERIODS: [WatchlistPreferences['sparkPeriod'], string][] = [
   ['1m', '1개월'],
   ['3m', '3개월'],
   ['6m', '6개월'],
 ]
-
-export type WatchlistPreferences = {
-  sort: 'default' | 'gainers' | 'losers'
-  filter: 'all' | 'KR' | 'US' | 'held'
-  query: string
-  sparkPeriod: Period
-}
 
 /** 지금 보고 있는 숫자가 어느 장의 것인지 — 장 상태와 마지막 거래일을 글자로 보여준다. */
 function MarketSession({ updatedAt }: { updatedAt?: Date | null }) {
@@ -125,6 +123,7 @@ export default function HomeView({
   preferences,
   onPreferencesChange,
   onOpenCalendar,
+  preferencesError,
 }: {
   tickers: FocusTicker[]
   holdings: Holding[]
@@ -141,12 +140,13 @@ export default function HomeView({
   preferences: WatchlistPreferences
   onPreferencesChange: (next: Partial<WatchlistPreferences>) => void
   onOpenCalendar: () => void
+  preferencesError: boolean
 }) {
   const { sort, filter, query, sparkPeriod } = preferences
   const setSort = (sort: WatchlistPreferences['sort']) => onPreferencesChange({ sort })
   const setFilter = (filter: WatchlistPreferences['filter']) => onPreferencesChange({ filter })
   const setQuery = (query: string) => onPreferencesChange({ query })
-  const setSparkPeriod = (sparkPeriod: Period) => onPreferencesChange({ sparkPeriod })
+  const setSparkPeriod = (sparkPeriod: WatchlistPreferences['sparkPeriod']) => onPreferencesChange({ sparkPeriod })
   const [editing, setEditing] = useState(false)
   const [optionsOpen, setOptionsOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(query !== '')
@@ -242,6 +242,7 @@ export default function HomeView({
         </div>
       </section>
       <PortfolioPeek holdings={holdings} onManage={onManageHoldings} />
+      {preferencesError && <p role="status" className="text-caption text-muted">홈 설정을 저장하지 못했습니다. 현재 화면에는 적용했습니다.</p>}
       <section className="watchlist-section" aria-labelledby="watchlist-title">
         <div className="section-heading">
           <div>
@@ -483,11 +484,14 @@ export default function HomeView({
           onManage={onManageHoldings}
           onJournal={onOpenJournal}
         />
+        <MyDayCard tickers={tickers} holdings={holdings} rows={rows} onSelect={onSelect} onOpenCalendar={onOpenCalendar} />
         <DailyReportCard />
         <UpcomingEvents onOpen={onOpenCalendar} />
         <PublicBriefingCard />
         <PortfolioReviewCard holdings={holdings} trades={trades} />
         <AlertInviteCard />
+        <MarketReviewCard />
+        <UsageStatusCard />
       </aside>
       <section id="market-discovery" tabIndex={-1} className="market-discovery" aria-label="시장 탐색">
         <div className="section-heading">
