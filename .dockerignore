@@ -6,6 +6,7 @@ stock-dashboard
 .git
 .qa
 .claude
+.playwright-mcp
 artifacts
 scripts
 *.md

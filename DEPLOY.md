@@ -1,5 +1,38 @@
 # 배포 안내 (React 버전)
 
+## Ubuntu 홈서버 · Coolify
+
+기존 Docker 앱 전체를 별도 Coolify 프로젝트로 배포한다. 기존 PostgreSQL·Redis와
+볼륨을 공유하지 않는다. 이 구성에는 Render 실행 시간 제한이 없으며, 홈서버의
+전원·인터넷과 공개 터널이 연결되어 있어야 한다.
+
+- Git 저장소의 홈서버 배포 브랜치에서 Docker Compose 빌드를 선택한다.
+- Base Directory는 `/`, Compose 파일은 `/compose.home.yaml`이다.
+- 앱은 컨테이너의 8000번 포트에서 실행하고 호스트의 `127.0.0.1:8010`에 연결한다.
+  Coolify 관리 화면의 8000번, 기존 프록시의 80·443번은 유지한다.
+- `PUBLIC_SITE_URL`에 실제 HTTPS 공개 origin(포트 포함, 경로 제외)을 지정한다.
+  서버가 canonical·OG·robots·sitemap·알림 링크에 반영하며, `APP_BASE_URL`도 같은 값으로 전달한다.
+- 필요하면 `GEMINI_API_KEY`를 Coolify 런타임 환경변수에 입력한다. 공개 AI 생성 예산은
+  기본 하루 20회다. `ADMIN_KEY`·알림 인증 키·봇 토큰은 Coolify의 비밀 환경변수로 관리한다.
+- 전용 `notification-data` 볼륨이 `/var/data`에 마운트된다. SQLite 경로는
+  `/var/data/notifications.sqlite3`다. 볼륨 이름은 배포 프로젝트별로 분리한다.
+- 자동 알림과 내부 스케줄러는 기본 비활성이다. 기존 발송 작업과 중복되지 않도록
+  수신 방·웹훅·영속 저장소를 확인한 뒤 명시적으로 활성화한다.
+- 런타임은 CPU 2개·메모리 1GiB로 제한하고, 헬스 체크와 `unless-stopped` 재시작을 사용한다.
+
+Tailscale Funnel을 사용할 경우 해당 서버에서 `--bg --https=8443`과
+`http://127.0.0.1:8010`을 연결한다. Funnel 최초 활성화에는 계정 승인이 필요할 수 있다.
+관리 UI와 DB 포트는 공개 터널의 대상에 포함하지 않는다.
+
+배포 후 홈·캘린더·시세·차트와 JS/CSS를 실제 공개 주소에서 확인하고,
+canonical·OG·robots·sitemap이 새 origin을 가리키는지 검증한다. API·관리 화면은
+검색 제외를 유지한다. Google Search Console·네이버 Search Advisor의 소유권 확인과
+사이트맵 제출은 사용자 계정에서 진행하며, 검색 준비와 실제 색인은 구분한다.
+
+보유종목·추가 관심종목·매매일지는 사용하던 브라우저의 기존 origin에 저장되어 있다.
+주소 변경 전에 백업을 확보하고 새 주소에서 복원한다. 배포 작업은 기존 브라우저
+저장소를 삭제하거나 자동으로 옮기지 않는다.
+
 ## 2026-09 변경 사항 — 배포 전 운영 설정
 
 이번 리뉴얼에서는 배포·운영 환경변수·외부 스케줄러를 변경하지 않았다.
@@ -26,7 +59,7 @@ cd C:\PJT\backend ; ..\stock-dashboard\.venv\Scripts\python.exe -m uvicorn main:
 
 개발 중엔 두 개를 따로: 백엔드 `:8000` + `cd frontend; npm run dev`(`:5173`, /api 프록시).
 
-## Render 배포 (무료, 추천)
+## 기존 Render 배포
 1. [render.com](https://render.com) 가입 (GitHub 로그인)
 2. **New → Blueprint** → 저장소 `hakm12-ship-it/stock-dashboard` 선택
 3. `render.yaml` 자동 인식 → **Apply** → Docker 빌드(몇 분) 후 `https://stock-insight-xxxx.onrender.com` 링크 생성

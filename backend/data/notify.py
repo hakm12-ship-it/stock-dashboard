@@ -10,8 +10,9 @@ from data.kakao import is_configured as kakao_configured
 from data.kakao import last_error as kakao_last_error
 from data.kakao import send_kakao
 from data.telegram import send_telegram
+from site_urls import public_site_url
 
-APP_URL = "https://stock-insight-zws6.onrender.com"
+APP_URL = public_site_url()
 
 
 def notify(text: str) -> dict:

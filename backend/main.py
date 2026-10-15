@@ -17,7 +17,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 # 라우터가 임포트되기 전에 .env를 읽어야 API 키가 잡힌다.
@@ -27,6 +27,10 @@ from deps import cached_symbols  # noqa: E402
 from routers import ai, alerts, calendar, fundamental, market, night, prices, public_briefing, signal, telegram, usage  # noqa: E402
 from services.usage import record_request  # noqa: E402
 from services.scheduler import start_scheduler, stop_scheduler  # noqa: E402
+from site_urls import DEFAULT_PUBLIC_SITE_URL, public_site_url  # noqa: E402
+
+# Fail early on an invalid deployment address rather than publish broken URLs.
+public_site_url()
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -87,16 +91,38 @@ for _router in (prices, fundamental, signal, market, night, ai, alerts, telegram
 # 반드시 모든 /api 라우트 뒤에 마운트해야 API가 우선한다.
 _DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 if _DIST.is_dir():
+    def public_file(name: str) -> str:
+        return (_DIST / name).read_text(encoding="utf-8").replace(
+            DEFAULT_PUBLIC_SITE_URL, public_site_url()
+        )
+
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    def home_page():
+        return HTMLResponse(public_file("index.html"))
+
+    @app.get("/index.html", include_in_schema=False)
+    def home_canonical_redirect():
+        return RedirectResponse("/", status_code=308)
+
+    @app.get("/robots.txt", include_in_schema=False)
+    def robots_file():
+        return Response(public_file("robots.txt"), media_type="text/plain")
+
+    @app.get("/sitemap.xml", include_in_schema=False)
+    def sitemap_file():
+        return Response(public_file("sitemap.xml"), media_type="application/xml")
+
     @app.get("/calendar/", include_in_schema=False)
     def calendar_canonical_redirect():
         return RedirectResponse("/calendar", status_code=308)
 
     @app.get("/calendar", response_class=HTMLResponse, include_in_schema=False)
     def calendar_page():
-        html = (_DIST / "index.html").read_text(encoding="utf-8")
+        html = public_file("index.html")
         html = html.replace("스톡 인사이트 · 한국·미국 주식 리서치", "경제 캘린더 · 금리·경제지표·빅테크 실적 | 스톡 인사이트")
-        html = html.replace('href="https://stock-insight-zws6.onrender.com/"', 'href="https://stock-insight-zws6.onrender.com/calendar"')
-        html = html.replace('content="https://stock-insight-zws6.onrender.com/"', 'content="https://stock-insight-zws6.onrender.com/calendar"')
+        root = public_site_url() + "/"
+        html = html.replace(f'href="{root}"', f'href="{root}calendar"')
+        html = html.replace(f'content="{root}"', f'content="{root}calendar"')
         html = html.replace("한국·미국 관심종목의 시세, 차트, 기업 가치와 뉴스를 한곳에서 살펴보세요. 보유종목 손익과 매매 기록을 관리하는 개인 리서치 도구, 스톡 인사이트.", "미국 FOMC·한국은행 금리 결정, CPI·고용·GDP·PCE와 주요 빅테크 실적 발표 일정을 출처와 함께 확인하세요. 확정·예상 일정과 한국시간을 구분합니다.")
         html = html.replace("관심종목 시세부터 차트·기업 가치·뉴스·매매 기록까지, 나만의 투자 리서치 공간.", "금리 결정·주요 경제지표·빅테크 실적 발표를 확인하는 경제 캘린더.")
         return HTMLResponse(html)

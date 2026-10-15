@@ -1,0 +1,47 @@
+# Coolify: Git repository + Docker Compose, Base Directory /,
+# Docker Compose Location /compose.home.yaml. Public routing is provided by
+# the home server's tunnel; the application port stays on the host loopback.
+services:
+  stock-insight:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    cpus: "2.0"
+    mem_limit: 1g
+    ports:
+      - "127.0.0.1:${STOCK_INSIGHT_PORT:-8010}:8000"
+    environment:
+      PORT: "8000"
+      PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:?Set the public HTTPS site origin}
+      APP_BASE_URL: ${PUBLIC_SITE_URL:?Set the public HTTPS site origin}
+      PREWARM_SYMBOLS: "false"
+      PUBLIC_AI_DAILY_LIMIT: ${PUBLIC_AI_DAILY_LIMIT:-20}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      ADMIN_KEY: ${ADMIN_KEY:-}
+      ALERT_CHECK_KEY: ${ALERT_CHECK_KEY:-}
+      ALERT_THRESHOLD: ${ALERT_THRESHOLD:-3.0}
+      ALERT_STEP: ${ALERT_STEP:-1.5}
+      NOTIFICATION_STATE_PATH: /var/data/notifications.sqlite3
+      NOTIFICATIONS_ENABLED: ${NOTIFICATIONS_ENABLED:-false}
+      NOTIFICATION_INTERNAL_SCHEDULER_ENABLED: ${NOTIFICATION_INTERNAL_SCHEDULER_ENABLED:-false}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      TELEGRAM_ANNOUNCE_CHAT_ID: ${TELEGRAM_ANNOUNCE_CHAT_ID:-}
+      TELEGRAM_BRIEFING_CHAT_ID: ${TELEGRAM_BRIEFING_CHAT_ID:-}
+      TELEGRAM_ADMIN_USER_ID: ${TELEGRAM_ADMIN_USER_ID:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      TELEGRAM_INVITE_URL: ${TELEGRAM_INVITE_URL:-}
+      KAKAO_REST_API_KEY: ${KAKAO_REST_API_KEY:-}
+      KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET:-}
+      KAKAO_REFRESH_TOKEN: ${KAKAO_REFRESH_TOKEN:-}
+    volumes:
+      - notification-data:/var/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  notification-data:
