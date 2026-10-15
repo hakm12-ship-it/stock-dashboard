@@ -14,6 +14,8 @@
   서버가 canonical·OG·robots·sitemap·알림 링크에 반영하며, `APP_BASE_URL`도 같은 값으로 전달한다.
 - 필요하면 `GEMINI_API_KEY`를 Coolify 런타임 환경변수에 입력한다. 공개 AI 생성 예산은
   기본 하루 20회다. `ADMIN_KEY`·알림 인증 키·봇 토큰은 Coolify의 비밀 환경변수로 관리한다.
+  비밀 값의 Build time은 `Not available during build`, Runtime은
+  `Available in the container`로 설정해 이미지 빌드 인자로 전달하지 않는다.
 - 전용 `notification-data` 볼륨이 `/var/data`에 마운트된다. SQLite 경로는
   `/var/data/notifications.sqlite3`다. 볼륨 이름은 배포 프로젝트별로 분리한다.
 - 자동 알림과 내부 스케줄러는 기본 비활성이다. 기존 발송 작업과 중복되지 않도록
@@ -23,6 +25,9 @@
 Tailscale Funnel을 사용할 경우 해당 서버에서 `--bg --https=8443`과
 `http://127.0.0.1:8010`을 연결한다. Funnel 최초 활성화에는 계정 승인이 필요할 수 있다.
 관리 UI와 DB 포트는 공개 터널의 대상에 포함하지 않는다.
+`--bg` 설정은 Tailscale이 재시작해도 유지된다. 상태는 `tailscale funnel status`로
+확인하고, 이 사이트의 터널만 끌 때는 `tailscale funnel --https=8443 off`를 사용한다.
+앱 상태 확인은 `/api/health`를 사용한다. 홈서버 배포에는 절전 방지용 반복 방문이 필요 없다.
 
 배포 후 홈·캘린더·시세·차트와 JS/CSS를 실제 공개 주소에서 확인하고,
 canonical·OG·robots·sitemap이 새 origin을 가리키는지 검증한다. API·관리 화면은
@@ -40,8 +45,8 @@ canonical·OG·robots·sitemap이 새 origin을 가리키는지 검증한다. AP
 - `/api/market-alert-check`, `/api/night-alert-check`는 이제 `Authorization: Bearer <키>`가 필요하다. `ALERT_CHECK_KEY`를 서버와 스케줄러에 동일하게 설정한다. 별도 키가 없으면 기존 `ADMIN_KEY`를 사용한다. 두 키 모두 없으면 503으로 차단하며, 잘못된 인증은 401이다. 기존 URL과 쿼리 인자는 유지되지만 인증 없는 기존 스케줄러는 배포 후 동작하지 않으므로 반드시 먼저 설정한다. 키를 프론트 코드나 공개 URL에 넣지 않는다.
 - `/api/kakao-redirect-uri`, `/api/kakao-token-status` 진단 API는 `ADMIN_KEY` Bearer 인증이 필요하다. 카카오 관리자 화면·콜백은 `no-store`, `no-referrer` 헤더와 검색 제외를 적용한다.
 - CORS 기본 허용은 로컬 개발 주소다. 다른 프론트 도메인이 API를 직접 호출할 경우 `CORS_ORIGINS`에 정확한 origin을 쉼표로 구분해 넣는다. Docker/Render 동일 origin 구성에는 별도 허용이 필요 없다.
-- SEO는 기존 공개 주소 `https://stock-insight-zws6.onrender.com/`를 기준으로 준비했다. 다른 도메인으로 배포하면 `frontend/index.html`, `frontend/public/robots.txt`, `frontend/public/sitemap.xml`의 주소를 함께 바꾼다.
-- 배포 후 공개 URL에서 HTML 제목·description·canonical·OG, robots.txt, sitemap.xml의 200 응답, 실제 JS/CSS 로드, API/관리자 응답의 X-Robots-Tag를 확인한다. Search Console/네이버 서치어드바이저의 소유권 확인과 사이트맵 제출은 사용자 계정에서 해야 한다. 검색 준비와 실제 색인 완료는 다르다. 이번 작업은 로컬 검증까지 수행했다.
+- SEO 파일의 기본 주소는 기존 Render 주소다. 홈서버처럼 다른 origin으로 배포할 때는 `PUBLIC_SITE_URL`을 설정하면 FastAPI가 공개 HTML·robots.txt·sitemap.xml의 주소를 응답 시 교체한다. 프론트 빌드 결과를 다른 정적 호스트에서 직접 서빙하면 해당 호스트의 SEO 주소도 따로 변경해야 한다.
+- 배포 후 공개 URL에서 HTML 제목·description·canonical·OG, robots.txt, sitemap.xml의 200 응답, 실제 JS/CSS 로드, API/관리자 응답의 X-Robots-Tag를 확인한다. Search Console/네이버 서치어드바이저의 소유권 확인과 사이트맵 제출은 사용자 계정에서 해야 한다. 검색 준비와 실제 색인 완료는 다르다.
 
 새 백업은 v2로 보유종목·추가 관심종목·매매일지를 포함한다. v1도 복원할 수 있으며, 백업에 없는 목록은 유지된다. 데이터베이스 변경은 없다. 이전 버전으로 되돌릴 때에도 localStorage 키를 유지한다. 롤백 전에 백업 파일을 내려받는 것이 좋다.
 
