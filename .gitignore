@@ -30,3 +30,6 @@ backend/alert_state.json
 
 # Isolated, disposable pre-renewal checkout and editing helpers
 .qa/
+
+# Local Cloudflare development state
+.wrangler/

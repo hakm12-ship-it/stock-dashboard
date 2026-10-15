@@ -7,6 +7,7 @@ stock-dashboard
 .qa
 .claude
 .playwright-mcp
+**/.wrangler
 artifacts
 scripts
 *.md

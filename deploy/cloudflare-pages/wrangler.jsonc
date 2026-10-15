@@ -1,0 +1,9 @@
+{
+  "name": "hakm-stock",
+  "pages_build_output_dir": "./public",
+  "compatibility_date": "2026-10-15",
+  "vars": {
+    "UPSTREAM_ORIGIN": "https://homeserver.tail0376c9.ts.net:8443",
+    "PUBLIC_SITE_URL": "https://hakm-stock.pages.dev"
+  }
+}

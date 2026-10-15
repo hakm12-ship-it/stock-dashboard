@@ -38,6 +38,9 @@ canonical·OG·robots·sitemap이 새 origin을 가리키는지 검증한다. AP
 주소 변경 전에 백업을 확보하고 새 주소에서 복원한다. 배포 작업은 기존 브라우저
 저장소를 삭제하거나 자동으로 옮기지 않는다.
 
+무료 `pages.dev` 접속 주소를 앞에 연결하려면
+[Cloudflare Pages 연결 안내](deploy/cloudflare-pages/README.md)를 따른다.
+
 ## 2026-09 변경 사항 — 배포 전 운영 설정
 
 이번 리뉴얼에서는 배포·운영 환경변수·외부 스케줄러를 변경하지 않았다.
