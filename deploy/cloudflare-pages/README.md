@@ -10,8 +10,8 @@
   유료 부가 기능은 활성화하지 않는다.
 - 요청은 Pages Functions 무료 한도에 포함된다. 계정의 다른 Workers·Functions와
   합쳐 하루 100,000건이며 UTC 자정에 초기화된다.
-- `hakm-stock.pages.dev`는 우선 후보 이름이다. 최종 주소는 프로젝트 생성 결과로
-  확인한다. 이름이 사용 중이면 Cloudflare가 다른 접미사를 붙일 수 있다.
+- 운영 주소는 **https://hakm-stock.pages.dev/**다. 2026-10-16에 이 이름으로
+  프로젝트를 생성하고 홈서버 프록시를 배포했다.
 - 현재 Funnel 주소는 계속 사용 가능하다. 공개 주소 연결을 위해 서버·DB·볼륨을
   이동하거나 공유기의 포트 포워딩을 바꾸지 않는다.
 
@@ -40,6 +40,7 @@ npx --yes wrangler@4.151.0 pages deploy public --project-name hakm-stock --branc
 프록시에는 Gemini·관리자·알림 키를 넣지 않는다. 업스트림 연결 실패는 검색 제외된
 503 응답으로 처리한다. 미리보기 호스트는 `noindex, nofollow`와 전체 검색 제외
 robots.txt를 반환한다.
+프로젝트의 무료 한도 초과 동작은 `Fail closed`로 설정한다.
 
 ## 실제 공개 주소에서 확인할 항목
 
