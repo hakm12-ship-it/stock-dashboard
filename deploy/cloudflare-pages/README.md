@@ -10,8 +10,8 @@
   유료 부가 기능은 활성화하지 않는다.
 - 요청은 Pages Functions 무료 한도에 포함된다. 계정의 다른 Workers·Functions와
   합쳐 하루 100,000건이며 UTC 자정에 초기화된다.
-- 운영 주소는 **https://hakm-stock.pages.dev/**다. 2026-10-16에 이 이름으로
-  프로젝트를 생성하고 홈서버 프록시를 배포했다.
+- 운영 주소는 **https://stock-insight-web.pages.dev/**다. 2026-10-17에 이름에서
+  개인 식별자를 제외한 새 프로젝트로 접속 주소를 옮겼다.
 - 현재 Funnel 주소는 계속 사용 가능하다. 공개 주소 연결을 위해 서버·DB·볼륨을
   이동하거나 공유기의 포트 포워딩을 바꾸지 않는다.
 
@@ -24,9 +24,11 @@
 2. `public`의 `_worker.js`·`_routes.json`·`index.html` 세 파일을 ZIP 최상위에 넣는다.
 3. Cloudflare 대시보드에서 Pages 프로젝트를 생성하고 ZIP을 Direct Upload한다.
    `_worker.js`는 대시보드 업로드에서도 지원된다.
-4. 발급된 실제 origin을 Pages의 `PUBLIC_SITE_URL`에 지정한다.
-   `UPSTREAM_ORIGIN`은 기존 Funnel의 HTTPS origin으로 설정한다.
-   `wrangler.jsonc`와 `_worker.js`의 기본 주소도 실제 발급 주소와 맞춘다.
+4. 발급된 실제 origin이 `_worker.js`의 기본 주소와 같은지 확인한다.
+   기본 주소가 맞으면 대시보드 환경변수를 추가하지 않아도 된다. 다른 주소로
+   배포할 때는 Pages의 `PUBLIC_SITE_URL`로 덮어쓸 수 있다. `UPSTREAM_ORIGIN`도
+   같은 방식으로 기존 Funnel의 HTTPS origin을 지정할 수 있다.
+   `wrangler.jsonc`와 `_worker.js`의 기본 주소를 실제 발급 주소와 맞춘다.
 5. 새 주소의 앱·API가 정상 동작하는지 확인한 뒤 Coolify의 `PUBLIC_SITE_URL`과
    `APP_BASE_URL`을 새 origin으로 저장하고 해당 앱만 다시 배포한다.
 
@@ -34,7 +36,7 @@ Wrangler를 쓰는 경우 이 폴더에서 아래 명령을 실행한다. 대시
 CLI의 사용자 인증이 필요하다.
 
 ```powershell
-npx --yes wrangler@4.151.0 pages deploy public --project-name hakm-stock --branch main
+npx --yes wrangler@4.151.0 pages deploy public --project-name stock-insight-web --branch main
 ```
 
 프록시에는 Gemini·관리자·알림 키를 넣지 않는다. 업스트림 연결 실패는 검색 제외된

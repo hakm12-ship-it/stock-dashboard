@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import worker from "./public/_worker.js";
 
-const site = "https://hakm-stock.pages.dev";
+const site = "https://stock-insight-web.pages.dev";
 const upstream = "https://homeserver.tail0376c9.ts.net:8443";
 
 function mockFetch(t, handler) {
@@ -17,7 +17,7 @@ test("portfolio POST keeps the body and authentication on the home-server origin
     assert.equal(request.url, upstream + "/api/portfolio-review?comment=false");
     assert.equal(request.method, "POST");
     assert.equal(request.headers.get("Authorization"), "Bearer test-token");
-    assert.equal(request.headers.get("X-Forwarded-Host"), "hakm-stock.pages.dev");
+    assert.equal(request.headers.get("X-Forwarded-Host"), "stock-insight-web.pages.dev");
     assert.equal(await request.text(), body);
     return Response.json({ available: true });
   });
@@ -74,7 +74,7 @@ test("an external redirect is returned without forwarding credentials to its tar
 
 test("preview robots excludes every path without contacting the home server", async t => {
   mockFetch(t, async () => { assert.fail("preview robots must not call upstream"); });
-  const response = await worker.fetch(new Request("https://preview.hakm-stock.pages.dev/robots.txt"));
+  const response = await worker.fetch(new Request("https://preview.stock-insight-web.pages.dev/robots.txt"));
   assert.equal(await response.text(), "User-agent: *\nDisallow: /\n");
 });
 
@@ -82,7 +82,7 @@ test("preview pages are not indexed or cached", async t => {
   mockFetch(t, async () => new Response("<title>Stock Insight</title>", {
     headers: { "Content-Type": "text/html" },
   }));
-  const response = await worker.fetch(new Request("https://preview.hakm-stock.pages.dev/"));
+  const response = await worker.fetch(new Request("https://preview.stock-insight-web.pages.dev/"));
   assert.equal(response.headers.get("X-Robots-Tag"), "noindex, nofollow");
   assert.equal(response.headers.get("Cache-Control"), "no-store");
 });

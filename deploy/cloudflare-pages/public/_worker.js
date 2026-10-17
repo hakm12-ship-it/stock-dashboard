@@ -1,6 +1,6 @@
 // The app and its secrets stay on the home server. Pages provides a public URL.
 const DEFAULT_UPSTREAM = "https://homeserver.tail0376c9.ts.net:8443";
-const DEFAULT_PUBLIC_SITE = "https://hakm-stock.pages.dev";
+const DEFAULT_PUBLIC_SITE = "https://stock-insight-web.pages.dev";
 
 function origin(value) {
   const url = new URL(value);
