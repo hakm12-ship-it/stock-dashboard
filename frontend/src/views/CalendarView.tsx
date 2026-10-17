@@ -74,12 +74,13 @@ function NotificationSchedule() {
   return (
     <section className="calendar-notifications" aria-labelledby="calendar-notifications-title">
       <div className="calendar-panel-heading">
-        <h2 id="calendar-notifications-title"><Icon name="news" size={18} /> 텔레그램 알림</h2>
+        <h2 id="calendar-notifications-title"><Icon name="news" size={18} /> 일정·브리핑 알림</h2>
         <span className={`calendar-status ${active ? 'is-active' : ''}`} role="status">
           {status.isPending ? '상태 확인 중' : active ? '자동 발송 중' : status.data?.enabled === false ? '발송 꺼짐' : '연결 대기'}
         </span>
       </div>
       <p className="calendar-muted">참여한 알림 그룹으로 주요 일정과 시장 요약을 보내드려요.</p>
+      <p className="calendar-muted">장중·야간 급변 알림과 별도로 운영됩니다.</p>
       <dl className="calendar-schedule">
         <div><dt>시장 요약</dt><dd>{status.data?.times?.join(' · ') || '07:00 · 12:00 · 18:00'}</dd></div>
         <div><dt>내일 일정</dt><dd>매일 {status.data?.schedule?.tomorrowCalendar || '18:00'}</dd></div>

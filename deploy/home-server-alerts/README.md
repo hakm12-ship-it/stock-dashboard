@@ -52,3 +52,25 @@ systemctl disable --now stock-insight-alert@market.timer stock-insight-alert@nig
 ```
 
 이 작업은 Coolify 앱·데이터 볼륨과 다른 홈서버 서비스를 제거하지 않는다.
+
+## 일일 상태 백업
+
+`backup_state.py`를 `/usr/local/libexec/stock-insight-backup-state`에 0755로 두고,
+`stock-insight-backup.service`와 `.timer`를 `/etc/systemd/system/`에 설치한다.
+기존 홈서버 백업 작업과 별개로 매일 서버 시간 04:45에 실행한다.
+SQLite의 온라인 backup API로 일관된 복사본을 만들고 무결성을 검사한다.
+`/srv/data/stock-insight/backups/`에 최근 30개를 보관하며, 원본 DB는 삭제하지 않는다.
+디렉터리는 0700, 복사본은 0600 권한이다.
+
+```bash
+systemd-analyze verify /etc/systemd/system/stock-insight-backup.service /etc/systemd/system/stock-insight-backup.timer
+systemctl daemon-reload
+systemctl enable --now stock-insight-backup.timer
+systemctl start stock-insight-backup.service
+journalctl -u stock-insight-backup.service -n 10
+```
+
+이 백업의 범위는 서버의 알림 중복 방지·브리핑 상태 SQLite다.
+Coolify 설정·비밀 값은 기존 홈서버의 Coolify DB 백업 범위에 들어간다.
+보유종목·추가 관심종목·매매일지는 사용자 브라우저 저장소에 있으므로
+사이트의 ‘전체 데이터 백업’ 파일로 별도 보관해야 한다.
