@@ -1,0 +1,15 @@
+[Unit]
+Description=Stock Insight %i alert check
+Wants=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/stock-insight-alerts.conf
+ExecStart=/usr/local/libexec/stock-insight-alert-check %i
+TimeoutStartSec=75
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
