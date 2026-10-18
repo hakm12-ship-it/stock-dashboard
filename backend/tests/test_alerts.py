@@ -1,14 +1,12 @@
-"""알림 중복 방지 — 2026-08-06에 실제로 깨졌던 부분.
+"""Persistent alert regressions. Providers and all external sends are mocked."""
 
-상태가 프로세스 메모리에 있어서 배포마다 비는데, 그대로 두면 이미 몇 시간 전에
-넘어선 조건을 새로 넘은 것처럼 다시 알린다. 갭이 -5.47% -> -4.51% -> -4.13%로
-**줄어드는데도** 알림이 계속 갔다. 여기서 재시작을 흉내 내 그게 안 나는지 본다.
-
-발송은 전부 가로채므로 실제로 메시지가 나가지 않는다.
-"""
-
+import importlib.util
+import os
+import tempfile
 import unittest
 from datetime import datetime, timedelta
+from pathlib import Path
+from unittest.mock import patch
 
 import routers.alerts as A
 
@@ -19,21 +17,24 @@ DAY = datetime(2026, 8, 6, 10, 0, tzinfo=A.KST)
 class _Base(unittest.TestCase):
     def setUp(self):
         self.sent = []
-        self._notify = A.notify
-        A.notify = lambda text: (self.sent.append(text), {"telegram": True, "kakao": False})[1]
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.path = Path(self.temp.name) / "notifications.sqlite3"
+        self.env = patch.dict(os.environ, {"NOTIFICATION_STATE_PATH": str(self.path),
+                                          "TELEGRAM_BOT_TOKEN": "", "TELEGRAM_CHAT_ID": ""})
+        self.env.start()
+        self.addCleanup(self.env.stop)
         self.restart()
 
-    def tearDown(self):
-        A.notify = self._notify
-
     def restart(self):
-        """프로세스 재시작 = 메모리 상태 소멸."""
-        A._night.clear()
-        A._sent.clear()
-        A._holding.clear()
+        """A fresh router module has no memory of the previous process."""
+        spec = importlib.util.spec_from_file_location("restarted_alerts", A.__file__)
+        self.api = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.api)
+        self.api.notify = lambda text: (self.sent.append(text), {"telegram": True, "kakao": False})[1]
 
     def _at(self, now):
-        real = A.datetime
+        real = self.api.datetime
 
         class Fake(real):
             @classmethod
@@ -44,17 +45,17 @@ class _Base(unittest.TestCase):
 
     def night(self, gap, now=NIGHT, worst=None):
         """worst = 이 밤에 가장 크게 벌어졌던 갭 (perp 캔들에서 복원되는 값)."""
-        A.api_night_price = lambda code: {
+        self.api.api_night_price = lambda code: {
             "available": True, "gapPct": gap,
             "krxClose": 1_668_000, "krw": 1_668_000 * (1 + gap / 100),
         }
-        A.night_gap_extreme = lambda code, since: gap if worst is None else worst
+        self.api.night_gap_extreme = lambda code, since: gap if worst is None else worst
         real, fake = self._at(now)
-        A.datetime = fake
+        self.api.datetime = fake
         try:
-            return A.api_night_alert_check()
+            return self.api.api_night_alert_check()
         finally:
-            A.datetime = real
+            self.api.datetime = real
 
     def day(self, pct, now=DAY, high=None, low=None, fut=0.5,
             fut_high=None, fut_low=None, kospi=0.5, kospi_low=None, after=None):
@@ -65,7 +66,7 @@ class _Base(unittest.TestCase):
         """
         if after is not None:
             now = DAY + timedelta(seconds=after)
-        A.realtime_quote = lambda code: {
+        self.api.realtime_quote = lambda code: {
             "changePct": pct, "last": 1_668_000,
             "highPct": pct if high is None else high,
             "lowPct": pct if low is None else low,
@@ -79,13 +80,13 @@ class _Base(unittest.TestCase):
             return {"changePct": kospi, "last": 100,
                     "highPct": kospi, "lowPct": kospi if kospi_low is None else kospi_low}
 
-        A.realtime_index = idx
+        self.api.realtime_index = idx
         real, fake = self._at(now)
-        A.datetime = fake
+        self.api.datetime = fake
         try:
-            return A.api_market_alert_check()
+            return self.api.api_market_alert_check()
         finally:
-            A.datetime = real
+            self.api.datetime = real
 
 
 class 야간갭(_Base):
@@ -198,7 +199,7 @@ class 사이드카(_Base):
 
 
 class 서킷브레이커(_Base):
-    def test_1분_지속되고_단계가_올라갈_때만_알린다(self):
+    def test_1분_지속되고_새_단계이며_발송간격을_지켰을때_알린다(self):
         self.day(0, kospi=-1.0)                    # 프라이밍
         self.day(0, kospi=-8.5, after=0)           # 1단계 도달
         self.assertEqual(self.sent, [])
@@ -206,8 +207,8 @@ class 서킷브레이커(_Base):
         self.assertEqual(len(self.sent), 1)
         self.day(0, kospi=-9.0, after=120)         # 같은 단계 -> 조용
         self.assertEqual(len(self.sent), 1)
-        self.day(0, kospi=-15.5, after=180)        # 2단계 도달
-        self.day(0, kospi=-15.6, after=240)        # 지속 -> 알림
+        self.day(0, kospi=-15.5, after=3600)       # 2단계 도달
+        self.day(0, kospi=-15.6, after=3660)       # 첫 발송으로부터 1시간
         self.assertEqual(len(self.sent), 2)
 
     def test_재시작해도_오늘_밟은_단계는_다시_알리지_않는다(self):

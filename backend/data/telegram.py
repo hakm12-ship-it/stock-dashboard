@@ -37,16 +37,16 @@ def send_telegram_to(chat_id: str, text: str) -> bool:
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             ok = json.loads(r.read()).get("ok", False)
-        _safe_print(f"  → {chat_id}: {'성공' if ok else '실패'}")
+        _safe_print(f"[Telegram] {'sent' if ok else 'unconfirmed'}")
         return bool(ok)
     except Exception as e:  # noqa: BLE001
-        _safe_print(f"  → {chat_id}: 실패 ({e})")
+        _safe_print(f"[Telegram] unconfirmed ({type(e).__name__})")
         return False
 
 
 def send_telegram(text: str) -> bool:
     """등록된 모든 수신자에게 발송. 한 명이라도 성공하면 True."""
-    chats = [c.strip() for c in os.environ.get("TELEGRAM_CHAT_ID", "").split(",") if c.strip()]
+    chats = list(dict.fromkeys(c.strip() for c in os.environ.get("TELEGRAM_CHAT_ID", "").split(",") if c.strip()))
     if not os.environ.get("TELEGRAM_BOT_TOKEN") or not chats:
         # 콘솔 인코딩이 이모지를 못 받는 환경(윈도우 cp949)에서 죽지 않게 한다.
         _safe_print("[드라이런] 텔레그램 미설정. 보낼 내용:\n" + text)

@@ -50,8 +50,14 @@ def main() -> int:
         "kind": kind, "httpStatus": status, "checked": result.get("checked"),
         "alerts": result.get("alerts", 0), "sent": result.get("sent", False),
         "telegram": result.get("channels", {}).get("telegram", False),
+        "suppressed": result.get("suppressed", 0),
+        "deliveryStatus": result.get("deliveryStatus"),
     }
     print(json.dumps(summary), flush=True)
+    if summary["deliveryStatus"] in {"state_unavailable", "delivery_unknown"}:
+        return 1
+    if summary["deliveryStatus"] == "cooldown":
+        return 0
     return 1 if summary["alerts"] and not summary["telegram"] else 0
 
 
