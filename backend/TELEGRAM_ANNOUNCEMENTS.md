@@ -20,7 +20,7 @@ Render 서비스의 Environment에 아래 값을 등록한다. 이미 쓰는
 | `TELEGRAM_ANNOUNCE_CHAT_ID` | 공지를 올릴 그룹의 chat_id. 일반 알림 수신자와 분리한다. |
 | `TELEGRAM_ADMIN_USER_ID` | 공지를 보낼 수 있는 내 Telegram 숫자 user_id. |
 | `TELEGRAM_WEBHOOK_SECRET` | 32자 이상 무작위 문자열. Telegram이 보내는 요청을 검증한다. |
-| `APP_BASE_URL` | Render의 HTTPS 공개 주소. 예: `https://stock-insight-xxxx.onrender.com` |
+| `APP_BASE_URL` | 서비스의 HTTPS 공개 주소. 홈서버 배포에서는 `PUBLIC_SITE_URL`과 같은 값(`https://stock-insight-web.pages.dev`) |
 
 `TELEGRAM_ANNOUNCE_CHAT_ID`에는 여러 ID를 넣지 않는다. 공지 전용 그룹 하나만
 명시한다. 기존 `TELEGRAM_CHAT_ID`와 우연히 같은 값일 수는 있지만, 서로 다른

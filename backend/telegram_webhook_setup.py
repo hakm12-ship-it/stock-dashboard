@@ -4,7 +4,7 @@ Render 배포와 환경변수 설정이 끝난 뒤 한 번만 실행한다.
 
     $env:TELEGRAM_BOT_TOKEN = "..."
     $env:TELEGRAM_WEBHOOK_SECRET = "충분히-긴-무작위-문자열"
-    $env:APP_BASE_URL = "https://stock-insight-xxxx.onrender.com"
+    $env:APP_BASE_URL = "https://stock-insight-web.pages.dev"
     python telegram_webhook_setup.py
 
 봇 토큰은 명령줄 인수로 주지 않는다. PowerShell 기록에 남기지 않기 위해서다.

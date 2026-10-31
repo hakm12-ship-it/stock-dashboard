@@ -3,7 +3,8 @@
 import os
 from urllib.parse import urlsplit
 
-DEFAULT_PUBLIC_SITE_URL = "https://stock-insight-zws6.onrender.com"
+# Render 주소는 서비스 삭제(2026-11-01)로 반납됐다. 남이 같은 주소를 가져갈 수 있으니 기본값으로 쓰지 않는다.
+DEFAULT_PUBLIC_SITE_URL = "https://stock-insight-web.pages.dev"
 
 
 def public_site_url() -> str:

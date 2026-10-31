@@ -10,7 +10,7 @@ with sync_playwright() as p:
  page=c.new_page();errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
  page.goto('http://localhost:8000',wait_until='domcontentloaded')
  expect(page.locator('.watchlist-row')).to_have_count(7)
- assert page.locator('link[rel="canonical"]').get_attribute('href')=='https://stock-insight-zws6.onrender.com/'
+ assert page.locator('link[rel="canonical"]').get_attribute('href')=='https://stock-insight-web.pages.dev/'
  assert page.locator('meta[name="description"]').get_attribute('content')
  assert page.locator('.app-nav').evaluate('e=>getComputedStyle(e).width')=='212px'
  page.get_by_role('button',name='삼성전자 분석 열기').click()

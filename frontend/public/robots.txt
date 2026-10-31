@@ -11,4 +11,4 @@ Disallow: /redoc
 Disallow: /openapi.json
 Allow: /
 
-Sitemap: https://stock-insight-zws6.onrender.com/sitemap.xml
+Sitemap: https://stock-insight-web.pages.dev/sitemap.xml

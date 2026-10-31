@@ -16,7 +16,7 @@ PUBLIC = "https://stock.example.ts.net:8443"
 
 
 class SiteURLTests(unittest.TestCase):
-    def test_existing_render_address_is_the_default(self):
+    def test_live_pages_address_is_the_default(self):
         with patch.dict(os.environ, {"PUBLIC_SITE_URL": ""}):
             self.assertEqual(public_site_url(), DEFAULT_PUBLIC_SITE_URL)
 

@@ -14,7 +14,7 @@ from routers import calendar
 
 
 FRONTEND = Path(__file__).resolve().parents[2] / "frontend"
-PUBLIC = "https://stock-insight-zws6.onrender.com"
+PUBLIC = "https://stock-insight-web.pages.dev"
 
 
 class PublicCalendarTests(unittest.TestCase):
