@@ -7,6 +7,7 @@ from typing import Literal
 from zoneinfo import ZoneInfo
 
 import pandas as pd
+import requests
 from fastapi import APIRouter, Query, HTTPException
 
 from analysis.technical import bollinger, macd, rsi
@@ -66,13 +67,16 @@ def health():
 @router.get("/api/symbols")
 def api_symbols(market: str, q: str = ""):
     df = cached_symbols(market_name(market))
-    if not q:
+    key = q.strip().lower()
+    if not key:
         return df.head(SYMBOL_LIMIT).to_dict("records")
 
-    key = q.strip().lower()
+    # 'BRK B'·'BRK.B'로 쳐도 목록의 'BRK-B'를 찾는다.
+    tkey = re.sub(r"[\s.]+", "-", key)
     ticker = df["ticker"].str.lower()
     name = df["name"].str.lower()
-    hit = ticker.str.contains(key, na=False, regex=False) | name.str.contains(key, na=False, regex=False)
+    hit = (ticker.str.contains(key, na=False, regex=False) | ticker.str.contains(tkey, na=False, regex=False)
+           | name.str.contains(key, na=False, regex=False))
     df = df[hit].copy()
 
     # 찾는 걸 위로 올린다. "nav"를 치면 NAVN·NAVI가 먼저 나와야지,
@@ -80,16 +84,39 @@ def api_symbols(market: str, q: str = ""):
     t, n = df["ticker"].str.lower(), df["name"].str.lower()
     df["_rank"] = 4
     df.loc[n.str.startswith(key), "_rank"] = 2          # 이름이 그걸로 시작
-    df.loc[t.str.startswith(key), "_rank"] = 1          # 티커가 그걸로 시작
-    df.loc[t == key, "_rank"] = 0                       # 티커 정확히 일치
-    df = df.sort_values(["_rank", "ticker"]).drop(columns="_rank")
+    df.loc[t.str.startswith(key) | t.str.startswith(tkey), "_rank"] = 1   # 티커가 그걸로 시작
+    df.loc[(t == key) | (t == tkey), "_rank"] = 0                        # 티커 정확히 일치
+    # 같은 순위 안에서는 상장목록 순서(시가총액순)를 지킨다. 티커순이면 0000H0 같은
+    # 신규 코드가 KODEX 200·삼성전자보다 앞서고, 큰 종목이 상한에 잘려 나갔다.
+    df = df.sort_values("_rank", kind="stable").drop(columns="_rank")
     return df.head(SYMBOL_LIMIT).to_dict("records")
+
+
+def _history(loader, ticker: str, period: str):
+    """load 계열 조회. 데이터가 없는 종목이면 처리 안 된 500 대신 404를 낸다.
+
+    FDR은 없는 미국 종목에 야후 404(HTTPError)를, 없는 국내 종목엔 빈 표를 돌려줘
+    deps._fetch의 dropna(subset=["Close"])가 KeyError를 낸다.
+    """
+    try:
+        out = loader(ticker, period)
+    except requests.RequestException as exc:
+        if getattr(exc.response, "status_code", None) != 404:
+            print(f"[prices] {ticker} 시세 조회 실패: {exc!r}")
+            raise HTTPException(status_code=503,
+                                detail="시세를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.") from None
+        out = None
+    except (KeyError, IndexError):
+        out = None
+    df = out[0] if isinstance(out, tuple) else out
+    if df is None or df.empty:
+        raise HTTPException(status_code=404, detail="이 종목의 시세 데이터를 찾을 수 없습니다.")
+    return out
 
 
 @router.get("/api/prices")
 def api_prices(ticker: str, period: str = "3m"):
-    df = load(ticker, period)
-    return _candles(df)
+    return _candles(_history(load, ticker, period))
 
 
 def _candles(df):
@@ -137,7 +164,7 @@ def api_watchlist(tickers: str = Query(max_length=400), period: Literal["1m", "3
 def api_indicators(ticker: str, period: str = "3m"):
     # 앞쪽 여유분까지 불러 지표를 계산한 뒤 화면 구간만 잘라 보낸다.
     # 화면 기간만으로 계산하면 MA60은 앞 59칸이 비어 3개월 차트에서 거의 안 보인다.
-    df, start = load_with_warmup(ticker, period)
+    df, start = _history(load_with_warmup, ticker, period)
     close = df["Close"]
     m = macd(close)
     bb = bollinger(close)

@@ -96,6 +96,95 @@ test("upstream failure returns a temporary response without disclosing internal 
   assert.ok(!(await response.text()).includes("private diagnostic"));
 });
 
+const cloudflareDnsError = () => new Response(
+  "<title>Error 1016</title><p>Origin DNS error</p><p>homeserver.tail0376c9.ts.net</p>",
+  { status: 530, headers: { "Content-Type": "text/html; charset=UTF-8", Server: "cloudflare" } },
+);
+
+function assertUnavailable(response) {
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("Retry-After"), "30");
+  assert.equal(response.headers.get("Cache-Control"), "no-store");
+  assert.equal(response.headers.get("X-Robots-Tag"), "noindex, nofollow");
+  assert.equal(response.headers.get("Server"), null);
+}
+
+test("a Cloudflare origin DNS error on the API becomes a JSON 503 without the upstream host", async t => {
+  mockFetch(t, async () => cloudflareDnsError());
+  const response = await worker.fetch(new Request(site + "/api/health", {
+    headers: { Accept: "application/json" },
+  }));
+  assertUnavailable(response);
+  assert.match(response.headers.get("Content-Type"), /^application\/json/);
+  const text = await response.text();
+  assert.ok(!text.includes("tail0376c9") && !text.includes("1016"));
+  assert.ok(JSON.parse(text).detail.includes("잠시 후 다시 시도"));
+});
+
+test("a page navigation during an outage gets a small Korean maintenance page", async t => {
+  mockFetch(t, async () => cloudflareDnsError());
+  const response = await worker.fetch(new Request(site + "/calendar", {
+    headers: { Accept: "text/html,application/xhtml+xml,*/*;q=0.8" },
+  }));
+  assertUnavailable(response);
+  assert.match(response.headers.get("Content-Type"), /^text\/html/);
+  const html = await response.text();
+  assert.ok(html.includes("잠시 점검 중"));
+  assert.ok(html.includes('<meta name="robots" content="noindex, nofollow">'));
+  assert.ok(!html.includes("tail0376c9") && !html.includes("1016"));
+});
+
+test("an API request that accepts HTML still gets JSON during an outage", async t => {
+  mockFetch(t, async () => cloudflareDnsError());
+  const response = await worker.fetch(new Request(site + "/api/health", {
+    headers: { Accept: "text/html" },
+  }));
+  assertUnavailable(response);
+  assert.match(response.headers.get("Content-Type"), /^application\/json/);
+});
+
+test("every Cloudflare and tunnel origin-error status is treated as upstream unavailable", async t => {
+  let status;
+  mockFetch(t, async () => new Response("origin error from homeserver.tail0376c9.ts.net", { status }));
+  for (status of [502, 504, 520, 521, 522, 523, 524, 525, 526, 527, 530]) {
+    const response = await worker.fetch(new Request(site + "/assets/app.js"));
+    assertUnavailable(response);
+    assert.match(response.headers.get("Content-Type"), /^text\/plain/);
+    assert.ok(!(await response.text()).includes("tail0376c9"), `status ${status}`);
+  }
+});
+
+test("a navigation that fails to connect also gets the maintenance page", async t => {
+  mockFetch(t, async () => { throw new Error("private diagnostic"); });
+  const response = await worker.fetch(new Request(site + "/", { headers: { Accept: "text/html" } }));
+  assertUnavailable(response);
+  const html = await response.text();
+  assert.ok(html.includes("잠시 점검 중") && !html.includes("private diagnostic"));
+});
+
+test("preview hosts get the same controlled response during an outage", async t => {
+  mockFetch(t, async () => cloudflareDnsError());
+  const response = await worker.fetch(new Request("https://preview.stock-insight-web.pages.dev/", {
+    headers: { Accept: "text/html" },
+  }));
+  assertUnavailable(response);
+});
+
+test("intentional app 5xx responses pass through unchanged", async t => {
+  const detail = "알림 관리자 인증 키가 설정되지 않았습니다.";
+  let status;
+  mockFetch(t, async () => Response.json({ detail }, { status }));
+  for (status of [500, 503]) {
+    const response = await worker.fetch(new Request(site + "/api/kakao-alert-status", {
+      headers: { Authorization: "Bearer test-token" },
+    }));
+    assert.equal(response.status, status);
+    assert.equal(response.headers.get("Retry-After"), null);
+    assert.equal(response.headers.get("X-Robots-Tag"), "noindex, nofollow");
+    assert.deepEqual(await response.json(), { detail });
+  }
+});
+
 test("invalid upstream configuration cannot redirect requests to another protocol", async t => {
   let contactedUpstream = false;
   mockFetch(t, async () => { contactedUpstream = true; return new Response("unexpected"); });

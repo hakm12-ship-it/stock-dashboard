@@ -6,6 +6,8 @@ import threading
 import unittest
 from unittest.mock import patch
 
+from urllib3.exceptions import ReadTimeoutError
+
 from data import economic_calendar as C
 
 
@@ -312,6 +314,151 @@ class AggregationTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     C.get_calendar(start, end)
             fetch.assert_not_called()
+
+    def test_cold_load_fetches_every_first_wave_source_at_once(self):
+        # Eleven sources for one month: they must all be in flight together,
+        # otherwise a cold load waits for one timeout after another.
+        barrier = threading.Barrier(11, timeout=3)
+
+        def concurrent(url):
+            barrier.wait()
+            return self.fixture(url)
+        with patch.object(C, "_download", side_effect=concurrent):
+            response = C.get_calendar(date(2026, 10, 1), date(2026, 10, 31))
+        self.assertEqual(len(response["sources"]), 11)
+        self.assertTrue(all(s["status"] == "ok" for s in response["sources"]))
+
+    def test_unconfigured_bls_is_never_requested_and_nyfed_starts_before_slow_sources(self):
+        nyfed_started = threading.Event()
+
+        def get(url, **kwargs):
+            if url == C.BLS_URL:
+                raise AssertionError("BLS must not be contacted without a contact address")
+            if "newyorkfed.org" in url:
+                nyfed_started.set()
+                return FakeResponse(NYFED)
+            if url == C.BEA_URL and not nyfed_started.wait(timeout=3):
+                raise C.requests.Timeout("fallback waited for the slowest source")
+            return FakeResponse(self.fixture(url))
+        with patch.dict(C.os.environ, {C.CONTACT_ENV: ""}), patch.object(C.requests, "get", side_effect=get) as fetch:
+            response = C.get_calendar(date(2026, 10, 1), date(2026, 10, 31))
+        sources = {s["name"]: s for s in response["sources"]}
+        self.assertEqual(sources["BLS"]["status"], "error")
+        self.assertIn(C.CONTACT_ENV, sources["BLS"]["message"])
+        self.assertNotIn("403", sources["BLS"]["message"])
+        self.assertEqual(sources["BEA"]["status"], "ok")
+        self.assertEqual(sources["뉴욕연준 · 2026-10"]["status"], "ok")
+        self.assertNotIn(C.BLS_URL, [call.args[0] for call in fetch.call_args_list])
+        self.assertTrue(any(e["source"] == "Federal Reserve Bank of New York" for e in response["events"]))
+
+
+class FakeResponse:
+    def __init__(self, body="", status=200, stall=None):
+        self.body, self.status_code, self.stall = body.encode(), status, stall
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            response = C.requests.Response()
+            response.status_code = self.status_code
+            raise C.requests.HTTPError(str(self.status_code), response=response)
+
+    def iter_content(self, size):
+        yield self.body
+        if self.stall:
+            # Headers and the first bytes arrived, then the body stopped.
+            raise self.stall
+
+
+class NetworkPolicyTests(unittest.TestCase):
+    def setUp(self):
+        C._CACHE.clear()
+
+    def test_contact_email_is_sent_only_to_bls(self):
+        with patch.dict(C.os.environ, {C.CONTACT_ENV: " ops@example.org "}), \
+                patch.object(C.requests, "get", return_value=FakeResponse(ics("SUMMARY:Consumer Price Index\nDTSTART:20261014T123000Z"))) as fetch:
+            self.assertIn("BEGIN:VCALENDAR", C._download(C.BLS_URL))
+            self.assertIn("ops@example.org", fetch.call_args.kwargs["headers"]["User-Agent"])
+            # Unofficial Yahoo pages and the other providers keep the previous agent.
+            for url in (C.FED_URL, C.BEA_URL, f"{C.BOK_URL}&pYear=2026", "https://finance.yahoo.com/quote/AAPL/calendar/",
+                        C._nyfed_url(2026, 10), "https://fred.stlouisfed.org/releases/calendar?rid=10&y=2026"):
+                with self.subTest(url=url):
+                    C._download(url)
+                    self.assertEqual(fetch.call_args.kwargs["headers"]["User-Agent"], "Mozilla/5.0 (compatible; StockInsightCalendar/1.0)")
+
+    def test_missing_or_malformed_contact_blocks_only_bls(self):
+        for value in ("", "site admin", "ops@example.org\r\nX-Injected: 1"):
+            with self.subTest(value=value), patch.dict(C.os.environ, {C.CONTACT_ENV: value}), \
+                    patch.object(C.requests, "get", return_value=FakeResponse(FED)) as fetch:
+                status = C._load("BLS", C.BLS_URL, lambda payload: [])[1]
+                self.assertEqual(status["status"], "error")
+                self.assertIn(C.CONTACT_ENV, status["message"])
+                self.assertIn("nextRefreshAt", status)
+                fetch.assert_not_called()
+                self.assertEqual(C._download(C.FED_URL), FED)
+                self.assertNotIn("\n", fetch.call_args.kwargs["headers"]["User-Agent"])
+            C._CACHE.clear()
+
+    def test_bea_retries_one_transport_failure_within_its_budget(self):
+        payload = ics("SUMMARY:Personal Income and Outlays\nDTSTART:20261029T123000Z")
+        with patch.object(C.requests, "get", side_effect=[C.requests.ConnectionError("reset"), FakeResponse(payload)]) as fetch:
+            self.assertEqual(C._download(C.BEA_URL), payload)
+        self.assertEqual(fetch.call_count, 2)
+        (connect, read), budget, _ = C._LIMITS[C.BEA_URL]
+        for call in fetch.call_args_list:
+            self.assertLessEqual(sum(call.kwargs["timeout"]), budget)
+            self.assertGreater(call.kwargs["timeout"][1], C._DEFAULT_LIMITS[0][1])
+
+    def test_retry_never_extends_past_the_budget_or_repeats_http_errors(self):
+        clock = [100.0]
+
+        def slow_timeout(url, **kwargs):
+            clock[0] += 7
+            raise C.requests.Timeout("slow first byte")
+        with patch.object(C.time, "monotonic", side_effect=lambda: clock[0]), \
+                patch.object(C.requests, "get", side_effect=slow_timeout) as fetch:
+            with self.assertRaises(C.requests.Timeout):
+                C._download(C.BEA_URL)
+        self.assertEqual(fetch.call_count, 1)
+        for url in (C.BEA_URL, C.FED_URL):
+            with self.subTest(url=url), patch.object(C.requests, "get", return_value=FakeResponse(status=503)) as fetch:
+                with self.assertRaises(C.requests.HTTPError):
+                    C._download(url)
+                self.assertEqual(fetch.call_count, 1)
+        with patch.object(C.requests, "get", side_effect=C.requests.ConnectionError("reset")) as fetch:
+            with self.assertRaises(C.requests.ConnectionError):
+                C._download(C.FED_URL)
+        self.assertEqual(fetch.call_count, 1)
+
+    def test_timeouts_are_reported_separately_from_connection_failures(self):
+        messages = {}
+        for name, error in (("timeout", C.requests.ReadTimeout("slow")), ("connect", C.requests.ConnectionError("refused"))):
+            C._CACHE.clear()
+            with patch.object(C, "_download", side_effect=error):
+                messages[name] = C._load("BEA", C.BEA_URL, lambda payload: [])[1]["message"]
+        self.assertIn("제한 시간", messages["timeout"])
+        self.assertIn("연결하지 못했습니다", messages["connect"])
+
+    def test_body_that_stalls_after_headers_is_reported_as_a_timeout(self):
+        # requests raises this ConnectionError from iter_content when the read
+        # timeout expires mid-body; BEA retries it once within its budget.
+        for url, attempts in ((C.FED_URL, 1), (C.BEA_URL, 2)):
+            C._CACHE.clear()
+            stall = C.requests.ConnectionError(ReadTimeoutError(None, url, "Read timed out."))
+            with self.subTest(url=url), patch.object(C.requests, "get", return_value=FakeResponse("BEGIN", stall=stall)) as fetch:
+                status = C._load("source", url, lambda payload: [])[1]
+                self.assertEqual(fetch.call_count, attempts)
+                self.assertEqual(status["status"], "error")
+                self.assertIn("제한 시간", status["message"])
+        C._CACHE.clear()
+        reset = C.requests.ConnectionError("connection reset")
+        with patch.object(C.requests, "get", return_value=FakeResponse("BEGIN", stall=reset)):
+            self.assertIn("연결하지 못했습니다", C._load("source", C.FED_URL, lambda payload: [])[1]["message"])
 
 
 if __name__ == "__main__":

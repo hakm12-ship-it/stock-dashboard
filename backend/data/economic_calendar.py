@@ -3,7 +3,9 @@
 Official calendars supply macro releases. Yahoo's next earnings date is a
 provider estimate (date only), never a confirmed time. Successful schedules are
 shared for six hours across views and alerts. Failed sources back off for at
-least 15 minutes; stale schedules are not used for alerts.
+least 15 minutes; stale schedules are not used for alerts. BLS only answers
+requests whose User-Agent carries the operator contact in CALENDAR_CONTACT_EMAIL;
+no other provider is sent that contact.
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ from copy import deepcopy
 from datetime import date, datetime, timedelta, timezone
 from hashlib import sha256
 from html import unescape
+import os
 import re
 import threading
 import time
@@ -21,6 +24,7 @@ from typing import Callable
 from zoneinfo import ZoneInfo
 
 import requests
+from urllib3.exceptions import ReadTimeoutError
 
 
 KST = timezone(timedelta(hours=9))
@@ -32,27 +36,64 @@ BOK_URL = "https://www.bok.or.kr/portal/singl/crncyPolicyDrcMtg/listYear.do?menu
 NYFED_URL = "https://www.newyorkfed.org/research/calendars/i-{month}{year}.html"
 TICKERS = {"AAPL": "애플", "MSFT": "마이크로소프트", "GOOGL": "알파벳", "AMZN": "아마존", "META": "메타", "NVDA": "엔비디아", "TSLA": "테슬라"}
 _MONTHS = {name.lower(): i for i, name in enumerate(("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"), 1)}
-_POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="calendar")
+# One cold load submits about a dozen first-wave sources; the pool fits them in
+# one round so the slowest provider, not the sum of timeouts, sets the latency.
+_POOL = ThreadPoolExecutor(max_workers=12, thread_name_prefix="calendar")
 _CACHE: OrderedDict[str, tuple[float, list[dict], dict, str]] = OrderedDict()
 _LOCK = threading.Lock()
 _SOURCE_LOCKS = [threading.Lock() for _ in range(32)]
 _SUCCESS_TTL = 6 * 60 * 60
 _FAILURE_TTL = 15 * 60
 _BLOCKED_TTL = 60 * 60
+CONTACT_ENV = "CALENDAR_CONTACT_EMAIL"
+_EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
+# (connect, read) timeout, total seconds across attempts, attempts. BEA's small
+# ICS can be slow to start from a home network, so it gets a longer first byte
+# and one retry for transport failures, still inside a fixed total budget.
+_DEFAULT_LIMITS = ((2, 4), 8, 1)
+_LIMITS = {BEA_URL: ((3.05, 6), 10, 2)}
+
+
+def _contact() -> str | None:
+    value = os.environ.get(CONTACT_ENV, "").strip()
+    return value if _EMAIL.fullmatch(value) else None
+
+
+def _user_agent(url: str) -> str:
+    # BLS rejects automated requests whose User-Agent has no contact address.
+    # Every other provider, including the Yahoo pages, keeps the browser-
+    # compatible agent it has always received.
+    contact = _contact() if url == BLS_URL else None
+    return f"StockInsightCalendar/1.0 (+mailto:{contact})" if contact else "Mozilla/5.0 (compatible; StockInsightCalendar/1.0)"
 
 
 def _download(url: str) -> str:
-    """Bound connect/read time, total streaming time, and response size."""
-    deadline = time.monotonic() + 8
-    with requests.get(url, headers={"User-Agent": "Mozilla/5.0 (compatible; StockInsightCalendar/1.0)"}, timeout=(2, 4), stream=True) as response:
-        response.raise_for_status()
-        chunks, size = [], 0
-        for chunk in response.iter_content(65536):
-            size += len(chunk)
-            if size > 3_000_000 or time.monotonic() > deadline:
-                raise ValueError("일정 응답이 크거나 응답 제한 시간을 초과했습니다.")
-            chunks.append(chunk)
-        return b"".join(chunks).decode("utf-8-sig")
+    """Bound connect/read time, total time across attempts, and response size."""
+    if url == BLS_URL and not _contact():
+        # Without a contact the request is certain to be refused (HTTP 403);
+        # do not keep sending it.
+        raise ValueError(f"BLS는 연락처(이메일)가 담긴 요청만 허용합니다. 운영자가 {CONTACT_ENV}을 설정해야 조회할 수 있습니다.")
+    (connect, read), budget, attempts = _LIMITS.get(url, _DEFAULT_LIMITS)
+    deadline = time.monotonic() + budget
+    attempt = 1
+    while True:
+        remaining = deadline - time.monotonic()
+        try:
+            with requests.get(url, headers={"User-Agent": _user_agent(url)}, timeout=(min(connect, remaining), min(read, remaining - connect)), stream=True) as response:
+                response.raise_for_status()
+                chunks, size = [], 0
+                for chunk in response.iter_content(65536):
+                    size += len(chunk)
+                    if size > 3_000_000 or time.monotonic() > deadline:
+                        raise ValueError("일정 응답이 크거나 응답 제한 시간을 초과했습니다.")
+                    chunks.append(chunk)
+                return b"".join(chunks).decode("utf-8-sig")
+        except (requests.ConnectionError, requests.Timeout):
+            # HTTP errors are definitive; retry transport failures only while
+            # the budget still leaves room to connect and read.
+            if attempt >= attempts or deadline - time.monotonic() < connect + 1:
+                raise
+            attempt += 1
 
 
 def _text(fragment: str) -> str:
@@ -272,7 +313,12 @@ def _load(name: str, url: str, parser: Callable[[str], list[dict]]) -> tuple[lis
                 message = f"일정 제공처가 HTTP {exc.response.status_code} 응답을 반환했습니다."
                 if exc.response.status_code in (403, 429):
                     ttl = _BLOCKED_TTL
-            elif isinstance(exc, (requests.RequestException, TimeoutError)):
+            # requests reports a body that stops arriving after the headers as a
+            # ConnectionError around urllib3's ReadTimeoutError; that is a timeout.
+            elif isinstance(exc, (requests.Timeout, TimeoutError)) or (
+                    isinstance(exc, requests.ConnectionError) and exc.args and isinstance(exc.args[0], ReadTimeoutError)):
+                message = "일정 제공처가 제한 시간 안에 응답하지 않았습니다. 잠시 후 다시 조회합니다."
+            elif isinstance(exc, requests.RequestException):
                 message = "일정 제공처에 연결하지 못했습니다. 잠시 후 다시 조회합니다."
             else:
                 message = str(exc)[:180] if isinstance(exc, ValueError) else "일정 형식을 읽지 못했습니다."
@@ -310,8 +356,10 @@ def get_calendar(start: date, end: date) -> dict:
         url = f"https://finance.yahoo.com/quote/{ticker}/calendar/"
         jobs.append((f"Yahoo Finance · {ticker}", url, lambda h, t=ticker, u=url: _parse_earnings(h, t, u)))
     futures = [_POOL.submit(_load, *job) for job in jobs]
-    results = [future.result() for future in futures]
-    if results[1][1]["status"] == "error":
+    # Start the BLS fallback as soon as BLS answers, while slower unrelated
+    # sources are still loading, so a cold load is not the sum of their timeouts.
+    backups = []
+    if futures[1].result()[1]["status"] == "error":
         # One small official monthly page replaces the two annual FRED requests
         # that can time out in a data-centre environment. No FRED call is made
         # when the NY Fed covers the requested month successfully.
@@ -328,7 +376,7 @@ def get_calendar(start: date, end: date) -> dict:
         failed_months = set()
         for year, month, future in months:
             result = future.result()
-            results.append(result)
+            backups.append(result)
             if result[1]["status"] == "error":
                 failed_months.add((year, month))
         fallback = []
@@ -340,7 +388,8 @@ def get_calendar(start: date, end: date) -> dict:
             source_events, status, fetched = future.result()
             # A failed November page must not duplicate/override a successful
             # October NY Fed page when FRED returns the entire year.
-            results.append(([e for e in source_events if (int(e["date"][:4]), int(e["date"][5:7])) in failed_months], status, fetched))
+            backups.append(([e for e in source_events if (int(e["date"][:4]), int(e["date"][5:7])) in failed_months], status, fetched))
+    results = [future.result() for future in futures] + backups
     events = {event["id"]: event for source_events, _, _ in results for event in source_events if start.isoformat() <= event["date"] <= end.isoformat()}
     success_times = [fetched for _, status, fetched in results if status["status"] == "ok"]
     return {"events": sorted(events.values(), key=lambda e: (e["date"], e["startAt"] or "", e["title"])),

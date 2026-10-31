@@ -1,11 +1,8 @@
 """야간 시세 — KRX 휴장 중에도 24시간 거래되는 Hyperliquid perp 기반 가격·캔들."""
 
-from datetime import datetime, timezone
-
-import pandas as pd
 from fastapi import APIRouter
 
-from analysis.night_gap import night_gap_backtest
+from analysis.night_gap import closes_by_krx_open, night_gap_backtest
 from cache import ttl_cache
 from data.hyperliquid import TICKER_TO_PERP
 from data.synthetic import SYNTHETIC
@@ -100,12 +97,9 @@ def api_night_candles(ticker: str, interval: str = "5m"):
 
 @ttl_cache(60 * 60 * 6)  # 일봉 기반이라 자주 바뀌지 않는다
 def _night_gap(ticker: str, perp: str):
-    candles = cached_perp_candles(perp, "1d", 200)
-    # 캔들 시작(t)의 UTC 날짜로 인덱싱하면, 그 종가는 다음 KST 영업일 08:59
-    # = KRX 개장 1분 전 가격이 된다. analysis/night_gap.py 주석 참고.
-    closes = pd.Series(
-        {datetime.fromtimestamp(c["t"] / 1000, tz=timezone.utc).date(): c["c"] for c in candles}
-    )
+    # 일봉을 닫히는 날(시작일 + 1일)로 키를 잡아, 그 종가가 그날 KRX 개장 1분 전
+    # 가격이 되게 한다. 주말·휴일을 낀 날도 맞는다 — analysis/night_gap.py 주석 참고.
+    closes = closes_by_krx_open(cached_perp_candles(perp, "1d", 200))
     krx = load(ticker, "1y").copy()
     krx.index = [i.date() for i in krx.index]
     return night_gap_backtest(closes, krx)

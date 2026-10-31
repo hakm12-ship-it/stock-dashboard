@@ -15,7 +15,8 @@ services:
       PORT: "8000"
       PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:?Set the public HTTPS site origin}
       APP_BASE_URL: ${PUBLIC_SITE_URL:?Set the public HTTPS site origin}
-      PREWARM_SYMBOLS: "false"
+      PREWARM_SYMBOLS: "true"
+      CALENDAR_CONTACT_EMAIL: ${CALENDAR_CONTACT_EMAIL:-}
       PUBLIC_AI_DAILY_LIMIT: ${PUBLIC_AI_DAILY_LIMIT:-20}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       ADMIN_KEY: ${ADMIN_KEY:-}

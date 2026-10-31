@@ -4,16 +4,20 @@
 외부 API 호출은 한 번으로 흡수된다.
 """
 
+import functools
+import socket
 from datetime import date, datetime
 from datetime import time as dt_time
-from datetime import timedelta
+from datetime import timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import FinanceDataReader as fdr
 import pandas as pd
+import requests
+from requests.adapters import HTTPAdapter
 
 from analysis.fundamental import valuation
-from cache import ttl_cache
+from cache import stale_while_revalidate, ttl_cache
 from data.crypto import upbit_top
 from data.hyperliquid import fetch_perp_candles, fetch_perp_prices
 from data.naver_index import daily_index, realtime_index
@@ -29,12 +33,45 @@ from data.naver_stock import (
 from data.news import fetch_news
 from data.symbols import symbols
 
+# FDR은 야후·네이버를 requests로 부르면서 timeout을 주지 않는다. 업스트림이 연결만
+# 받고 응답 없이 멈추면 그 요청 스레드와 캐시 키 잠금이 영원히 묶이고, 그런
+# 스레드가 쌓이면 /api/health까지 멈춘다. timeout을 안 넘긴 호출에만 기본값을
+# 채운다 — 호출부가 정한 값은 줄이지 않는다.
+_HTTP_TIMEOUT = (5, 20)  # (연결, 읽기) 초
+# KS11/KQ11 이력은 FDR이 pd.read_csv(url)(urllib)로 받아 위 설정이 닿지 않는다.
+# 소켓 기본값은 timeout 없이 만든 소켓에만 적용된다.
+_SOCKET_TIMEOUT = 20
+
+
+def _with_default_timeout(send):
+    @functools.wraps(send)
+    def wrapper(self, request, stream=False, timeout=None, *args, **kwargs):
+        if timeout is None:
+            timeout = _HTTP_TIMEOUT
+        return send(self, request, stream, timeout, *args, **kwargs)
+
+    wrapper.default_timeout = True
+    return wrapper
+
+
+def _install_default_timeouts() -> None:
+    """프로세스 전체에 한 번만 건다. 여러 번 불러도 겹쳐 감싸지 않는다."""
+    if not getattr(HTTPAdapter.send, "default_timeout", False):
+        HTTPAdapter.send = _with_default_timeout(HTTPAdapter.send)
+    if socket.getdefaulttimeout() is None:
+        socket.setdefaulttimeout(_SOCKET_TIMEOUT)
+
+
+# main.py가 라우터보다 먼저 이 모듈을 임포트하므로 첫 외부 호출 전에 걸린다.
+_install_default_timeouts()
+
 PERIOD_DAYS = {"1m": 30, "3m": 90, "6m": 180, "1y": 365}
 
 INDEX_TICKERS = {"KOSPI": "KS11", "KOSDAQ": "KQ11", "NASDAQ": "IXIC"}
 
 # 캐시된 외부 조회 래퍼 (반복 호출 흡수)
-cached_symbols = ttl_cache(60 * 60 * 24)(symbols)
+# 종목목록은 하루가 지나도 이전 표로 바로 검색하고 새 표는 뒤에서 받는다.
+cached_symbols = stale_while_revalidate(60 * 60 * 24)(symbols)
 cached_news = ttl_cache(60 * 15)(fetch_news)
 cached_naver_index = ttl_cache(30)(realtime_index)  # 실시간이라 짧게
 cached_profile = ttl_cache(60 * 60 * 6)(naver_profile)
@@ -190,15 +227,62 @@ def load_index(code: str) -> pd.DataFrame:
     return _fetch(code, date.today() - timedelta(days=120))
 
 
+# 야후 KRW=X 일봉은 런던 자정에 찍힌다. FDR은 이 시각을 UTC 날짜로 잘라서 영국
+# 서머타임(3월 말~10월 말) 동안 모든 봉이 하루 앞 날짜로 붙었다 — 월요일 환율이
+# 일요일 행이 되고 금요일 행은 사라졌다. 미국 종가와 날짜로 맞추는 환율 기여와
+# 포트폴리오 원화 곡선이 다음날 환율을 쓰고 금요일을 빠뜨렸다.
+# 그래서 같은 차트 API를 직접 받아 거래소 시간대로 날짜를 매긴다.
+_FX_CHART = "https://query2.finance.yahoo.com/v8/finance/chart/KRW=X"
+_FX_COLUMNS = {"open": "Open", "high": "High", "low": "Low", "close": "Close",
+               "volume": "Volume", "adjclose": "Adj Close"}
+_FX_MERGE = {"Open": "first", "High": "max", "Low": "min", "Close": "last",
+             "Volume": "sum", "Adj Close": "last"}
+
+
+def _fx_bars(result: dict) -> pd.DataFrame:
+    """야후 차트 응답(result[0]) → 실제 거래일 날짜를 단 일봉. 열은 FDR과 같다.
+
+    마지막 봉은 자정이 아니라 최신 호가 시각에 찍힌다. 토요일 새벽 호가는 금요일
+    세션의 끝, 일요일 밤 호가는 월요일(아시아 개장) 세션이라 주말 날짜는 각각
+    금요일·월요일로 옮겨 그날 봉에 합친다. 주말 행이 남으면 /api/fx 등락이
+    전 거래일 대비가 아니라 '금요일 대비 주말 변동'이 된다.
+    """
+    stamps = result.get("timestamp") or []
+    if not stamps:
+        return pd.DataFrame(columns=list(_FX_COLUMNS.values()), index=pd.DatetimeIndex([]))
+    tz = result.get("meta", {}).get("exchangeTimezoneName") or "Europe/London"
+    days = pd.to_datetime(stamps, unit="s", utc=True).tz_convert(tz).normalize().tz_localize(None)
+    days = days + pd.to_timedelta([{5: -1, 6: 1}.get(d, 0) for d in days.weekday], unit="D")
+    ind = result["indicators"]
+    df = pd.DataFrame({**ind["quote"][0], **ind["adjclose"][0]}, index=days)
+    df = df.rename(columns=_FX_COLUMNS)[list(_FX_COLUMNS.values())]
+    return df.groupby(level=0).agg(_FX_MERGE)
+
+
+def _fx_daily(start: date) -> pd.DataFrame:
+    """start 이후 USD/KRW 일봉. fdr.DataReader("USD/KRW", start)와 같은 모양."""
+    # 서머타임 동안 start일 봉은 전날 23:00 UTC에 찍히므로 하루 앞부터 받아 자른다.
+    since = datetime.combine(start - timedelta(days=1), dt_time(), tzinfo=timezone.utc)
+    r = requests.get(
+        _FX_CHART,
+        params={"period1": int(since.timestamp()), "period2": int(datetime.now(timezone.utc).timestamp()),
+                "interval": "1d", "includeAdjustedClose": "true"},
+        headers={"User-Agent": "Mozilla/5.0 AppleWebKit/537.36"},
+        timeout=_HTTP_TIMEOUT,
+    )
+    r.raise_for_status()
+    df = _fx_bars(r.json()["chart"]["result"][0])
+    return df.loc[df.index >= pd.Timestamp(start)]
+
+
 @ttl_cache(60 * 30)
 def load_fx() -> pd.DataFrame:
-    return fdr.DataReader("USD/KRW", date.today() - timedelta(days=30))
+    return _fx_daily(date.today() - timedelta(days=30))
 
 
 @ttl_cache(60 * 30)
 def load_fx_hist(period: str) -> pd.DataFrame:
-    start = date.today() - timedelta(days=PERIOD_DAYS.get(period, 90))
-    return fdr.DataReader("USD/KRW", start)
+    return _fx_daily(date.today() - timedelta(days=PERIOD_DAYS.get(period, 90)))
 
 
 @ttl_cache(60 * 30)

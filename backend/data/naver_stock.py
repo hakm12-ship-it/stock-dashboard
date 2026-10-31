@@ -191,8 +191,10 @@ def naver_profile(code: str) -> dict:
 
 
 # 네이버는 미국 종목을 로이터 코드(.O 나스닥 / .K AMEX·ARCA / .N NYSE)로 식별한다.
+# SPY·VOO·GLD 같은 NYSE Arca ETF와 JPM 같은 NYSE 종목 다수는 접미사 없는 맨 코드만
+# 받는다(SPY.K·JPM.N은 409). AAPL은 반대로 맨 코드가 409라 맨 코드는 맨 뒤에 둔다.
 # 어느 접미사인지 미리 알 수 없어 순서대로 시도하고 결과를 기억한다.
-_US_SUFFIXES = (".O", ".K", ".N")
+_US_SUFFIXES = (".O", ".K", ".N", "")
 _us_suffix_cache: dict[str, str] = {}
 
 
@@ -202,12 +204,19 @@ def naver_us_quote(ticker: str) -> dict:
     Render에서 yfinance가 야후에 차단(429)되므로 미국 시세도 네이버로 받는다.
     반환: {close, tradedAt(ISO), changePct, marketOpen}
     """
-    suffixes = (_us_suffix_cache[ticker],) if ticker in _us_suffix_cache else _US_SUFFIXES
+    base, dash, share_class = ticker.partition("-")
+    if dash:
+        # 클래스 주식 BRK-B·BF-B는 네이버에서 BRKb·BFb(맨 코드)뿐이다. BRKb.N도 409라
+        # 다른 접미사는 시도하지 않는다 — 없는 종목이면 요청 한 번으로 끝낸다.
+        code, suffixes = base + share_class.lower(), ("",)
+    else:
+        code = ticker
+        suffixes = (_us_suffix_cache[ticker],) if ticker in _us_suffix_cache else _US_SUFFIXES
     last_err = None
     for sfx in suffixes:
         try:
             req = urllib.request.Request(
-                f"https://api.stock.naver.com/stock/{ticker}{sfx}/basic",
+                f"https://api.stock.naver.com/stock/{code}{sfx}/basic",
                 headers={"User-Agent": "Mozilla/5.0", "Referer": "https://m.stock.naver.com/"},
             )
             with urllib.request.urlopen(req, timeout=10) as resp:

@@ -28,6 +28,7 @@ import xml.etree.ElementTree as ET
 from uuid import uuid4
 
 from data.ai_briefing import _ask
+from data.news import is_junk_title
 
 
 KST = timezone(timedelta(hours=9))
@@ -81,8 +82,8 @@ _RELEVANT = re.compile(
     r"economy|economic|employment|unemployment|recession|central bank|buyback|dividend|bond",
     re.IGNORECASE,
 )
+# Quote pages and template placeholders are rejected by the shared is_junk_title.
 _NON_NEWS = re.compile(
-    r"stock price,? news,? quote|quote\s*&\s*history|실시간\s*시세\s*조회|"
     r"stock market news\s*-\s*financial news|\bhow to\b|stocks? to buy|buy these stocks|"
     r"매수\s*추천|추천\s*종목|사야\s*할\s*주식|투자하는\s*방법",
     re.IGNORECASE,
@@ -147,6 +148,8 @@ def _fetch_feed(feed: tuple[str, str, str]) -> list[dict]:
         url = _safe_url(entry.findtext("link", ""))
         published = _parse_date(entry.findtext("pubDate", ""))
         if not title or not url or not published or not _RELEVANT.search(title) or _NON_NEWS.search(title):
+            continue
+        if is_junk_title(title):
             continue
         result.append({
             "id": hashlib.sha256(url.encode()).hexdigest()[:20],
@@ -341,6 +344,18 @@ def _unavailable(slot: str, now: datetime, message: str, errors: list[str] | Non
     }
 
 
+def _without_junk(result: dict) -> dict:
+    """Ledger rows stored before a title-filter change must not resend junk items."""
+    items = [item for item in result["items"] if not is_junk_title(item.get("title", ""))]
+    if len(items) == len(result["items"]):
+        return result
+    start, generated = datetime.fromisoformat(result["windowStart"]), datetime.fromisoformat(result["generatedAt"])
+    extended = any(datetime.fromisoformat(item["publishedAt"]) < start for item in items)
+    result.update(items=items, available=result["available"] and bool(items),
+                  text=_render(result["headline"], result["summary"], items, start, generated, extended))
+    return result
+
+
 def _cache_path() -> Path | None:
     """Reuse the notification ledger; no second production state file is needed."""
     value = os.environ.get("NOTIFICATION_STATE_PATH", "").strip()
@@ -465,6 +480,7 @@ def build_digest(slot: str, now: datetime | None = None) -> dict:
                     _CACHE[memory_key] = (clock + _FAILURE_BACKOFF, deepcopy(result))
                 return result
             if state == "hit":
+                stored = _without_junk(stored)
                 # Persisted failures keep their original backoff timestamp. Do
                 # not add another 30 minutes every time a process restarts.
                 if stored["available"]:

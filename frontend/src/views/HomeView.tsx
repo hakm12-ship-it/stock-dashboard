@@ -170,6 +170,12 @@ export default function HomeView({
     enabled: !editing,
   })) })
   const rows = new Map(batches.flatMap((batch) => (batch.data ?? []).map((row) => [row.ticker, row] as const)))
+  // 행의 조회 중·실패 표시는 그 종목이 들어 있는 묶음만 본다. 한 묶음이 실패해도 다른 묶음의 행은 그대로다.
+  const batchOf = new Map(chunks.flatMap((chunk, i) => chunk.map((code) => [code, i] as const)))
+  const batchFor = (ticker: string) => {
+    const i = batchOf.get(ticker)
+    return i === undefined ? undefined : batches[i]
+  }
   const items = visibleTickers.map((t) => {
     const d = rows.get(t.ticker)?.candles
     const last = d?.at(-1)
@@ -438,8 +444,8 @@ export default function HomeView({
                   key={`${t.market}-${t.ticker}`}
                   t={t}
                   data={rows.get(t.ticker)}
-                  pending={batches.some((batch) => batch.isPending)}
-                  failed={batches.some((batch) => batch.isError)}
+                  pending={batchFor(t.ticker)?.isPending ?? false}
+                  failed={batchFor(t.ticker)?.isError ?? false}
                   period={sparkPeriod}
                   holding={holdings.find((h) => h.ticker === t.ticker && h.market === t.market)}
                   onClick={() => onSelect(t)}

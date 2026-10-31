@@ -6,6 +6,7 @@ import './workspace.css'
 import './dashboard.css'
 import './calendar.css'
 import App from './App.tsx'
+import ErrorBoundary from './components/ErrorBoundary'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,10 +23,26 @@ for (const [key, minutes] of Object.entries(cacheMinutes)) {
   queryClient.setQueryDefaults([key], { staleTime: minutes * 60_000, gcTime: Math.max(minutes * 60_000, 30 * 60_000) })
 }
 
+// 배포 뒤에는 예전 해시의 지연로딩 조각이 사라져 import가 실패한다. 새 index.html을 받도록 한 번 새로고침하고,
+// 방금 새로고침했는데 또 실패하면(오프라인 등) 반복하지 않고 오류 안내 화면에 맡긴다.
+const CHUNK_RELOAD_KEY = 'chunk-reload-at'
+window.addEventListener('vite:preloadError', () => {
+  try {
+    const elapsed = Date.now() - Number(sessionStorage.getItem(CHUNK_RELOAD_KEY))
+    if (elapsed >= 0 && elapsed < 60_000) return
+    sessionStorage.setItem(CHUNK_RELOAD_KEY, String(Date.now()))
+  } catch {
+    return // 기록을 남길 수 없으면 반복을 막을 수 없으니 자동 새로고침하지 않는다.
+  }
+  location.reload()
+})
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <App />
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
     </QueryClientProvider>
   </StrictMode>,
 )

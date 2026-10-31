@@ -18,6 +18,8 @@ import { useNavigation, TAB_LABELS } from './lib/navigation'
 import SearchSheet from './components/SearchSheet'
 import HoldingsSheet from './components/HoldingsSheet'
 import ComparisonSheet from './components/ComparisonSheet'
+import ErrorBoundary, { ReloadNotice } from './components/ErrorBoundary'
+import { Sheet } from './components/Sheet'
 import { loadCustom } from './lib/customTickers'
 import { loadHoldings, type Holding } from './lib/holdings'
 import { loadTrades, type Trade } from './lib/trades'
@@ -25,7 +27,7 @@ import TradeJournalSheet from './components/TradeJournalSheet'
 import { mutateList, mutateStorage, readStoredList } from './lib/storage'
 import { isHolding, isTicker, isTrade, parseBackup, type Backup } from './lib/validation'
 import { refreshActiveQueries } from './lib/queryRefresh'
-import { shouldRefreshMarketQuery } from './lib/marketPolling'
+import { marketsPolledSince, refreshMarketQuery } from './lib/marketPolling'
 import { HOME_PREFERENCES_KEY, loadHomePreferences, saveHomePreferences } from './lib/homePreferences'
 const tkey = (x: { market: string; ticker: string }) => `${x.market}-${x.ticker}`
 const loadOrder = () => {
@@ -103,12 +105,25 @@ export default function App() {
   }, [theme])
 
   // 장중에는 현재 구독 중인 시세만 갱신한다. 일정·뉴스·AI·기업 정보는 각 캐시를 유지한다.
+  // 탭이 숨겨졌거나 기기가 잠들어 확인이 비었으면, 그 사이 장이 열리고 닫혔는지까지 본다.
+  // 그래야 장전·장중에 받아 둔 값이 '종가' 표시와 함께 남지 않는다.
   useEffect(() => {
-    const id = setInterval(() => {
+    let lastCheck = Date.now()
+    const check = (fromTimer: boolean) => {
       if (document.visibilityState !== 'visible') return
-      void qc.invalidateQueries({ predicate: (query) => query.isActive() && shouldRefreshMarketQuery(query.queryKey) })
-    }, 60_000)
-    return () => clearInterval(id)
+      const now = Date.now()
+      if (!fromTimer && now - lastCheck < 60_000) return
+      const polled = marketsPolledSince(now - lastCheck > 90_000 ? lastCheck : now, new Date(now))
+      lastCheck = now
+      void qc.invalidateQueries({ predicate: (query) => query.isActive() && refreshMarketQuery(query.queryKey, polled) })
+    }
+    const onVisible = () => check(false)
+    const id = setInterval(() => check(true), 60_000)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [qc])
 
   const [order, setOrder] = useState<string[]>(loadOrder)
@@ -324,60 +339,71 @@ export default function App() {
             </span>
           </div>
         )}
+        {/* 지연로딩 차트가 있는 영역마다 오류 경계를 둬서, 한 패널이 깨져도 머리말·탭은 남게 한다. */}
         {tab === 'home' ? (
           <div className="fade-in">
-            <HomeView
-              tickers={all}
-              holdings={holdings}
-              trades={trades}
-              light={theme === 'light'}
-              updatedAt={updatedAt}
-              preferences={watchlistPreferences}
-              onPreferencesChange={changeHomePreferences}
-              preferencesError={homePreferencesError}
-              onSelect={(tk) => {
-                navigate('signal', tk)
-              }}
-              onAddClick={() => setSearchOpen(true)}
-              onAddTicker={addTicker}
-              onMove={moveTicker}
-              onManageHoldings={() => setHoldingsOpen(true)}
-              onOpenJournal={() => setJournalOpen(true)}
-              onCompare={() => setComparisonOpen(true)}
-              onOpenCalendar={() => navigate('calendar')}
-            />
+            <ErrorBoundary>
+              <HomeView
+                tickers={all}
+                holdings={holdings}
+                trades={trades}
+                light={theme === 'light'}
+                updatedAt={updatedAt}
+                preferences={watchlistPreferences}
+                onPreferencesChange={changeHomePreferences}
+                preferencesError={homePreferencesError}
+                onSelect={(tk) => {
+                  navigate('signal', tk)
+                }}
+                onAddClick={() => setSearchOpen(true)}
+                onAddTicker={addTicker}
+                onMove={moveTicker}
+                onManageHoldings={() => setHoldingsOpen(true)}
+                onOpenJournal={() => setJournalOpen(true)}
+                onCompare={() => setComparisonOpen(true)}
+                onOpenCalendar={() => navigate('calendar')}
+              />
+            </ErrorBoundary>
           </div>
-        ) : tab === 'calendar' ? <CalendarView tickers={all} holdings={holdings} onOpenTicker={(tk, view) => navigate(view, tk)} /> : (
+        ) : tab === 'calendar' ? (
+          <ErrorBoundary>
+            <CalendarView tickers={all} holdings={holdings} onOpenTicker={(tk, view) => navigate(view, tk)} />
+          </ErrorBoundary>
+        ) : (
           <>
             <TickerSwitcher tickers={all} selected={t} onSelect={setT} />
             <div className="research-layout">
               <aside className="research-summary" aria-label={`${t.name} 요약`}>
-                <StockHeader key={`${t.market}-${t.ticker}`} t={t} period={period} light={theme === 'light'} />
-                {(() => {
-                  const h = holdings.find((x) => x.ticker === t.ticker && x.market === t.market)
-                  return h ? <AverageBuyCard holding={h} /> : null
-                })()}
-                <Week52Bar t={t} />
+                <ErrorBoundary key={`${t.market}-${t.ticker}`}>
+                  <StockHeader t={t} period={period} light={theme === 'light'} />
+                  {(() => {
+                    const h = holdings.find((x) => x.ticker === t.ticker && x.market === t.market)
+                    return h ? <AverageBuyCard holding={h} /> : null
+                  })()}
+                  <Week52Bar t={t} />
+                </ErrorBoundary>
               </aside>
               <section
                 key={`${tab}-${t.market}-${t.ticker}`}
                 className="research-body fade-in"
                 aria-label={TAB_LABELS[tab]}
               >
-                {tab === 'signal' && <SignalView t={t} />}
-                {tab === 'tech' && (
-                  <TechnicalView
-                    t={t}
-                    period={period}
-                    setPeriod={setPeriod}
-                    light={theme === 'light'}
-                    holding={holdings.find((h) => h.ticker === t.ticker && h.market === t.market)}
-                  />
-                )}
-                {tab === 'fund' && (
-                  <FundamentalView t={t} tickers={all} onAddTicker={addTicker} onOpen={setT} onNavigate={setTab} />
-                )}
-                {tab === 'news' && <NewsView t={t} tickers={all} />}
+                <ErrorBoundary>
+                  {tab === 'signal' && <SignalView t={t} />}
+                  {tab === 'tech' && (
+                    <TechnicalView
+                      t={t}
+                      period={period}
+                      setPeriod={setPeriod}
+                      light={theme === 'light'}
+                      holding={holdings.find((h) => h.ticker === t.ticker && h.market === t.market)}
+                    />
+                  )}
+                  {tab === 'fund' && (
+                    <FundamentalView t={t} tickers={all} onAddTicker={addTicker} onOpen={setT} onNavigate={setTab} />
+                  )}
+                  {tab === 'news' && <NewsView t={t} tickers={all} />}
+                </ErrorBoundary>
               </section>
             </div>
           </>
@@ -420,7 +446,16 @@ export default function App() {
       )}
 
       {comparisonOpen && (
-        <ComparisonSheet tickers={all} light={theme === 'light'} onClose={() => setComparisonOpen(false)} />
+        // 시트가 통째로 내려가도 안내가 페이지 맨 아래에 묻히지 않게 같은 시트 틀에 띄운다.
+        <ErrorBoundary
+          fallback={
+            <Sheet title="종목 비교" onClose={() => setComparisonOpen(false)}>
+              <ReloadNotice />
+            </Sheet>
+          }
+        >
+          <ComparisonSheet tickers={all} light={theme === 'light'} onClose={() => setComparisonOpen(false)} />
+        </ErrorBoundary>
       )}
 
       {journalOpen && (

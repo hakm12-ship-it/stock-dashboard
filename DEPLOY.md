@@ -16,6 +16,12 @@
   기본 하루 20회다. `ADMIN_KEY`·알림 인증 키·봇 토큰은 Coolify의 비밀 환경변수로 관리한다.
   비밀 값의 Build time은 `Not available during build`, Runtime은
   `Available in the container`로 설정해 이미지 빌드 인자로 전달하지 않는다.
+- `CALENDAR_CONTACT_EMAIL`에 운영 연락처 이메일을 넣는다. 미국 노동통계국(BLS)은 연락처가
+  없는 자동 요청을 HTTP 403으로 거부하므로, 비워 두면 CPI·고용 일정의 BLS 원본을 조회하지 않고
+  출처 상태에 설정 안내를 표시한다. 이 주소는 BLS에 User-Agent로 전달되므로 개인 주소 대신
+  전용 운영 주소를 쓴다. 값이 비밀은 아니지만 코드·문서에는 적지 않고 Coolify 환경변수로만 둔다.
+- 홈서버는 잠들지 않으므로 `PREWARM_SYMBOLS=true`로 시작 시 한국·미국 종목 검색 목록을 미리
+  수집한다. 하루가 지난 목록은 즉시 응답하고 백그라운드에서 갱신한다.
 - 전용 `notification-data` 볼륨이 `/var/data`에 마운트된다. SQLite 경로는
   `/var/data/notifications.sqlite3`다. 볼륨 이름은 배포 프로젝트별로 분리한다.
 - 자동 알림과 내부 스케줄러는 기본 비활성이다. 기존 발송 작업과 중복되지 않도록

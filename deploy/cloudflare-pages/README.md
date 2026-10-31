@@ -39,9 +39,12 @@ CLI의 사용자 인증이 필요하다.
 npx --yes wrangler@4.151.0 pages deploy public --project-name stock-insight-web --branch main
 ```
 
-프록시에는 Gemini·관리자·알림 키를 넣지 않는다. 업스트림 연결 실패는 검색 제외된
-503 응답으로 처리한다. 미리보기 호스트는 `noindex, nofollow`와 전체 검색 제외
-robots.txt를 반환한다.
+프록시에는 Gemini·관리자·알림 키를 넣지 않는다. 업스트림 연결 실패와 Cloudflare·터널의
+원본 오류 응답(502·504·520–527·530, 예: 530/1016 Origin DNS error)은 업스트림 호스트
+이름 없이 검색 제외·캐시 금지·`Retry-After: 30`인 503 응답으로 바꾼다. `/api/`는 JSON,
+페이지 이동은 "잠시 점검 중" HTML, 그 밖의 요청은 짧은 텍스트를 받는다. 앱이 직접
+반환하는 500·503(예: 알림 키 미설정)은 그대로 전달한다. 미리보기 호스트는
+`noindex, nofollow`와 전체 검색 제외 robots.txt를 반환한다.
 프로젝트의 무료 한도 초과 동작은 `Fail closed`로 설정한다.
 
 ## 실제 공개 주소에서 확인할 항목

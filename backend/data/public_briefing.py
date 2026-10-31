@@ -12,6 +12,7 @@ import threading
 import time
 
 from data.market_digest import _FEEDS, _deduplicate, _fetch_feed, _select
+from data.news import is_junk_title
 
 KST = timezone(timedelta(hours=9))
 SLOTS = {"morning": (7, "아침"), "noon": (12, "점심"), "evening": (18, "저녁")}
@@ -93,6 +94,19 @@ def _build(day: date, slot: str, now: datetime) -> dict:
     return result
 
 
+def _without_junk(result: dict) -> dict:
+    """Snapshots cached before a title-filter change keep their other items only."""
+    items = [item for item in result["items"] if not is_junk_title(item["title"])]
+    if len(items) == len(result["items"]):
+        return result
+    backfill = sum(item["previousWindow"] for item in items)
+    result.update(items=items, backfillCount=backfill, backfillStart=result["backfillStart"] if backfill else None)
+    if not items:
+        result.update(status="unavailable", available=False, retryAfter=FAILURE_COOLDOWN,
+                      message="최근 24시간 내 발행시각이 확인된 기사를 확보하지 못했어요.")
+    return result
+
+
 def get_public_briefing(slot: str, day: date | None = None, *, now: datetime | None = None) -> dict:
     """At most one successful RSS collection per current date/slot, no paid IO."""
     if slot not in SLOTS:
@@ -115,8 +129,8 @@ def get_public_briefing(slot: str, day: date | None = None, *, now: datetime | N
             _cache.pop(old, None)
         cached = _cache.get(key)
         if cached and (cached[1]["available"] or cached[0] > clock):
-            result = deepcopy(cached[1])
-            if not result["available"]:
+            result = _without_junk(deepcopy(cached[1]))
+            if not cached[1]["available"]:
                 result["retryAfter"] = max(1, int(cached[0] - clock))
             return result
     if day != current.date() or slot != _current_slot(current):
@@ -129,7 +143,7 @@ def get_public_briefing(slot: str, day: date | None = None, *, now: datetime | N
         with _guard:
             cached = _cache.get(key)
             if cached and (cached[1]["available"] or cached[0] > time.monotonic()):
-                return deepcopy(cached[1])
+                return _without_junk(deepcopy(cached[1]))
         try:
             result = _build(day, slot, current)
         except Exception:
