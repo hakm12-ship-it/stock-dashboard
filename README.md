@@ -39,7 +39,8 @@ FinanceDataReader · yfinance · 네이버(지수·재무·목표주가) · Goog
 │  ├─ analysis/        # technical · fundamental · signal · forecast
 │  └─ data/            # symbols · news · naver_index · naver_stock
 ├─ Dockerfile          # 단일 이미지(프론트 빌드 + 백엔드)
-├─ render.yaml         # Render 배포 청사진
+├─ compose.home.yaml   # 홈서버(Coolify) 배포 구성
+├─ deploy/             # Cloudflare Pages 프록시·장애 감시 Worker·홈서버 알림 타이머
 ├─ stock-dashboard/    # (구) Streamlit 버전 — 병행 유지
 └─ react-migration-plan.md · design-system.md
 ```
@@ -99,9 +100,9 @@ cd backend
 
 정상적으로도 흔들리는 항목: `signal-history`(백테스트 창), `ai-briefing`·`related-insight`·`portfolio-review`(Gemini 할당량), `market-top`(개장 전 빈 배열).
 
-## 배포 (Render, 무료)
+## 배포 (홈서버)
 
-`render.yaml` 청사진으로 Docker 단일 서비스 배포. 자세한 절차는 [DEPLOY.md](DEPLOY.md).
+홈서버 Coolify에서 Docker Compose(`compose.home.yaml`)로 운영하고, 무료 Cloudflare Pages 프록시(`deploy/cloudflare-pages`)를 공개 주소로 쓴다. 공개 주소 장애는 Cloudflare Worker(`deploy/uptime-monitor`)가 텔레그램으로 알린다. 자세한 절차는 [DEPLOY.md](DEPLOY.md). 예전 Render 배포는 2026-11-01에 종료했다.
 
 ### 공개 AI 호출 한도
 
@@ -125,7 +126,7 @@ cd backend
 
 홈 경제 브리핑은 한국시간 07:00·12:00·18:00 구간별 RSS 제목과 원문 링크를 보여줍니다. 현재 시간대 첫 조회에서만 수집하며 AI·텔레그램·상시 스케줄러를 호출하지 않습니다. 최근 7일의 수집된 구간을 메모리에 보관하므로 서버 재시작 후에는 과거 기록이 없을 수 있습니다. 수집하지 않은 과거 시간대를 현재 기사로 채우지 않습니다.
 
-장 상태와 정규장 시세 자동 조회는 `frontend/src/lib/marketSchedule.ts`의 거래소 일정을 사용합니다. 현재 검증 범위는 한국 2026년, 미국 2026~2028년입니다. 한국거래소의 다음 연도 일정과 임시 휴장·특별 거래시간 공지를 확인한 뒤 이 파일과 회귀 테스트를 갱신해야 합니다. 아직 등록되지 않은 연도 및 거래시간 미확인 특별일에는 ‘확인 필요’를 표시하고 정규장 시세 자동 조회를 중단합니다. 수동 조회는 가능합니다. 일정 기반 표시이며 실시간 거래정지 확인 기능은 아닙니다. 24시간 거래되는 코인·Hyperliquid 참고 가격은 별도로 갱신합니다.
+장 상태와 정규장 시세 자동 조회는 `frontend/src/lib/marketSchedule.ts`의 거래소 일정을 사용합니다. 현재 검증 범위는 한국 2026~2027년, 미국 2026~2028년입니다. 한국거래소의 다음 연도 일정과 임시 휴장·특별 거래시간 공지를 확인한 뒤 이 파일과 회귀 테스트를 갱신해야 합니다. 아직 등록되지 않은 연도 및 거래시간 미확인 특별일에는 ‘확인 필요’를 표시하고 정규장 시세 자동 조회를 중단합니다. 수동 조회는 가능합니다. 일정 기반 표시이며 실시간 거래정지 확인 기능은 아닙니다. 24시간 거래되는 코인·Hyperliquid 참고 가격은 별도로 갱신합니다.
 
 차트의 봉 간격과 이동평균·볼린저·지지저항 표시 설정은 브라우저에 저장됩니다. 개인 데이터 백업은 기존 v2 형식을 유지하며 마지막 **다운로드 요청 시각**과 이후 변경 여부를 표시합니다. 브라우저가 실제 파일 저장 완료를 통지하지 않으므로 다운로드 폴더에서 파일을 확인해야 합니다.
 
