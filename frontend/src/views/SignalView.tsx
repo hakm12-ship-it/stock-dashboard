@@ -167,6 +167,7 @@ export default function SignalView({ t }: { t: FocusTicker }) {
   const val = useQuery({
     queryKey: ['val', t.market, t.ticker],
     queryFn: () => getValuation(t.market, t.ticker),
+    enabled: t.kind === 'stock', // 아래 밸류에이션 패널이 주식에만 보인다
   })
   const hist = useQuery({
     queryKey: ['sighist', t.ticker, key],

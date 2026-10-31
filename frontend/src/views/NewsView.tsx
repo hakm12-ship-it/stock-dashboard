@@ -35,9 +35,14 @@ interface Entry {
 
 export default function NewsView({ t, tickers }: { t: FocusTicker; tickers: FocusTicker[] }) {
   // 종목을 바꿔도 보던 범위를 유지한다.
-  const [mode, setModeState] = useState<'one' | 'all'>(() =>
-    sessionStorage.getItem('newsMode') === 'all' ? 'all' : 'one',
-  )
+  // 사이트 데이터를 막은 브라우저는 sessionStorage에 접근만 해도 예외를 던진다.
+  const [mode, setModeState] = useState<'one' | 'all'>(() => {
+    try {
+      return sessionStorage.getItem('newsMode') === 'all' ? 'all' : 'one'
+    } catch {
+      return 'one'
+    }
+  })
   const setMode = (m: 'one' | 'all') => {
     setModeState(m)
     try {

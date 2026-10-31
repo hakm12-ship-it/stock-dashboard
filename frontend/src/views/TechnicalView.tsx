@@ -71,6 +71,8 @@ export default function TechnicalView({
         : undefined,
     [weekly, showSR, sig.data],
   )
+  // 주봉 배열을 렌더마다 새로 만들면 차트가 통째로 다시 그려진다(당겨서 새로고침 중 매 터치마다, 확대 위치도 초기화).
+  const weeklyCandles = useMemo(() => (weekly && prices.data ? toWeekly(prices.data) : undefined), [weekly, prices.data])
 
   const chooseTf = (next: 'D' | 'W') => {
     changePreferences({ timeframe: next })
@@ -130,7 +132,7 @@ export default function TechnicalView({
       ) : prices.data && (weekly || ind.data) && prices.data.length ? (
         <Suspense fallback={<ChartFallback height={weekly ? 320 : 560} />}>
           <TechnicalCharts
-            candles={weekly ? toWeekly(prices.data) : prices.data}
+            candles={weeklyCandles ?? prices.data}
             ind={weekly ? undefined : ind.data}
             showMA={!weekly && showMA}
             showBB={!weekly && showBB}

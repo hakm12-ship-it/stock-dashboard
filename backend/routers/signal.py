@@ -1,6 +1,8 @@
 """규칙기반 종합신호 — 신호 판정, 백테스트, 예상 변동범위."""
 
-from fastapi import APIRouter
+from typing import Annotated
+
+from fastapi import APIRouter, Query
 
 from analysis.forecast import expected_range
 from analysis.signal import price_levels, signal_history, technical_signals
@@ -50,7 +52,8 @@ def api_signal(ticker: str, period: str = "6m", rsi_low: int = 30, rsi_high: int
 
 
 @router.get("/api/signal-history")
-def api_signal_history(ticker: str, horizon: int = 5, rsi_low: int = 30, rsi_high: int = 70,
+def api_signal_history(ticker: str, horizon: Annotated[int, Query(ge=1, le=60)] = 5,
+                       rsi_low: int = 30, rsi_high: int = 70,
                        w_rsi: int = 1, w_macd: int = 1, w_ma20: int = 1, w_cross: int = 1,
                        w_boll: int = 1):
     return signal_history(
@@ -59,7 +62,8 @@ def api_signal_history(ticker: str, horizon: int = 5, rsi_low: int = 30, rsi_hig
 
 
 @router.get("/api/forecast")
-def api_forecast(ticker: str, period: str = "3m", horizon: int = 7):
+def api_forecast(ticker: str, period: str = "3m",
+                 horizon: Annotated[int, Query(ge=1, le=30)] = 7):
     df = load(ticker, period)
     freshness = signal_freshness(df, ticker)
     if freshness["stale"] or len(df) < 20:

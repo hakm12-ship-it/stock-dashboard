@@ -1,14 +1,18 @@
 """Returning visitors keep hashed bundles, but always see a deploy's new HTML and service worker."""
 
+import gzip
 from pathlib import Path
 import tempfile
 import unittest
 
 from fastapi import FastAPI
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.testclient import TestClient
 
 FRONTEND = Path(__file__).resolve().parents[2] / "frontend"
 IMMUTABLE = "public, max-age=31536000, immutable"
+# Larger than one 64 KiB FileResponse chunk, so the streamed (chunked) path is covered.
+BUNDLE = "".join(f"export const line{i} = '차트 테마 {i}';\n" for i in range(3000))
 
 
 class StaticCacheTests(unittest.TestCase):
@@ -24,6 +28,7 @@ class StaticCacheTests(unittest.TestCase):
             "index.html": '<!doctype html><title>스톡 인사이트 · 한국·미국 주식 리서치</title><script src="/assets/index-BGfpU6LB.js"></script>',
             "assets/index-BGfpU6LB.js": "console.log('app')",
             "assets/index-D9QkTvT1.css": "body{}",
+            "assets/chartTheme-UVemc1bJ.js": BUNDLE,
             "sw.js": "self.addEventListener('fetch', () => {})",
             "manifest.webmanifest": '{"name": "스톡 인사이트"}',
             "icon-192.png": "png",
@@ -41,7 +46,12 @@ class StaticCacheTests(unittest.TestCase):
             return {"ok": True}
 
         main.mount_frontend(app, dist)
+        # Production's compression settings, so every cache check below also runs compressed.
+        for middleware in main.app.user_middleware:
+            if middleware.cls is GZipMiddleware:
+                app.add_middleware(middleware.cls, *middleware.args, **middleware.kwargs)
         self.client = TestClient(app)
+        self.bundle = (dist / "assets" / "chartTheme-UVemc1bJ.js").read_bytes()
 
     def test_hashed_assets_are_cached_for_a_year(self):
         for path in ("/assets/index-BGfpU6LB.js", "/assets/index-D9QkTvT1.css"):
@@ -88,6 +98,51 @@ class StaticCacheTests(unittest.TestCase):
         health = TestClient(main.app).get("/api/health")
         self.assertEqual(health.headers["X-Robots-Tag"], "noindex, nofollow")
         self.assertNotIn("Cache-Control", health.headers)
+
+    def _wire(self, client, path, encoding, **headers):
+        """Status, headers and the bytes as sent over the tunnel (before client-side decoding)."""
+        with client.stream("GET", path, headers={"Accept-Encoding": encoding, **headers}) as response:
+            return response.status_code, response.headers, b"".join(response.iter_raw())
+
+    def test_bundles_cross_the_tunnel_compressed_with_the_same_cache_policy(self):
+        status, headers, wire = self._wire(self.client, "/assets/chartTheme-UVemc1bJ.js", "gzip, deflate, br")
+        self.assertEqual(status, 200)
+        self.assertEqual(headers.get("Content-Encoding"), "gzip")
+        self.assertEqual(headers["Cache-Control"], IMMUTABLE)
+        self.assertIn("Accept-Encoding", headers["Vary"])
+        self.assertEqual(gzip.decompress(wire), self.bundle)
+        self.assertLess(len(wire), len(self.bundle) // 3)
+
+        # Revalidation still answers 304 with the same policy and no body.
+        status, headers, wire = self._wire(self.client, "/assets/chartTheme-UVemc1bJ.js", "gzip",
+                                           **{"If-None-Match": headers["ETag"]})
+        self.assertEqual((status, wire), (304, b""))
+        self.assertEqual(headers["Cache-Control"], IMMUTABLE)
+        self.assertNotIn("Content-Encoding", headers)
+
+        # Clients that do not ask for gzip (urllib health checks, curl) get the plain file.
+        status, headers, wire = self._wire(self.client, "/assets/chartTheme-UVemc1bJ.js", "identity")
+        self.assertEqual(status, 200)
+        self.assertNotIn("Content-Encoding", headers)
+        self.assertEqual(headers["Content-Length"], str(len(self.bundle)))
+        self.assertEqual(wire, self.bundle)
+
+    def test_production_app_compresses_large_responses_but_not_the_health_check(self):
+        import main
+
+        client = TestClient(main.app)
+        status, headers, wire = self._wire(client, "/openapi.json", "gzip, deflate, br")
+        self.assertEqual(status, 200)
+        self.assertEqual(headers.get("Content-Encoding"), "gzip")
+        self.assertEqual(headers["X-Robots-Tag"], "noindex, nofollow")
+        self.assertEqual(gzip.decompress(wire), client.get("/openapi.json", headers={"Accept-Encoding": "identity"}).content)
+
+        # The uptime check's tiny body stays as-is. If compression wrapped the streaming
+        # http middleware instead of sitting inside it, this 15-byte body would be gzipped.
+        status, headers, wire = self._wire(client, "/api/health", "gzip, deflate, br")
+        self.assertEqual(status, 200)
+        self.assertNotIn("Content-Encoding", headers)
+        self.assertEqual(wire, client.get("/api/health", headers={"Accept-Encoding": "identity"}).content)
 
     def test_unhashed_public_files_never_land_in_assets(self):
         # Vite copies public/ as-is; a public/assets/ file would be pinned for a year unhashed.

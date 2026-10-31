@@ -17,6 +17,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.types import Scope
@@ -61,6 +62,9 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="스톡 인사이트 API", lifespan=lifespan)
+# 터널(Funnel) 구간은 대역폭이 좁아 JS·CSS·큰 JSON을 압축해 보낸다. 먼저 추가해 가장
+# 안쪽에 두어야 아래 http 미들웨어가 응답을 스트리밍으로 바꾸기 전에 minimum_size를 지킨다.
+app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=6)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[origin.strip() for origin in os.environ.get(

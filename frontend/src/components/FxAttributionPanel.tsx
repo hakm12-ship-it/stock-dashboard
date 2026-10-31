@@ -18,6 +18,7 @@ export default function FxAttributionPanel({
   const { data } = useQuery({
     queryKey: ['fx-attribution', ticker, market, period],
     queryFn: () => getFxAttribution(ticker, market, period),
+    enabled: market === 'US', // 백엔드는 국내 종목에 늘 available:false를 돌려준다
   })
   if (!data?.available) return null
 

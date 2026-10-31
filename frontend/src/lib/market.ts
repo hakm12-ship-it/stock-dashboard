@@ -1,18 +1,27 @@
 import type { Market } from '../data/tickers.ts'
 import { KR_HOLIDAYS, KR_HOURS_PENDING, MARKET_CALENDAR_COVERAGE, US_EARLY_CLOSES, US_HOLIDAYS } from './marketSchedule.ts'
 
+// 포맷터 생성이 formatToParts보다 훨씬 비싸서 시간대별로 하나만 만들어 재사용한다
+// (탭 복귀 시 marketsPolledSince가 며칠치를 15분 표본으로 훑는다).
+const formatters = new Map<string, Intl.DateTimeFormat>()
+
 // 타임존 기준 현재 요일/분 (Intl 사용, 브라우저 로컬과 무관)
 function tzParts(tz: string, now: Date): { wd: string; mins: number; date: string; year: number } {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz,
-    weekday: 'short',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).formatToParts(now)
+  let fmt = formatters.get(tz)
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      weekday: 'short',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
+    formatters.set(tz, fmt)
+  }
+  const parts = fmt.formatToParts(now)
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? ''
   let hour = parseInt(get('hour'), 10)
   if (hour === 24) hour = 0

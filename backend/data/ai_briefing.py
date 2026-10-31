@@ -22,10 +22,11 @@ def _ask(prompt: str, as_json: bool = False) -> str:
     if as_json:
         payload["generationConfig"] = {"responseMimeType": "application/json"}
 
+    # 키는 URL 쿼리가 아니라 헤더로 보낸다 — urllib 오류 객체(.url)에 URL이 그대로 남는다.
     req = urllib.request.Request(
-        f"{_URL}?key={key}",
+        _URL,
         data=json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "x-goog-api-key": key},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=20) as resp:
