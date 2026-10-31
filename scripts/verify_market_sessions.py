@@ -90,8 +90,8 @@ async def check():
         print('PASS early close: US refresh before 13:00 ET, no regular-market refresh after close, label updates')
         await context.close()
 
-        context, page, requests, errors, blocked = await scenario(browser, '2027-01-04T02:00:00Z', '2027-01-04')
-        await expect(page.locator('.session-item').first).to_have_text('한국 거래일 확인 필요 · 01.04 기준')
+        context, page, requests, errors, blocked = await scenario(browser, '2028-01-03T02:00:00Z', '2028-01-03')
+        await expect(page.locator('.session-item').first).to_have_text('한국 거래일 확인 필요 · 01.03 기준')
         requests.clear()
         await page.clock.run_for(61_000)
         assert not [path for path, _ in requests if path in ['/api/watchlist', '/api/index', '/api/prices']], requests
@@ -100,8 +100,8 @@ async def check():
         await page.reload()
         await page.wait_for_load_state('networkidle')
         await page.clock.run_for(1)
-        await expect(page.locator('.stock-header')).to_contain_text('거래일 확인 필요 · 01.04 기준')
-        await expect(page.locator('.stock-header')).not_to_contain_text('01.04 종가')
+        await expect(page.locator('.stock-header')).to_contain_text('거래일 확인 필요 · 01.03 기준')
+        await expect(page.locator('.stock-header')).not_to_contain_text('01.03 종가')
         assert not errors, errors
         print('PASS unknown KR year: home and stock header say 기준, regular-market and KR synthetic polling stop')
         await context.close()

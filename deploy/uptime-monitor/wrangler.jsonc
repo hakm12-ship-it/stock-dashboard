@@ -1,0 +1,22 @@
+// 공개 주소가 응답하지 않으면 텔레그램으로 알리는 Worker. 설정 방법은 README.md 참고.
+{
+  "name": "stock-insight-uptime",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-15",
+  // 같은 계정의 Pages도 외부 방문자와 같은 공개 경로로 확인한다.
+  "compatibility_flags": ["global_fetch_strictly_public"],
+  // fetch 핸들러가 없다. 공개 주소를 만들지 않아 요청 한도를 남이 쓰지 못하게 한다.
+  "workers_dev": false,
+  "preview_urls": false,
+  "triggers": { "crons": ["*/5 * * * *"] },
+  "vars": {
+    "HEALTH_URL": "https://stock-insight-web.pages.dev/api/health"
+  },
+  // 배포 전에 한 번 만들고, 출력된 id만 아래 자리에 넣는다(id는 비밀 값이 아니다):
+  //   npx --yes wrangler@4.151.0 kv namespace create stock-insight-uptime-state --update-config=false
+  "kv_namespaces": [
+    { "binding": "STATE", "id": "39e0d0a39fe941138e4c295ba1ed20cd" }
+  ],
+  // TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID는 secret으로만 등록한다. 이 파일에 넣지 않는다.
+  "observability": { "enabled": true }
+}

@@ -19,6 +19,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.types import Scope
 
 # 라우터가 임포트되기 전에 .env를 읽어야 API 키가 잡힌다.
 load_dotenv(Path(__file__).resolve().parent / ".env")
@@ -92,33 +93,53 @@ for _router in (prices, fundamental, signal, market, night, ai, alerts, telegram
 # ---- 프로덕션: 빌드된 프론트엔드 정적 서빙 (단일 서비스 배포용) ----
 # 반드시 모든 /api 라우트 뒤에 마운트해야 API가 우선한다.
 _DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
-if _DIST.is_dir():
+
+# 재방문 때 같은 파일을 프록시·터널 너머로 다시 받지 않게 한다. Vite가 내용 해시를 붙여
+# assets/에 내보내는 파일은 이름이 곧 버전이라 1년간 고정하고, 이름이 그대로인 HTML·sw.js·
+# 매니페스트·아이콘·robots/sitemap은 배포 직후 바로 바뀌도록 매번 서버에 확인(no-cache)한다.
+# public/ 파일은 해시 없이 루트로 복사되므로 public/assets/는 만들지 않는다.
+_IMMUTABLE = "public, max-age=31536000, immutable"
+_REVALIDATE = "no-cache"
+_NO_CACHE = {"Cache-Control": _REVALIDATE}
+
+
+class FrontendFiles(StaticFiles):
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        response = await super().get_response(path, scope)
+        # 없는 파일(404)·리다이렉트에는 붙이지 않는다. 옛 해시 파일 404가 고정되면 안 된다.
+        if response.status_code in (200, 304):
+            hashed = Path(path).parts[:1] == ("assets",)
+            response.headers["Cache-Control"] = _IMMUTABLE if hashed else _REVALIDATE
+        return response
+
+
+def mount_frontend(target: FastAPI, dist: Path) -> None:
     def public_file(name: str) -> str:
-        return (_DIST / name).read_text(encoding="utf-8").replace(
+        return (dist / name).read_text(encoding="utf-8").replace(
             DEFAULT_PUBLIC_SITE_URL, public_site_url()
         )
 
-    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    @target.get("/", response_class=HTMLResponse, include_in_schema=False)
     def home_page():
-        return HTMLResponse(public_file("index.html"))
+        return HTMLResponse(public_file("index.html"), headers=_NO_CACHE)
 
-    @app.get("/index.html", include_in_schema=False)
+    @target.get("/index.html", include_in_schema=False)
     def home_canonical_redirect():
         return RedirectResponse("/", status_code=308)
 
-    @app.get("/robots.txt", include_in_schema=False)
+    @target.get("/robots.txt", include_in_schema=False)
     def robots_file():
-        return Response(public_file("robots.txt"), media_type="text/plain")
+        return Response(public_file("robots.txt"), media_type="text/plain", headers=_NO_CACHE)
 
-    @app.get("/sitemap.xml", include_in_schema=False)
+    @target.get("/sitemap.xml", include_in_schema=False)
     def sitemap_file():
-        return Response(public_file("sitemap.xml"), media_type="application/xml")
+        return Response(public_file("sitemap.xml"), media_type="application/xml", headers=_NO_CACHE)
 
-    @app.get("/calendar/", include_in_schema=False)
+    @target.get("/calendar/", include_in_schema=False)
     def calendar_canonical_redirect():
         return RedirectResponse("/calendar", status_code=308)
 
-    @app.get("/calendar", response_class=HTMLResponse, include_in_schema=False)
+    @target.get("/calendar", response_class=HTMLResponse, include_in_schema=False)
     def calendar_page():
         html = public_file("index.html")
         html = html.replace("스톡 인사이트 · 한국·미국 주식 리서치", "경제 캘린더 · 금리·경제지표·빅테크 실적 | 스톡 인사이트")
@@ -127,6 +148,10 @@ if _DIST.is_dir():
         html = html.replace(f'content="{root}"', f'content="{root}calendar"')
         html = html.replace("한국·미국 관심종목의 시세, 차트, 기업 가치와 뉴스를 한곳에서 살펴보세요. 보유종목 손익과 매매 기록을 관리하는 개인 리서치 도구, 스톡 인사이트.", "미국 FOMC·한국은행 금리 결정, CPI·고용·GDP·PCE와 주요 빅테크 실적 발표 일정을 출처와 함께 확인하세요. 확정·예상 일정과 한국시간을 구분합니다.")
         html = html.replace("관심종목 시세부터 차트·기업 가치·뉴스·매매 기록까지, 나만의 투자 리서치 공간.", "금리 결정·주요 경제지표·빅테크 실적 발표를 확인하는 경제 캘린더.")
-        return HTMLResponse(html)
+        return HTMLResponse(html, headers=_NO_CACHE)
 
-    app.mount("/", StaticFiles(directory=str(_DIST), html=True), name="frontend")
+    target.mount("/", FrontendFiles(directory=str(dist), html=True), name="frontend")
+
+
+if _DIST.is_dir():
+    mount_frontend(app, _DIST)

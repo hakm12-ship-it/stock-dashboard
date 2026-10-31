@@ -3,9 +3,10 @@
 Official calendars supply macro releases. Yahoo's next earnings date is a
 provider estimate (date only), never a confirmed time. Successful schedules are
 shared for six hours across views and alerts. Failed sources back off for at
-least 15 minutes; stale schedules are not used for alerts. BLS only answers
-requests whose User-Agent carries the operator contact in CALENDAR_CONTACT_EMAIL;
-no other provider is sent that contact.
+least 15 minutes, except connection failures in the first two minutes after
+start, which are retried after 30 seconds; stale schedules are not used for
+alerts. BLS only answers requests whose User-Agent carries the operator contact
+in CALENDAR_CONTACT_EMAIL; no other provider is sent that contact.
 """
 
 from __future__ import annotations
@@ -45,6 +46,13 @@ _SOURCE_LOCKS = [threading.Lock() for _ in range(32)]
 _SUCCESS_TTL = 6 * 60 * 60
 _FAILURE_TTL = 15 * 60
 _BLOCKED_TTL = 60 * 60
+# A restarted container can fail its first outbound connections for a few
+# seconds while its network settles. Transport failures in this window retry
+# soon instead of hiding events for the whole failure backoff. The clock starts
+# when this module is first imported, i.e. no later than the first calendar load.
+_STARTED = time.monotonic()
+_WARMUP = 120
+_WARMUP_RETRY_TTL = 30
 CONTACT_ENV = "CALENDAR_CONTACT_EMAIL"
 _EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
 # (connect, read) timeout, total seconds across attempts, attempts. BEA's small
@@ -322,6 +330,10 @@ def _load(name: str, url: str, parser: Callable[[str], list[dict]]) -> tuple[lis
                 message = "일정 제공처에 연결하지 못했습니다. 잠시 후 다시 조회합니다."
             else:
                 message = str(exc)[:180] if isinstance(exc, ValueError) else "일정 형식을 읽지 못했습니다."
+            # HTTP and format errors are the provider's answer and keep their
+            # backoff; only a request started during warm-up retries early.
+            if isinstance(exc, (requests.ConnectionError, requests.Timeout, TimeoutError)) and now - _STARTED < _WARMUP:
+                ttl = _WARMUP_RETRY_TTL
             status = {"name": name, "url": url, "status": "error", "message": message}
         status["checkedAt"] = fetched
         status["nextRefreshAt"] = (datetime.fromisoformat(fetched) + timedelta(seconds=ttl)).isoformat()

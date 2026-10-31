@@ -1,0 +1,2 @@
+# wrangler dev의 로컬 시크릿(텔레그램 토큰 등)
+.dev.vars*

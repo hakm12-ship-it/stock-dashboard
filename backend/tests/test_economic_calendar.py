@@ -1,6 +1,6 @@
 """Offline calendar fixtures cover DST, uncertainty, revisions and failures."""
 
-from datetime import date
+from datetime import date, datetime
 from concurrent.futures import ThreadPoolExecutor
 import threading
 import unittest
@@ -37,6 +37,17 @@ NYFED = '''<p>key economic data releases (all Eastern Time).</p><h2>October 2026
 <td><div>15<br><a href="https://www.example.com">Other release</a><br>(10:00)<br>
 <a href="https://www.bls.gov">Producer Price Index (PPI)</a><br>(08:30)</div></td></tr></table>
 <p>Dates and times are tentative and subject to immediate change.</p>'''
+
+
+def settled(test):
+    """Behave like a long-running process, whatever the fake clock reads."""
+    patcher = patch.object(C, "_STARTED", float("-inf"))
+    patcher.start()
+    test.addCleanup(patcher.stop)
+
+
+def backoff(status):
+    return (datetime.fromisoformat(status["nextRefreshAt"]) - datetime.fromisoformat(status["checkedAt"])).total_seconds()
 
 
 class ParsingTests(unittest.TestCase):
@@ -154,6 +165,7 @@ class ParsingTests(unittest.TestCase):
 class AggregationTests(unittest.TestCase):
     def setUp(self):
         C._CACHE.clear()
+        settled(self)
 
     def fixture(self, url):
         if url == C.FED_URL:
@@ -378,6 +390,7 @@ class FakeResponse:
 class NetworkPolicyTests(unittest.TestCase):
     def setUp(self):
         C._CACHE.clear()
+        settled(self)
 
     def test_contact_email_is_sent_only_to_bls(self):
         with patch.dict(C.os.environ, {C.CONTACT_ENV: " ops@example.org "}), \
@@ -459,6 +472,104 @@ class NetworkPolicyTests(unittest.TestCase):
         reset = C.requests.ConnectionError("connection reset")
         with patch.object(C.requests, "get", return_value=FakeResponse("BEGIN", stall=reset)):
             self.assertIn("연결하지 못했습니다", C._load("source", C.FED_URL, lambda payload: [])[1]["message"])
+
+
+class StartupRetryTests(unittest.TestCase):
+    """A restarted container's first connections can fail before its network settles."""
+    fixture = AggregationTests.fixture
+
+    def setUp(self):
+        C._CACHE.clear()
+        self.addCleanup(C._CACHE.clear)
+        started = patch.object(C, "_STARTED", 1000.0)
+        started.start()
+        self.addCleanup(started.stop)
+
+    def fails_until(self, error, url, at, ttl):
+        """Fail once at ``at``; the cached failure must expire exactly ``ttl`` later."""
+        C._CACHE.clear()
+        with patch.object(C.time, "monotonic", return_value=at) as clock, \
+                patch.object(C, "_download", side_effect=error) as fetch:
+            status = C._load("source", url, lambda payload: [])[1]
+            clock.return_value = at + ttl - 1
+            C._load("source", url, lambda payload: [])
+            self.assertEqual(fetch.call_count, 1)
+            clock.return_value = at + ttl + 1
+            C._load("source", url, lambda payload: [])
+            self.assertEqual(fetch.call_count, 2)
+        self.assertEqual(status["status"], "error")
+        self.assertEqual(backoff(status), ttl)
+        return status
+
+    def test_transport_failures_right_after_start_retry_within_a_minute(self):
+        self.assertLessEqual(C._WARMUP_RETRY_TTL, 60)
+        stalled = C.requests.ConnectionError(ReadTimeoutError(None, C.BLS_URL, "Read timed out."))
+        for error, message in ((C.requests.ConnectionError("refused"), "연결하지 못했습니다"),
+                               (C.requests.ConnectTimeout("dns"), "제한 시간"),
+                               (C.requests.ReadTimeout("slow"), "제한 시간"),
+                               (stalled, "제한 시간")):
+            with self.subTest(error=repr(error)):
+                # The last request that still counts as warm-up started 1 s before it ends.
+                for at in (1000, 1000 + C._WARMUP - 1):
+                    status = self.fails_until(error, C.BLS_URL, at, C._WARMUP_RETRY_TTL)
+                    self.assertIn(message, status["message"])
+
+    def test_provider_answers_and_steady_state_failures_keep_their_backoff(self):
+        def http(code):
+            response = C.requests.Response()
+            response.status_code = code
+            return C.requests.HTTPError(str(code), response=response)
+        fred = "https://fred.stlouisfed.org/releases/calendar?rid=10&y=2026"
+        for error, url, at, ttl in (
+                (http(403), C.BLS_URL, 1005, C._BLOCKED_TTL),
+                (http(429), "https://finance.yahoo.com/quote/AAPL/calendar/", 1005, C._BLOCKED_TTL),
+                (http(503), C.BEA_URL, 1005, C._FAILURE_TTL),
+                (ValueError("일정 형식이 변경되었습니다."), C.FED_URL, 1005, C._FAILURE_TTL),
+                # A source that keeps timing out after warm-up is not retried more often.
+                (C.requests.Timeout("slow"), fred, 1000 + C._WARMUP, C._FAILURE_TTL),
+                (C.requests.ConnectionError("refused"), fred, 1000 + C._WARMUP + 6 * 60 * 60, C._FAILURE_TTL)):
+            with self.subTest(error=repr(error), at=at):
+                self.fails_until(error, url, at, ttl)
+
+    def test_missing_bls_contact_is_not_retried_during_warm_up(self):
+        with patch.dict(C.os.environ, {C.CONTACT_ENV: ""}), patch.object(C.time, "monotonic", return_value=1005), \
+                patch.object(C.requests, "get") as fetch:
+            status = C._load("BLS", C.BLS_URL, lambda payload: [])[1]
+        fetch.assert_not_called()
+        self.assertIn(C.CONTACT_ENV, status["message"])
+        self.assertEqual(backoff(status), C._FAILURE_TTL)
+
+    def test_cold_start_outage_clears_on_the_next_request_after_the_retry_delay(self):
+        # 2026-10-31: seconds after a restart BLS, 한국은행 and every Yahoo page
+        # refused to connect, then answered normally from the same container.
+        ready = threading.Event()
+
+        def download(url):
+            if not ready.is_set() and any(host in url for host in (C.BLS_URL, "bok.or.kr", "finance.yahoo.com")):
+                raise C.requests.ConnectionError("Temporary failure in name resolution")
+            if "stlouisfed.org" in url:
+                self.fail("FRED must not be called when NY Fed succeeds")
+            return NYFED if "newyorkfed.org" in url else self.fixture(url)
+        month = (date(2026, 10, 1), date(2026, 10, 31))
+        with patch.object(C.time, "monotonic", return_value=1006) as clock, \
+                patch.object(C, "_download", side_effect=download) as fetch:
+            cold = C.get_calendar(*month)
+            failed = [s for s in cold["sources"] if s["status"] == "error"]
+            self.assertEqual(len(failed), 9)
+            self.assertTrue(all("연결하지 못했습니다" in s["message"] for s in failed))
+            self.assertTrue(all(backoff(s) == C._WARMUP_RETRY_TTL for s in failed))
+            self.assertTrue(all(backoff(s) == C._SUCCESS_TTL for s in cold["sources"] if s["status"] == "ok"))
+            ready.set()
+            clock.return_value += C._WARMUP_RETRY_TTL - 1
+            self.assertEqual(C.get_calendar(*month)["sources"], cold["sources"])
+            self.assertEqual(fetch.call_count, 12)
+            clock.return_value += 2
+            warm = C.get_calendar(*month)
+        # Only the nine failed sources are fetched again; BLS now makes NY Fed unnecessary.
+        self.assertEqual(fetch.call_count, 21)
+        self.assertEqual(len(warm["sources"]), 11)
+        self.assertTrue(all(s["status"] == "ok" for s in warm["sources"]))
+        self.assertEqual(len(warm["events"]), 10)
 
 
 if __name__ == "__main__":
