@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 from analysis.night_gap import closes_by_krx_open, night_gap_backtest
+from data import daum_stock
 from routers import night
 
 # KRX 휴장일(평일) — 월요일 하루, 목·금 연휴. perp는 이 동안에도 거래된다.
@@ -141,3 +142,37 @@ def test_router_feeds_close_keyed_candles_to_backtest():
     fetch.assert_called_once_with("xyz:SMSN", "1d", 200)
     assert result["samples"] == len(days) - 1
     assert result["correlation"] == pytest.approx(1.0)
+
+
+def test_night_quote_and_initial_extreme_use_the_same_settled_close():
+    # 11/24 SK하이닉스: 장후 가격 1,113,000원을 쓰면 -3% 돌파를 놓친다.
+    quote = {"symbolCode": "A000660", "isClosing": False, "afterMarketChangePrice": 45000,
+             "regularTradePrice": 1158000, "tradePrice": 1113000, "prevClosingPrice": 1085000}
+    mark_usd = 1117000.0 / 1400
+    candles = [{"t": 1000, "h": mark_usd, "l": mark_usd}]
+    with patch.object(daum_stock.requests, "get") as get, \
+            patch.object(night, "last_regular_close", daum_stock.last_regular_close.__wrapped__), \
+            patch.object(night, "cached_perp_prices", return_value={"xyz:SKHX": mark_usd}), \
+            patch.object(night, "load_fx", return_value=pd.DataFrame({"Close": [1400]})), \
+            patch.object(night, "cached_perp_candles", return_value=candles):
+        get.return_value.json.return_value = quote
+        actual = night.api_night_price("000660")
+        extreme = night.night_gap_extreme("000660", 1000)
+    assert actual["krxClose"] == 1158000
+    assert actual["gapPct"] == pytest.approx(-3.54, abs=0.01)
+    assert extreme == pytest.approx(actual["gapPct"])
+
+
+@pytest.mark.parametrize(("fields", "expected"), [
+    ({"isClosing": True, "regularTradePrice": 189400}, 189400),
+    ({"isClosing": False, "afterMarketChangePrice": 0, "regularTradePrice": 189400}, 189400),
+    ({"isClosing": False, "prevClosingPrice": 177500, "regularTradePrice": 193200}, 177500),
+    ({"isClosing": True, "regularTradePrice": None}, None),
+    ({"isClosing": True, "regularTradePrice": float("nan")}, None),
+    ({"isClosing": True, "regularTradePrice": -1}, None),
+    ({"symbolCode": "A000660", "isClosing": True, "regularTradePrice": 1158000}, None),
+])
+def test_regular_close_handles_open_sessions_and_invalid_data(fields, expected):
+    with patch.object(daum_stock.requests, "get") as get:
+        get.return_value.json.return_value = {"symbolCode": "A005930", "tradePrice": 182900, **fields}
+        assert daum_stock.last_regular_close.__wrapped__("005930") == expected

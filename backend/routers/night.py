@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from analysis.night_gap import closes_by_krx_open, night_gap_backtest
 from cache import ttl_cache
+from data.daum_stock import last_regular_close
 from data.hyperliquid import TICKER_TO_PERP
 from data.synthetic import SYNTHETIC
 from deps import (
@@ -30,10 +31,10 @@ def api_night_price(ticker: str):
     fx_last, _, _ = change_of(load_fx()["Close"].dropna())
     krw = usd * fx_last
 
-    # "1m"으로 맞춘다 — PERIOD_DAYS에 없는 키를 넘기면 조용히 90일로 떨어지고,
-    # load_last_krx_close("1m")와 캐시가 갈려 같은 데이터를 두 번 받는다.
-    krx_close = float(load(ticker, "1m")["Close"].dropna().iloc[-1])
-    gap_pct = (krw - krx_close) / krx_close * 100 if krx_close else 0
+    krx_close = last_regular_close(ticker)
+    if krx_close is None:
+        return {"available": False}
+    gap_pct = (krw - krx_close) / krx_close * 100
 
     return {
         "available": True,
@@ -56,12 +57,14 @@ def night_gap_extreme(ticker: str, since_ms: int) -> float | None:
         return None
     try:
         fx_last, _, _ = change_of(load_fx()["Close"].dropna())
-        krx_close = float(load(ticker, "1m")["Close"].dropna().iloc[-1])
+        krx_close = last_regular_close(ticker)
+        if krx_close is None:
+            return None
         # 15분봉 96개 = 24시간. 야간 구간(최대 16.5시간)을 덮는다.
         candles = cached_perp_candles(perp, "15m", 96)
     except Exception:  # noqa: BLE001
         return None
-    if not krx_close or not candles:
+    if not candles:
         return None
 
     gaps = []
