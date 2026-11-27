@@ -71,7 +71,7 @@ def run(browser, width):
     card.screenshot(path=str(OUT / f'my-day-{width}.png'))
     page.locator('.market-review summary').click()
     expect(page.locator('.market-review')).not_to_contain_text('거래일 갱신이 필요')  # 2027 is registered.
-    expect(page.locator('.market-review')).to_contain_text('2026-11-19 한국 특별 거래시간')
+    expect(page.locator('.market-review')).to_contain_text('등록 범위 정상')
     usage = page.locator('.usage-status')
     usage.get_by_role('button', name='호출량·운영 상태').click()
     expect(usage).to_contain_text('3 / 20회')

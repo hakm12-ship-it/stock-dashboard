@@ -59,7 +59,7 @@ export interface CalendarEvent {
 export interface CalendarSource {
   name: string
   url: string
-  status: 'ok' | 'error'
+  status: 'ok' | 'error' | 'published'
   message?: string
   checkedAt?: string
   dataAsOf?: string

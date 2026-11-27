@@ -35,6 +35,11 @@ BLS_URL = "https://www.bls.gov/schedule/news_release/bls.ics"
 BEA_URL = "https://www.bea.gov/news/schedule/ics/online-calendar-subscription.ics"
 BOK_URL = "https://www.bok.or.kr/portal/singl/crncyPolicyDrcMtg/listYear.do?menuNo=200755&mtgSe=A"
 NYFED_URL = "https://www.newyorkfed.org/research/calendars/i-{month}{year}.html"
+BOK_2027_NOTICE_URL = "https://www.bok.or.kr/portal/bbs/B0000502/view.do?menuNo=200690&nttId=11066075"
+# Last-resort dates from the published schedules. Live calendars still take priority.
+_BOK_2027_MEETINGS = ((1, 14), (2, 25), (4, 9), (5, 27), (7, 15), (8, 26), (10, 15), (11, 25))
+_BLS_2027_MONTHS = {1: (8, 13, 14), 2: (5, 11, 12)}  # Employment, CPI, PPI at 08:30 ET.
+BOK_TITLE = "한국은행 금융통화위원회 금리 결정"
 TICKERS = {"AAPL": "애플", "MSFT": "마이크로소프트", "GOOGL": "알파벳", "AMZN": "아마존", "META": "메타", "NVDA": "엔비디아", "TSLA": "테슬라"}
 _MONTHS = {name.lower(): i for i, name in enumerate(("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"), 1)}
 # One cold load submits about a dozen first-wave sources; the pool fits them in
@@ -223,7 +228,7 @@ def _parse_bok(payload: str, year: int, url: str) -> list[dict]:
         parts = re.search(r"(\d{1,2})\s*월\s*(\d{1,2})\s*일", _text(value))
         if parts:
             when = date(year, int(parts[1]), int(parts[2]))
-            events.append(_event("bok", "한국은행 금융통화위원회 금리 결정", "rates", "KR", when, "date_only", "한국은행", url,
+            events.append(_event("bok", BOK_TITLE, "rates", "KR", when, "date_only", "한국은행", url,
                                  description="공식 통화정책방향 결정회의 날짜입니다. 정확한 발표 시각은 미정입니다."))
     if not events:
         raise ValueError("한국은행 회의 일정을 읽지 못했습니다.")
@@ -347,6 +352,37 @@ def _load(name: str, url: str, parser: Callable[[str], list[dict]]) -> tuple[lis
         return deepcopy((events, status, fetched))
 
 
+def _published_schedule(start: date, end: date, live_events: list[dict], bls_failed: bool) -> tuple[list[dict], list[dict]]:
+    # A live release on a different day of the same month supersedes the published date.
+    # Compare against the full source results before clipping to the requested day range.
+    covered = {(event["date"][:7], event["title"]) for event in live_events}
+    events, sources = [], []
+    name = "한국은행 · 2027년 연간 공지"
+    for month, day in _BOK_2027_MEETINGS:
+        when = date(2027, month, day)
+        if start <= when <= end and (f"2027-{month:02}", BOK_TITLE) not in covered:
+            events.append(_event("bok", BOK_TITLE, "rates", "KR", when, "tentative", name, BOK_2027_NOTICE_URL,
+                                 description="2026년 10월 29일 공지 기준 회의 예정일입니다. 발표 시각은 미정이며 일정이 바뀔 수 있습니다."))
+    if events:
+        sources.append({"name": name, "url": BOK_2027_NOTICE_URL, "status": "published", "message": "2026년 10월 29일 연간 공지 기준"})
+    if bls_failed:
+        eastern = ZoneInfo("America/New_York")
+        for month, days in _BLS_2027_MONTHS.items():
+            name = f"BLS · 2027년 {month}월 공지"
+            url = f"https://www.bls.gov/schedule/2027/{month:02}_sched.htm"
+            previous_count = len(events)
+            summaries = ("Employment Situation", "Consumer Price Index", "Producer Price Index")
+            for day, summary in zip(days, summaries):
+                when = datetime(2027, month, day, 8, 30, tzinfo=eastern)
+                key, title = _indicator(summary)
+                if start <= when.date() <= end and (f"2027-{month:02}", title) not in covered:
+                    events.append(_event(key, title, "economic", "US", when, "tentative", name, url,
+                                         description="2026년 11월 9일 게시된 BLS 월간 일정 기준입니다. 최신 발표 시각은 원문에서 확인하세요."))
+            if len(events) > previous_count:
+                sources.append({"name": name, "url": url, "status": "published", "message": "2026년 11월 9일 월간 공지 기준"})
+    return events, sources
+
+
 def get_calendar(start: date, end: date) -> dict:
     """Return an inclusive Korean-date range (maximum 93 days).
 
@@ -371,7 +407,8 @@ def get_calendar(start: date, end: date) -> dict:
     # Start the BLS fallback as soon as BLS answers, while slower unrelated
     # sources are still loading, so a cold load is not the sum of their timeouts.
     backups = []
-    if futures[1].result()[1]["status"] == "error":
+    bls_failed = futures[1].result()[1]["status"] == "error"
+    if bls_failed:
         # One small official monthly page replaces the two annual FRED requests
         # that can time out in a data-centre environment. No FRED call is made
         # when the NY Fed covers the requested month successfully.
@@ -402,8 +439,10 @@ def get_calendar(start: date, end: date) -> dict:
             # October NY Fed page when FRED returns the entire year.
             backups.append(([e for e in source_events if (int(e["date"][:4]), int(e["date"][5:7])) in failed_months], status, fetched))
     results = [future.result() for future in futures] + backups
-    events = {event["id"]: event for source_events, _, _ in results for event in source_events if start.isoformat() <= event["date"] <= end.isoformat()}
+    live_events = [event for source_events, _, _ in results for event in source_events]
+    published_events, published_sources = _published_schedule(start, end, live_events, bls_failed)
+    events = {event["id"]: event for event in live_events + published_events if start.isoformat() <= event["date"] <= end.isoformat()}
     success_times = [fetched for _, status, fetched in results if status["status"] == "ok"]
     return {"events": sorted(events.values(), key=lambda e: (e["date"], e["startAt"] or "", e["title"])),
-            "sources": [status for _, status, _ in results],
+            "sources": [status for _, status, _ in results] + published_sources,
             "fetchedAt": min(success_times) if success_times else min(fetched for _, _, fetched in results), "timezone": "Asia/Seoul"}

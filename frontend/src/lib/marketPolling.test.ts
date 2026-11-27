@@ -37,6 +37,12 @@ test('KR polling continues for 30 minutes after the 15:30 close to fetch the clo
     assert.equal(shouldRefreshMarketQuery(key, new Date('2026-10-30T16:10:00+09:00')), false, JSON.stringify(key))
   }
 })
+test('KR special session shifts the polling window along with trading hours', () => {
+  const prices = ['prices', '005930']
+  assert.equal(shouldRefreshMarketQuery(prices, new Date('2026-11-19T09:30:00+09:00')), false)
+  assert.equal(shouldRefreshMarketQuery(prices, new Date('2026-11-19T16:45:00+09:00')), true)
+  assert.equal(shouldRefreshMarketQuery(prices, new Date('2026-11-19T17:00:00+09:00')), false)
+})
 test('US polling continues for 30 minutes after the 16:00 ET close', () => {
   const grace = new Date('2026-10-30T16:10:00-04:00')
   for (const key of [['prices', 'NVDA'], ['index', 'NASDAQ'], ['marketTop', 'up', 'NASDAQ'], ['watchlist', '005930,NVDA']]) {
@@ -55,7 +61,7 @@ test('no post-close polling on holidays, weekends or unconfirmed sessions', () =
   assert.equal(shouldRefreshMarketQuery(['index', 'NASDAQ'], new Date('2026-11-26T16:10:00-05:00')), false)
   assert.equal(shouldRefreshMarketQuery(['prices', '005930'], new Date('2026-10-31T15:40:00+09:00')), false)
   assert.equal(shouldRefreshMarketQuery(['prices', 'NVDA'], new Date('2026-10-31T16:10:00-04:00')), false)
-  assert.equal(shouldRefreshMarketQuery(['prices', '005930'], new Date('2026-11-19T15:40:00+09:00')), false)
+  assert.equal(shouldRefreshMarketQuery(['prices', '005930'], new Date('2027-11-18T15:40:00+09:00')), false)
 })
 test('a hidden tab notices a session that opened and closed while it was away', () => {
   // 장전(08:30)에 받아 둔 값으로 숨겨졌다가 장마감 뒤(16:30)에 돌아온 경우

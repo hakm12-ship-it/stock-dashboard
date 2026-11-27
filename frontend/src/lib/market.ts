@@ -1,5 +1,5 @@
 import type { Market } from '../data/tickers.ts'
-import { KR_HOLIDAYS, KR_HOURS_PENDING, MARKET_CALENDAR_COVERAGE, US_EARLY_CLOSES, US_HOLIDAYS } from './marketSchedule.ts'
+import { KR_HOLIDAYS, KR_HOURS_PENDING, KR_SPECIAL_HOURS, MARKET_CALENDAR_COVERAGE, US_EARLY_CLOSES, US_HOLIDAYS } from './marketSchedule.ts'
 
 // 포맷터 생성이 formatToParts보다 훨씬 비싸서 시간대별로 하나만 만들어 재사용한다
 // (탭 복귀 시 marketsPolledSince가 며칠치를 15분 표본으로 훑는다).
@@ -53,8 +53,9 @@ export function marketStatus(market: Market, now = new Date()): MarketStatus {
     open: false, label: '거래시간 확인 필요', uncertain: true, detail: '특별 거래일입니다. 거래소의 변경 시간 공지를 확인해 주세요. 자동 새로고침은 대기합니다.',
   }
   const early = market === 'US' && US_EARLY_CLOSES.has(date)
-  const openM = market === 'KR' ? 9 * 60 : 9 * 60 + 30
-  const closeM = market === 'KR' ? 15 * 60 + 30 : early ? 13 * 60 : 16 * 60
+  const [openM, closeM] = market === 'KR'
+    ? KR_SPECIAL_HOURS[date] ?? [9 * 60, 15 * 60 + 30]
+    : [9 * 60 + 30, early ? 13 * 60 : 16 * 60]
   const open = mins >= openM && mins < closeM
   return {
     open,

@@ -13,6 +13,7 @@ import {
 const categories = Object.entries(CALENDAR_CATEGORIES) as [CalendarCategory, string][]
 const weekdays = ['일', '월', '화', '수', '목', '금', '토']
 const scopes = Object.entries(CALENDAR_SCOPES) as [CalendarScope, string][]
+const sourceStatus = { ok: '확인됨', error: '조회 실패', published: '공개 일정' } as const
 type OpenCalendarTicker = (ticker: FocusTicker, view: CalendarTickerView) => void
 
 function SourceDetails({ source }: { source: CalendarSource }) {
@@ -22,10 +23,10 @@ function SourceDetails({ source }: { source: CalendarSource }) {
     <li>
       <div className="calendar-source-heading">
         <a href={source.url} target="_blank" rel="noreferrer">{source.name}<Icon name="external" size={13} /></a>
-        <span className={source.status === 'error' ? 'is-error' : ''}>{source.status === 'ok' ? '확인됨' : '조회 실패'}</span>
+        <span className={source.status === 'error' ? 'is-error' : ''}>{sourceStatus[source.status]}</span>
       </div>
       {checked && <p className="calendar-source-detail">{source.status === 'ok' ? '자료 확인' : '마지막 시도'} {checked}</p>}
-      {source.status === 'error' && source.message && <p className="calendar-source-detail">{source.message}</p>}
+      {source.message && <p className="calendar-source-detail">{source.message}</p>}
       {next && <p className="calendar-source-detail">{source.status === 'ok' ? '원문 갱신 가능' : '재시도 가능'} {next} 이후</p>}
     </li>
   )
@@ -219,7 +220,7 @@ export default function CalendarView({ tickers, holdings, onOpenTicker }: {
               <div className="calendar-empty" role="alert"><h3>일정을 불러오지 못했어요</h3><p>잠시 후 다시 조회해 주세요.</p><button className="button button-quiet" onClick={() => void calendar.refetch()}>다시 조회</button></div>
             ) : (
               <>
-                {(failed.length > 0 || calendar.isError) && <div className="calendar-source-warning" role="status"><strong>일부 출처를 확인하지 못했어요.</strong><p>{failed.map((source) => source.name).join(', ') || '최근 일정 갱신 실패'} · 아래에는 현재 확인된 일정만 표시됩니다.</p><button className="text-action" onClick={() => void calendar.refetch()} disabled={calendar.isFetching}>{calendar.isFetching ? '조회 중…' : '다시 조회'}</button></div>}
+                {(failed.length > 0 || calendar.isError) && <div className="calendar-source-warning" role="status"><strong>일부 출처를 확인하지 못했어요.</strong><p>{failed.map((source) => source.name).join(', ') || '최근 일정 갱신 실패'}</p><button className="text-action" onClick={() => void calendar.refetch()} disabled={calendar.isFetching}>{calendar.isFetching ? '조회 중…' : '다시 조회'}</button></div>}
                 <p className="calendar-agenda-count" role="status">{CALENDAR_SCOPES[scope]} · {CALENDAR_CATEGORIES[category as CalendarCategory] ?? '모든 종류'} · 확인된 일정 {visibleCount}개</p>
                 {visibleDays.length > 0 ? visibleDays.map(([date, daily]) => <section key={date} className="calendar-agenda-day" aria-label={dateLabel(date)}><h3 className="calendar-date-heading">{dateLabel(date)}{date === today && <span>오늘</span>}</h3><ul>{daily.map((event) => <EventCard key={event.id} event={event} onOpenTicker={onOpenTicker} />)}</ul></section>) : <div className="calendar-empty"><Icon name="calendar" size={28} /><h3>확인된 일정이 없어요</h3><p>{failed.length > 0 ? '조회하지 못한 출처에 일정이 있을 수 있어요. 잠시 후 다시 확인해 주세요.' : selectedDate ? '다른 날짜나 이달 전체 일정을 살펴보세요.' : '다른 달이나 일정 종류를 선택해 보세요.'}</p></div>}
               </>

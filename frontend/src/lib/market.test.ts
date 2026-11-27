@@ -39,6 +39,14 @@ test('KR session includes opening and excludes closing minute', () => {
   assert.equal(marketStatus('KR', new Date('2026-10-06T09:00:00+09:00')).open, true)
   assert.equal(marketStatus('KR', new Date('2026-10-06T15:30:00+09:00')).open, false)
 })
+test('confirmed KR special sessions use the published opening and closing times', () => {
+  for (const [day, close] of [['2026-01-02', '15:30'], ['2026-11-19', '16:30']]) {
+    assert.equal(marketStatus('KR', new Date(`${day}T09:59:59+09:00`)).label, '개장 전')
+    assert.equal(marketStatus('KR', new Date(`${day}T10:00:00+09:00`)).open, true)
+    assert.equal(marketStatus('KR', new Date(`${day}T${close}:00+09:00`)).label, '장마감')
+  }
+  assert.equal(marketStatus('KR', new Date('2026-11-19T16:29:59+09:00')).open, true)
+})
 test('US early closes at 13:00 ET and observes July 3 holiday', () => {
   assert.equal(marketStatus('US', new Date('2026-11-27T17:59:59Z')).open, true)
   assert.equal(marketStatus('US', new Date('2026-11-27T18:00:00Z')).label, '조기마감')
@@ -55,7 +63,7 @@ test('US follows DST and Friday when already Saturday in Korea', () => {
 })
 test('unknown schedules and special hours never claim an open session', () => {
   assert.equal(marketStatus('KR', new Date('2028-01-03T10:00:00+09:00')).label, '거래일 확인 필요')
-  assert.equal(marketStatus('KR', new Date('2026-11-19T09:30:00+09:00')).open, false)
+  assert.equal(marketStatus('KR', new Date('2027-11-18T10:30:00+09:00')).uncertain, true)
   assert.equal(marketStatus('US', new Date('2030-01-02T15:00:00Z')).open, false)
   assert.equal(marketStatus('KR', new Date('invalid')).open, false)
 })

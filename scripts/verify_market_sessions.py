@@ -83,11 +83,17 @@ async def check():
             await page.clock.run_for(60_000)
         assert [params['tickers'][0] for path, params in requests if path == '/api/watchlist'] == ['IXIC,KORU,SOXL']
         requests.clear()
-        await page.clock.run_for(150_000)
+        async with page.expect_request('**/api/watchlist?**'):
+            await page.clock.run_for(150_000)
         await expect(page.locator('.session-item').nth(1)).to_contain_text('미국 조기마감 · 11.27 종가')
+        assert all(params['tickers'][0] == 'IXIC,KORU,SOXL' for path, params in requests if path == '/api/watchlist')
+        await page.clock.run_for(30 * 60_000)
+        await page.wait_for_load_state('networkidle')
+        requests.clear()
+        await page.clock.run_for(61_000)
         assert not [path for path, _ in requests if path in ['/api/watchlist', '/api/index', '/api/prices']], requests
         assert not errors, errors
-        print('PASS early close: US refresh before 13:00 ET, no regular-market refresh after close, label updates')
+        print('PASS early close: US refreshes during the closing-price window and stops after 13:30 ET')
         await context.close()
 
         context, page, requests, errors, blocked = await scenario(browser, '2028-01-03T02:00:00Z', '2028-01-03')

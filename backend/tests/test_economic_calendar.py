@@ -236,6 +236,38 @@ class AggregationTests(unittest.TestCase):
         self.assertTrue(fred)
         self.assertTrue(all(e["date"].startswith("2026-11") for e in fred))
 
+    def test_published_schedules_fill_unavailable_january_and_february_2027(self):
+        def partial(url):
+            if url == C.BLS_URL or "newyorkfed.org" in url or "stlouisfed.org" in url:
+                raise C.requests.Timeout("unavailable")
+            return self.fixture(url)
+        with patch.object(C, "_download", side_effect=partial):
+            calendar = C.get_calendar(date(2027, 1, 1), date(2027, 2, 28))
+        published = {source["url"] for source in calendar["sources"] if source["status"] == "published"}
+        self.assertEqual(len(published), 3)
+        events = [event for event in calendar["events"] if event["sourceUrl"] in published]
+        self.assertEqual([event["date"] for event in events], [
+            "2027-01-08", "2027-01-13", "2027-01-14", "2027-01-14",
+            "2027-02-05", "2027-02-11", "2027-02-12", "2027-02-25",
+        ])
+        self.assertTrue(all(event["timeStatus"] == "tentative" for event in events))
+        self.assertTrue(all(event["startAt"] is None for event in events if event["country"] == "KR"))
+        self.assertEqual(events[0]["startAt"], "2027-01-08T13:30:00+00:00")
+
+    def test_live_rescheduled_dates_suppress_published_dates_outside_the_query_range(self):
+        def partial(url):
+            if url == C.BLS_URL:
+                raise C.requests.Timeout("unavailable")
+            if "newyorkfed.org" in url:
+                return NYFED.replace("October 2026", "January 2027").replace(">14<br>", ">15<br>")
+            if "bok.or.kr" in url:
+                return BOK.replace("2026", "2027").replace("10월 22일", "1월 15일")
+            return self.fixture(url)
+        with patch.object(C, "_download", side_effect=partial):
+            calendar = C.get_calendar(date(2027, 1, 13), date(2027, 1, 14))
+        self.assertEqual(calendar["events"], [])
+        self.assertNotIn("published", [source["status"] for source in calendar["sources"]])
+
     def test_successful_refresh_updates_date_after_ttl_and_cached_failures_keep_original_check_time(self):
         with patch.object(C.time, "monotonic", return_value=100) as clock:
             with patch.object(C, "_download", side_effect=[YAHOO, YAHOO.replace("Oct 29, 2026", "Oct 30, 2026")]) as fetch:
